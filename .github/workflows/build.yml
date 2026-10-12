@@ -3,7 +3,7 @@ name: Build and Release Desktop App
 on:
   push:
     tags:
-      - 'v*' # Triggers automatically when you push a version tag like v1.0.0
+      - 'v*'
 
 jobs:
   release:
@@ -40,6 +40,7 @@ jobs:
             out/**/*.dmg
             out/**/*.zip
             out/**/*.deb
+          fail_on_unmatched_files: false
           draft: false
           prerelease: false
         env:
