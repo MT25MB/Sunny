@@ -1,7 +1,7 @@
-module.exports = {
+export default {
   packagerConfig: {
     name: 'Sunny',
-    executableName: 'Sunny',
+    executableName: 'sunny-desktop',
     icon: 'public/assets/mascot',
     asar: true,
     asarUnpack: [
@@ -9,6 +9,7 @@ module.exports = {
       'node_modules/@huggingface/transformers/**',
     ],
     extraResource: ['public/assets/mascot.png'],
+    osxSign: undefined,
     ignore: [
       /^\/src\/main\//,
       /^\/\.bolt$/,
@@ -57,7 +58,6 @@ module.exports = {
           name: 'sunny',
           maintainer: 'Sunny',
           homepage: 'https://sunny.app',
-          icon: 'public/assets/mascot.png',
         },
       },
     },
