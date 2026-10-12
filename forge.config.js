@@ -38,6 +38,7 @@ export default {
       config: {
         name: 'Sunny',
         setupExe: 'Sunny-Setup.exe',
+        authors: 'Sunny', // <-- Required by Windows NuGet package builder
       },
     },
     {
