@@ -1,0 +1,36 @@
+:root{--background:oklch(0.97 0.02 85);--foreground:oklch(0.22 0.03 50);--card:oklch(1 0.005 85);--muted-foreground:oklch(0.42 0.03 50);--primary:oklch(0.72 0.17 60);--primary-foreground:oklch(0.2 0.03 50);--success:oklch(0.55 0.11 185);--border:oklch(0.85 0.03 70);--ring:oklch(0.55 0.15 50)}
+*{box-sizing:border-box;margin:0}
+body{font-family:"Atkinson Hyperlegible",system-ui,sans-serif;color:var(--foreground);min-height:100vh;display:flex;align-items:flex-end;justify-content:flex-end;padding:1.5rem;background:radial-gradient(circle at 30% 20%,oklch(0.88 0.06 230),oklch(0.7 0.08 240))}
+button,textarea{font:inherit;color:inherit;cursor:pointer;border:none}
+svg{width:1.5rem;height:1.5rem;flex-shrink:0}
+.display{font-family:"Nunito",system-ui,sans-serif;font-weight:800}
+.widget-window{width:100%;max-width:440px;background:var(--card);border:3px solid var(--border);border-radius:1.75rem;overflow:hidden;box-shadow:0 30px 60px -20px oklch(0.25 0.05 250/.55)}
+.window-bar{display:flex;justify-content:space-between;align-items:center;padding:.75rem 1.5rem;background:var(--primary);color:var(--primary-foreground);font-size:1.25rem}
+.dots{display:flex;gap:.5rem}.dot{width:.9rem;height:.9rem;border-radius:9999px;background:oklch(0.2 0.03 50/.35)}
+.content{display:flex;flex-direction:column;gap:1.25rem;padding:1.5rem}
+.top{display:flex;align-items:center;gap:1rem}.mascot-wrap{position:relative;flex-shrink:0}
+.mascot{width:6rem;height:6rem;animation:bob 3s ease-in-out infinite}.mascot.listening{animation:mpulse 1s ease-in-out infinite}
+h1{font-size:1.875rem;line-height:1.2}h2{font-size:1.5rem}
+.thought-bubble{position:absolute;top:-1.25rem;right:-1.5rem;background:var(--card);border:3px solid var(--border);border-radius:9999px;padding:.25rem 1rem;font-size:2rem;font-weight:800;animation:pulse 1.5s infinite}
+.mic-button{display:flex;align-items:center;justify-content:center;gap:.75rem;width:100%;min-height:5.5rem;border-radius:9999px;font-size:1.6rem;font-weight:800;background:var(--primary);color:var(--primary-foreground);box-shadow:0 0 0 6px oklch(0.72 0.17 60/.25),0 0 30px oklch(0.75 0.17 60/.7);transition:transform .2s}
+.mic-button svg{width:2.5rem;height:2.5rem}.mic-button:hover{transform:scale(1.02)}
+.mic-active{animation:mic-glow 1.2s ease-in-out infinite}
+form{display:flex;flex-direction:column;gap:.75rem}
+.big-input{width:100%;font-size:18pt;padding:1.25rem;border-radius:1.25rem;resize:none;border:3px solid var(--border);background:var(--background);cursor:text}
+.big-input::placeholder{color:var(--muted-foreground)}.big-input:focus{outline:4px solid var(--ring);outline-offset:2px}
+.ask-button{display:inline-flex;align-items:center;justify-content:center;gap:.75rem;font-size:1.6rem;font-weight:800;padding:.75rem 2rem;min-height:4rem;border-radius:9999px;background:var(--foreground);color:var(--card)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.chip{display:flex;align-items:center;justify-content:center;gap:.75rem;min-height:4rem;font-size:1.2rem;font-weight:700;border-radius:1.25rem;border:3px solid var(--border);background:var(--background);width:100%}
+.chip:hover{border-color:var(--primary)}
+button:disabled{opacity:.5;cursor:default}
+ol{list-style:none;padding:0;margin-top:.75rem;display:flex;flex-direction:column;gap:.75rem}
+.step{display:flex;align-items:center;gap:1.25rem;padding:.75rem 1rem;border-radius:1rem;border:3px solid var(--border);font-size:1.25rem;font-weight:700}
+.step-done{border-color:var(--success);color:var(--success)}.step-active{border-color:var(--primary);background:oklch(0.72 0.17 60/.12)}.step-todo{color:var(--muted-foreground)}
+.step-icon{display:grid;place-items:center;width:2.75rem;height:2.75rem;flex-shrink:0;border-radius:9999px;border:3px solid currentColor;font-size:1.5rem;font-weight:800}
+.spinner{width:1.75rem;height:1.75rem;border-radius:9999px;border:4px solid var(--primary);border-top-color:transparent;animation:spin 1s linear infinite}
+.again{margin-top:.75rem}.hidden{display:none!important}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+@keyframes mic-glow{0%,100%{box-shadow:0 0 0 6px oklch(0.72 0.17 60/.35),0 0 30px oklch(0.75 0.17 60/.8)}50%{box-shadow:0 0 0 16px oklch(0.72 0.17 60/.12),0 0 60px oklch(0.75 0.17 60/1)}}
+@keyframes bob{50%{transform:translateY(-10px)}}@keyframes mpulse{50%{transform:scale(1.08)}}
+@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{50%{opacity:.5}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important}}
