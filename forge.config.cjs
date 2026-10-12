@@ -9,6 +9,8 @@ module.exports = {
       'node_modules/@huggingface/transformers/**',
     ],
     extraResource: ['public/assets/mascot.png'],
+    // Ensure code signing is disabled/bypassed for unsigned CI builds
+    osxSign: undefined,
     ignore: [
       /^\/src\/main\//,
       /^\/\.bolt$/,
@@ -57,7 +59,6 @@ module.exports = {
           name: 'sunny',
           maintainer: 'Sunny',
           homepage: 'https://sunny.app',
-          icon: 'public/assets/mascot.png',
         },
       },
     },
