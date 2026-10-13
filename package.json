@@ -3,9 +3,8 @@
   "private": true,
   "version": "1.0.0",
   "description": "A friendly, accessible AI desktop assistant designed to help seniors navigate computers easily using voice and text.",
-  "main": ".vite/build/main.js",
-  "type": "module",
   "main": "src/electron/main.cjs",
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -27,11 +26,11 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^7.4.0",
-    "@electron-forge/maker-deb": "^7.4.0",
-    "@electron-forge/maker-dmg": "^7.4.0",
-    "@electron-forge/maker-squirrel": "^7.4.0",
-    "@electron-forge/maker-zip": "^7.4.0",
+    "@electron-forge/cli": "^8.0.1",
+    "@electron-forge/maker-deb": "^8.0.1",
+    "@electron-forge/maker-dmg": "^8.0.1",
+    "@electron-forge/maker-squirrel": "^8.0.1",
+    "@electron-forge/maker-zip": "^8.0.1",
     "@eslint/js": "^9.9.1",
     "@nut-tree-fork/nut-js": "^4.2.6",
     "@types/react": "^18.3.5",
