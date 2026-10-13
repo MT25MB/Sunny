@@ -111,10 +111,24 @@ async function executeActions(actions) {
         if (cmd.startsWith('http') || cmd.startsWith('mailto')) {
           shell.openExternal(cmd);
         } else {
-          const { exec } = require('node:child_process');
-          exec(cmd, (err) => {
-            if (err) throw new Error(`Could not open ${action.app}.`);
-          });
+                    const { execFile } = require('node:child_process');
+          const { promisify } = require('node:util');
+          const execFileAsync = promisify(execFile);
+
+          // Parse command safely (no shell)
+          const parts = cmd.split(b" ");
+          const cmdName = parts[0];
+          const args = parts.slice(1);
+
+          try {
+            await execFileAsync(cmdName, args, { timeout: 10000 });
+          } catch (err) {
+            throw new Error(Could not open : );
+          }
+        }
+      } else {
+        throw new Error(Sunny does not know how to open "".);
+      });
         }
       } else {
         throw new Error(`Sunny does not know how to open "${action.app}".`);

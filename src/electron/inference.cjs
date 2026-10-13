@@ -8,6 +8,7 @@ let modelStatus = 'not-downloaded';
 let modelProgress = 0;
 let statusMessage = 'Model not loaded yet.';
 let progressCallback = null;
+let initPromise = null;
 
 const MODEL_ID = 'onnx-community/moondream2.text_model-ONNX';
 const MODEL_DTYPE = 'q4';
@@ -58,7 +59,10 @@ async function loadTransformers() {
 
 async function initModel(onProgress) {
   if (pipeline && modelStatus === 'ready') return pipeline;
-  progressCallback = onProgress || null;
+  if (initPromise) return initPromise;
+  
+  initPromise = (async () => {
+    progressCallback = onProgress || null;
   modelStatus = 'downloading';
   modelProgress = 0;
   statusMessage = 'Setting up your assistant... This happens only once!';
@@ -96,6 +100,15 @@ async function initModel(onProgress) {
     statusMessage = 'Could not download the vision model. Please check your internet connection and restart.';
     if (progressCallback) progressCallback({ status: modelStatus, progress: 0, message: statusMessage });
     throw err;
+  } finally {
+    initPromise = null;
+  }
+})();
+  
+  try {
+    return await initPromise;
+  } finally {
+    initPromise = null;
   }
 }
 
@@ -128,6 +141,20 @@ async function runInference(prompt, imageBase64) {
   }
 }
 
+// Sensitive patterns to redact from logs
+const SENSITIVE_PATTERNS = [
+  /sk-[a-zA-Z0-9]{32,}/g,
+  /sk-ant-[a-zA-Z0-9_-]{95}/g,
+  /gsk_[a-zA-Z0-9]{32,}/g,
+  /Bearer\s+[a-zA-Z0-9_-]{20,}/g,
+  /password["']?\s*[:=]\s*["']?[^"'\s]+/gi,
+];
+
+function sanitizeForLog(obj) {
+  const str = JSON.stringify(obj, null, 2);
+  return SENSITIVE_PATTERNS.reduce((s, p) => s.replace(p, '[REDACTED]'), str);
+}
+
 function writeDebugLog(entry) {
   ensureLogDirs();
   const logFile = path.join(getLogDir(), 'task-history.json');
@@ -141,7 +168,8 @@ function writeDebugLog(entry) {
   } catch {
     logs = [];
   }
-  logs.push(entry);
+  const sanitized = JSON.parse(sanitizeForLog(entry));
+  logs.push(sanitized);
   fs.writeFileSync(logFile, JSON.stringify(logs, null, 2), 'utf-8');
 }
 
