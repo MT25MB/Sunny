@@ -84,10 +84,14 @@ const electronAPI: ElectronAPI = {
   /**
    * Validate and acknowledge a spoken notification. The renderer performs the
    * actual speech so the platform text-to-speech voices are used.
+   *
+   * Accepts either a bare message string or a full parameter object.
    */
-  speakNotification: async (params: SpeakNotificationParams) => {
+  speakNotification: async (input: string | SpeakNotificationParams) => {
+    const params: SpeakNotificationParams = typeof input === 'string' ? { message: input } : input;
+
     if (!params || typeof params !== 'object' || Array.isArray(params)) {
-      throw new Error('speakNotification requires an object with a message.');
+      throw new Error('speakNotification requires a message string or an object with a message.');
     }
     if (typeof params.message !== 'string' || params.message.trim() === '') {
       throw new Error('Notification message must be a non-empty string.');

@@ -52,6 +52,25 @@ export interface SystemStatus extends SystemRecommendations {
   timestamp: string;
   success: boolean;
   toolName: string;
+
+  /**
+   * Simple summary accessors.
+   *
+   * These mirror the detail blocks below in a flat, easy-to-read form, so a
+   * caller that only needs "what's the battery and are we online" can write
+   * `status.batteryLevel` and `status.isOnline` instead of reaching into the
+   * nested objects.
+   *
+   * Note: a flat `battery: number` field is impossible here because `battery`
+   * below is the structured `BatteryInfo`. Use `batteryLevel` for the plain
+   * percentage, or `battery.batteryPercent` — they are the same value.
+   */
+  /** Battery percentage 0–100, or `null` when the machine has no battery. */
+  batteryLevel: number | null;
+  /** True when the internet has been verified reachable. */
+  isOnline: boolean;
+
+  /** Structured battery detail. `batteryPercent` equals `batteryLevel`. */
   battery: BatteryInfo;
   wifi: WifiInfo;
   system: SystemInfo;
@@ -95,7 +114,12 @@ export interface ElectronAPI {
   /**
    * Validate and acknowledge a spoken notification. The renderer performs the
    * actual speech so the platform voices are used.
+   *
+   * Both call forms are supported:
+   *   `speakNotification('Dinner is ready')`
+   *   `speakNotification({ message: 'Dinner is ready', priority: 'high' })`
    */
+  speakNotification(message: string): Promise<void>;
   speakNotification(params: SpeakNotificationParams): Promise<void>;
 
   /**

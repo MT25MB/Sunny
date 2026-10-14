@@ -72,12 +72,16 @@ const electronAPI = {
 
   /**
    * Ask the main process to validate and acknowledge a spoken notification.
-   * @param {{ message: string, priority?: string, repeat?: number }} params
+   * Accepts either a bare message string or a { message, priority, repeat }
+   * object, matching the overloaded ElectronAPI type.
+   * @param {string|{message: string, priority?: string, repeat?: number}} input
    * @returns {Promise<void>}
    */
-  speakNotification: async (params) => {
+  speakNotification: async (input) => {
+    const params = typeof input === 'string' ? { message: input } : input;
+
     if (!params || typeof params !== 'object' || Array.isArray(params)) {
-      throw new Error('speakNotification requires an object with a message.');
+      throw new Error('speakNotification requires a message string or an object with a message.');
     }
     if (typeof params.message !== 'string' || params.message.trim() === '') {
       throw new Error('Notification message must be a non-empty string.');

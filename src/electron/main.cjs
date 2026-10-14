@@ -400,6 +400,9 @@ async function buildSystemStatus() {
     timestamp: new Date().toISOString(),
     success: true,
     toolName: 'get_system_status',
+    // Flat summary accessors, mirrored from the detail blocks below.
+    batteryLevel: battery.batteryPercent,
+    isOnline: internet.reachable,
     ...base,
     recommendations: buildRecommendations(base),
     userFriendlyMessage: buildUserFriendlyMessage(base),
