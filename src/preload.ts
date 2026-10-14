@@ -27,6 +27,18 @@ import type {
   ElectronAPI,
   SpeakNotificationParams,
   SystemStatus,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  Recipe,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  MedicationReminder,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  DailyDigest,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  SearchRecipeParams,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  DailyDigestParams,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  ScheduleMedicationParams,
 } from './types/electron';
 
 // ============================================================================
@@ -78,6 +90,66 @@ const electronAPI: ElectronAPI = {
   },
 
   // -------------------------------------------------------------------------
+  // Recipe search
+  // -------------------------------------------------------------------------
+
+  /**
+   * Search for recipes by query.
+   * @param {{query: string, maxResults?: number}} params
+   * @returns {Promise<{recipes: Array<{id: string, title: string, imageUrl?: string, ingredients: string[], instructions: string[], servings: number, prepTimeMinutes: number, cookTimeMinutes: number, sourceUrl?: string}>}>}
+   */
+  searchRecipe: async (params) => {
+    if (!params || typeof params !== 'object' || Array.isArray(params)) {
+      throw new Error('searchRecipe requires an object with a query.');
+    }
+    if (typeof params.query !== 'string' || params.query.trim() === '') {
+      throw new Error('Recipe query must be a non-empty string.');
+    }
+    if (params.maxResults !== undefined && (!Number.isInteger(params.maxResults) || params.maxResults < 1 || params.maxResults > 10)) {
+      throw new Error('maxResults must be a whole number between 1 and 10.');
+    }
+    return ipcRenderer.invoke('sunny:search-recipe', params);
+  },
+
+  // -------------------------------------------------------------------------
+  // Daily digest
+  // -------------------------------------------------------------------------
+
+  /**
+   * Get daily weather and news digest.
+   * @param {{location?: string, newsCount?: number}} params
+   * @returns {Promise<{weather: {temperature: number, condition: string, location: string}, news: Array<{title: string, summary: string, url: string}>, date: string}>}
+   */
+  getDailyDigest: async (params) => {
+    if (params !== undefined && (params === null || typeof params !== 'object' || Array.isArray(params))) {
+      throw new Error('getDailyDigest requires an object.');
+    }
+    return ipcRenderer.invoke('sunny:get-daily-digest', params || {});
+  },
+
+  // -------------------------------------------------------------------------
+  // Medication reminders
+  // -------------------------------------------------------------------------
+
+  /**
+   * Schedule a medication reminder.
+   * @param {{pillName: string, timeString: string}} params - timeString in HH:MM format (24-hour)
+   * @returns {Promise<{success: boolean, reminderId: string}>}
+   */
+  scheduleMedicationReminder: async (params) => {
+    if (!params || typeof params !== 'object' || Array.isArray(params)) {
+      throw new Error('scheduleMedicationReminder requires an object with pillName and timeString.');
+    }
+    if (typeof params.pillName !== 'string' || params.pillName.trim() === '') {
+      throw new Error('pillName must be a non-empty string.');
+    }
+    if (typeof params.timeString !== 'string' || !/^([01]\d|2[0-3]):([0-5]\d)$/.test(params.timeString)) {
+      throw new Error('timeString must be in HH:MM format (24-hour).');
+    }
+    return ipcRenderer.invoke('sunny:schedule-medication-reminder', params);
+  },
+
+  // -------------------------------------------------------------------------
   // Spoken notifications
   // -------------------------------------------------------------------------
 
@@ -110,6 +182,12 @@ const electronAPI: ElectronAPI = {
   onModelProgress: (callback) =>
     createListener<{ status: string; progress: number; message: string }>('sunny:model-progress', callback),
 
+  onMedicationReminder: (callback) => createListener<MedicationReminder>('sunny:medication-reminder-triggered', callback),
+
+  onMedicationReminderAdded: (callback) => createListener<MedicationReminder>('sunny:medication-reminder-added', callback),
+
+  onCookingStepChange: (callback) => createListener<{ stepIndex: number; totalSteps: number; instruction: string }>('sunny:cooking-step-change', callback),
+
   // -------------------------------------------------------------------------
   // Utility methods
   // -------------------------------------------------------------------------
@@ -128,7 +206,7 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke('sunny:sanitize-content', text) as Promise<string>;
   },
 
-  listTools: () => ['get_system_status', 'speak_notification'],
+  listTools: () => ['get_system_status', 'speak_notification', 'search_recipe', 'get_daily_digest', 'schedule_medication_reminder'],
 
   // -------------------------------------------------------------------------
   // Static metadata (resolved at preload time)

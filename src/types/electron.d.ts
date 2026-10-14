@@ -11,7 +11,7 @@
  * working.
  */
 
-/** Battery state. `batteryPercent` is `null` on desktops with no battery. */
+ /** Battery state. `batteryPercent` is `null` on desktops with no battery. */
 export interface BatteryInfo {
   batteryPercent: number | null;
   isCharging: boolean;
@@ -98,7 +98,70 @@ export interface SpeakNotificationParams {
 export type Unsubscribe = () => void;
 
 /** Names of the tools the main process is willing to run. */
-export type SunnyToolName = 'get_system_status' | 'speak_notification';
+export type SunnyToolName = 'get_system_status' | 'speak_notification' | 'search_recipe' | 'get_daily_digest' | 'schedule_medication_reminder';
+
+/** Recipe data structure */
+export interface Recipe {
+  id: string;
+  title: string;
+  imageUrl?: string;
+  ingredients: string[];
+  instructions: string[];
+  servings: number;
+  prepTimeMinutes: number;
+  cookTimeMinutes: number;
+  sourceUrl?: string;
+}
+
+/** Medication reminder data */
+export interface MedicationReminder {
+  id: string;
+  pillName: string;
+  timeString: string; // HH:MM format
+  enabled: boolean;
+  lastTaken?: string; // ISO timestamp
+  triggeredAt?: string; // ISO timestamp when reminder was triggered
+}
+
+/** Daily digest data */
+export interface DailyDigest {
+  weather: {
+    temperature: number;
+    condition: string;
+    location: string;
+  };
+  news: Array<{
+    title: string;
+    summary: string;
+    url: string;
+  }>;
+  date: string;
+}
+
+/** Cooking step data */
+export interface CookingStep {
+  stepIndex: number;
+  totalSteps: number;
+  instruction: string;
+}
+
+/** Medication reminder parameters */
+export interface ScheduleMedicationParams {
+  pillName: string;
+  timeString: string; // HH:MM format
+}
+
+/** Recipe search parameters */
+export interface SearchRecipeParams {
+  query: string;
+  maxResults?: number;
+}
+
+/** Daily digest parameters */
+export interface DailyDigestParams {
+  location?: string;
+  newsCount?: number;
+}
 
 /**
  * The IPC surface exposed to the renderer via the preload script.
@@ -153,6 +216,24 @@ export interface ElectronAPI {
 
   /** Synchronous tool-name list for code that cannot await. */
   listTools(): string[];
+
+  /** Search for recipes by query */
+  searchRecipe(params: SearchRecipeParams): Promise<{ recipes: Recipe[] }>;
+
+  /** Get daily weather and news digest */
+  getDailyDigest(params?: DailyDigestParams): Promise<DailyDigest>;
+
+  /** Schedule a medication reminder */
+  scheduleMedicationReminder(params: ScheduleMedicationParams): Promise<{ success: boolean; reminderId: string }>;
+
+  /** Subscribe to medication reminder notifications */
+  onMedicationReminder(callback: (reminder: MedicationReminder) => void): Unsubscribe;
+
+  /** Subscribe to medication reminder added events */
+  onMedicationReminderAdded(callback: (reminder: MedicationReminder) => void): Unsubscribe;
+
+  /** Subscribe to cooking mode step changes */
+  onCookingStepChange(callback: (step: { stepIndex: number; totalSteps: number; instruction: string }) => void): Unsubscribe;
 
   /** Host platform: 'win32' | 'darwin' | 'linux' | ... */
   readonly platform: NodeJS.Platform;

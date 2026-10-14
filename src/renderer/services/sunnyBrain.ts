@@ -1,4 +1,7 @@
 ﻿import type { ElectronAPI, SpeakNotificationParams, SystemStatus } from '@/types/electron';
+import type { Recipe, MedicationReminder, DailyDigest, 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  CookingStep } from '@/types/electron';
 
 /** Result of invoking a Sunny tool. `success: false` always carries `error`. */
 export interface ToolResult<T = unknown> {
@@ -173,6 +176,157 @@ class SunnyBrain {
         error: this.describeError(err),
       };
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Recipe search
+  // -------------------------------------------------------------------------
+
+  /**
+   * Search for recipes by query.
+   * @param query - Food or recipe name to search for
+   * @param maxResults - Maximum number of recipes to return (default 5, max 10)
+   * @returns Array of recipes with ingredients and step-by-step instructions
+   */
+  async fetchVerifiedRecipe(query: string, maxResults: number = 5): Promise<{ recipes: Recipe[] }> {
+    if (!window.electronAPI) {
+      throw new Error('Electron API is not available. Recipe search requires the Sunny desktop app.');
+    }
+    return window.electronAPI.searchRecipe({ query, maxResults });
+  }
+
+  // -------------------------------------------------------------------------
+  // Daily digest
+  // -------------------------------------------------------------------------
+
+  /**
+   * Get daily weather and news digest.
+   * @param location - Optional location for weather (default: auto-detect)
+   * @param newsCount - Number of news items to fetch (default 5, max 10)
+   * @returns Daily digest with weather and news
+   */
+  async getDailyDigest(location?: string, newsCount: number = 5): Promise<DailyDigest> {
+    if (!window.electronAPI) {
+      throw new Error('Electron API is not available. Daily digest requires the Sunny desktop app.');
+    }
+    return window.electronAPI.getDailyDigest({ location, newsCount });
+  }
+
+  // -------------------------------------------------------------------------
+  // Medication reminders
+  // -------------------------------------------------------------------------
+
+  /**
+   * Schedule a medication reminder.
+   * @param pillName - Name of the medication
+   * @param timeString - Time in HH:MM format (24-hour)
+   * @returns Object with success status and reminder ID
+   */
+  async scheduleMedicationReminder(pillName: string, timeString: string): Promise<{ success: boolean; reminderId: string }> {
+    if (!window.electronAPI) {
+      throw new Error('Electron API is not available. Medication reminders require the Sunny desktop app.');
+    }
+    return window.electronAPI.scheduleMedicationReminder({ pillName, timeString });
+  }
+
+  /**
+   * Subscribe to medication reminder notifications.
+   * @param callback - Called when a medication reminder is triggered
+   * @returns Unsubscribe function
+   */
+  onMedicationReminder(callback: (reminder: MedicationReminder) => void): () => void {
+    if (!window.electronAPI) {
+      return () => {};
+    }
+    return window.electronAPI.onMedicationReminder(callback);
+  }
+
+  /**
+   * Subscribe to medication reminder added events.
+   * @param callback - Called when a new medication reminder is added
+   * @returns Unsubscribe function
+   */
+  onMedicationReminderAdded(callback: (reminder: MedicationReminder) => void): () => void {
+    if (!window.electronAPI) {
+      return () => {};
+    }
+    return window.electronAPI.onMedicationReminderAdded(callback);
+  }
+
+  /**
+   * Mark a medication as taken.
+   * @param reminderId - ID of the reminder to mark as taken
+   * @returns Success status
+   */
+  async markMedicationTaken(reminderId: string): Promise<{ success: boolean }> {
+    if (!window.electronAPI) {
+      throw new Error('Electron API is not available.');
+    }
+    const result = await window.electronAPI.executeTool('medication_taken', { reminderId });
+    return { success: (result as { success: boolean }).success };
+  }
+
+  /**
+   * Get all medication reminders.
+   * @returns Array of medication reminders
+   */
+  async getMedicationReminders(): Promise<MedicationReminder[]> {
+    if (!window.electronAPI) {
+      throw new Error('Electron API is not available.');
+    }
+    const result = await window.electronAPI.executeTool('get_medication_reminders', {});
+    return (result as { success: boolean; reminders: MedicationReminder[] }).reminders || [];
+  }
+
+  /**
+   * Delete a medication reminder.
+   * @param reminderId - ID of the reminder to delete
+   * @returns Success status
+   */
+  async deleteMedicationReminder(reminderId: string): Promise<{ success: boolean }> {
+    if (!window.electronAPI) {
+      throw new Error('Electron API is not available.');
+    }
+    const result = await window.electronAPI.executeTool('delete_medication_reminder', { reminderId });
+    return { success: (result as { success: boolean }).success };
+  }
+
+  // -------------------------------------------------------------------------
+  // Daily digest
+  // -------------------------------------------------------------------------
+
+  /**
+   * Speak the daily digest aloud using TTS.
+   * @param location - Optional location for weather
+   * @param newsCount - Number of news items to include
+   */
+  async speakDailyDigest(location?: string, newsCount: number = 5): Promise<void> {
+    if (!window.electronAPI) {
+      throw new Error('Electron API is not available. Daily digest requires the Sunny desktop app.');
+    }
+    const digest = await this.getDailyDigest(location, newsCount);
+    const weatherText = `Current weather in ${digest.weather.location}: ${digest.weather.temperature} degrees, ${digest.weather.condition}.`;
+    const newsText = digest.news.length > 0
+      ? `Top news: ${digest.news.slice(0, 3).map(n => n.title).join('. ')}.`
+      : 'No news available at this time.';
+    const fullText = `Good morning! ${weatherText} ${newsText}`;
+    await this.speakNotification(fullText, 'normal', 1);
+  }
+
+  // -------------------------------------------------------------------------
+  // Cooking mode
+  // -------------------------------------------------------------------------
+
+  /**
+   * Subscribe to cooking step changes.
+   * @param callback - Called when cooking step changes
+   * @returns Unsubscribe function
+   */
+  onCookingStepChange(callback: (step: { stepIndex: number; totalSteps: number; instruction: string }) => void): () => void {
+    if (!window.electronAPI) {
+      return () => {};
+    }
+    return window.electronAPI.onCookingStepChange(callback);
   }
 
   // -------------------------------------------------------------------------

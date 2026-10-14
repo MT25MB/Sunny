@@ -20,7 +20,16 @@ const MAX_ACTIONS_PER_BATCH = 30;
 const MAX_TYPED_CHARS = 4000;
 
 const SPEECH_PRIORITIES = ['low', 'normal', 'high', 'urgent'];
-const SUNNY_TOOLS = ['get_system_status', 'speak_notification'];
+const SUNNY_TOOLS = ['get_system_status', 'speak_notification', 'search_recipe', 'get_daily_digest', 'schedule_medication_reminder'];
+
+// Recipe API - using TheMealDB (free, no API key required)
+const RECIPE_API_BASE = 'https://www.themealdb.com/api/json/v1/1';
+const OPEN_METEO_API = 'https://api.open-meteo.com/v1/forecast';
+const NEWS_API = 'https://api.rss2json.com/v1/api.json'; // Free tier available
+
+// Medication reminder storage
+const medicationReminders = new Map();
+let medicationCheckInterval = null;
 
 const INTERNET_TEST_URL = 'https://www.google.com/generate_204';
 const INTERNET_TIMEOUT_MS = 4000;
@@ -431,6 +440,35 @@ function validateToolParams(toolName, params) {
     return { message, priority, repeat };
   }
 
+  if (toolName === 'search_recipe') {
+    const query = requireString(box.query, 'query');
+    if (query.length > 100) throw new Error('Recipe query must be 100 characters or fewer.');
+    const maxResults = box.maxResults === undefined ? 5 : box.maxResults;
+    if (!Number.isInteger(maxResults) || maxResults < 1 || maxResults > 10) {
+      throw new Error('maxResults must be a whole number between 1 and 10.');
+    }
+    return { query, maxResults };
+  }
+
+  if (toolName === 'get_daily_digest') {
+    const location = box.location || 'auto';
+    const newsCount = box.newsCount === undefined ? 5 : box.newsCount;
+    if (!Number.isInteger(newsCount) || newsCount < 1 || newsCount > 10) {
+      throw new Error('newsCount must be a whole number between 1 and 10.');
+    }
+    return { location, newsCount };
+  }
+
+  if (toolName === 'schedule_medication_reminder') {
+    const pillName = requireString(box.pillName, 'pillName');
+    const timeString = requireString(box.timeString, 'timeString');
+    // Validate time format HH:MM
+    if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(timeString)) {
+      throw new Error('timeString must be in HH:MM format (24-hour).');
+    }
+    return { pillName, timeString };
+  }
+
   throw new Error(`Unknown tool: ${toolName}`);
 }
 
@@ -440,18 +478,206 @@ async function runTool(toolName, params) {
   // Speech synthesis itself must happen in the renderer: the main process has
   // no access to the platform text-to-speech voices. This handler validates
   // and acknowledges the request; the renderer performs the speaking.
-  return {
-    ok: true,
-    toolName,
-    message: params.message,
-    priority: params.priority,
-    repeat: params.repeat,
-    spokenByRenderer: true,
-  };
+  if (toolName === 'speak_notification') {
+    return {
+      ok: true,
+      toolName,
+      message: params.message,
+      priority: params.priority,
+      repeat: params.repeat,
+      spokenByRenderer: true,
+    };
+  }
+
+  if (toolName === 'search_recipe') {
+    return await searchRecipes(params.query, params.maxResults);
+  }
+
+  if (toolName === 'get_daily_digest') {
+    return await getDailyDigest(params.location, params.newsCount);
+  }
+
+  if (toolName === 'schedule_medication_reminder') {
+    return await scheduleMedicationReminder(params.pillName, params.timeString);
+  }
+
+  throw new Error(`Unknown tool: ${toolName}`);
 }
 
-async function handleExecuteTool(channel, toolName, params) {
-  rateLimit(channel);
+async function searchRecipes(query, maxResults = 5) {
+  try {
+    // First search by name
+    const searchResponse = await fetch(`${RECIPE_API_BASE}/search.php?s=${encodeURIComponent(query)}`);
+    const searchData = await searchResponse.json();
+    
+    if (!searchData.meals || searchData.meals.length === 0) {
+      return { recipes: [] };
+    }
+
+    const recipes = searchData.meals.slice(0, maxResults).map(meal => {
+      const ingredients = [];
+      for (let i = 1; i <= 20; i++) {
+        const ingredient = meal[`strIngredient${i}`];
+        const measure = meal[`strMeasure${i}`];
+        if (ingredient && ingredient.trim()) {
+          ingredients.push(`${measure ? measure.trim() + ' ' : ''}${ingredient.trim()}`);
+        }
+      }
+
+      const instructions = meal.strInstructions
+        .split('\r\n')
+        .filter(step => step.trim())
+        .map(step => step.trim());
+
+      return {
+        id: meal.idMeal,
+        title: meal.strMeal,
+        imageUrl: meal.strMealThumb,
+        ingredients,
+        instructions,
+        servings: 4,
+        prepTimeMinutes: 15,
+        cookTimeMinutes: 30,
+        sourceUrl: meal.strSource || `https://www.themealdb.com/meal/${meal.idMeal}`,
+      };
+    });
+
+    return { recipes };
+  } catch (error) {
+    console.error('Recipe search error:', error);
+    throw new Error('Failed to search for recipes. Please check your internet connection.');
+  }
+}
+
+async function getDailyDigest(location = 'auto', newsCount = 5) {
+  try {
+    let latitude = 0;
+    let longitude = 0;
+    let locationName = 'Your Location';
+
+    if (location === 'auto') {
+      try {
+        const ipResponse = await fetch('http://ip-api.com/json/');
+        const ipData = await ipResponse.json();
+        if (ipData.status === 'success') {
+          latitude = ipData.lat;
+          longitude = ipData.lon;
+          locationName = `${ipData.city}, ${ipData.regionName}`;
+        }
+      } catch {
+        latitude = 40.7128;
+        longitude = -74.0060;
+        locationName = 'New York, NY';
+      }
+    }
+
+    const weatherUrl = `${OPEN_METEO_API}?latitude=${latitude}&longitude=${longitude}&current_weather=true&timezone=auto`;
+    const weatherResponse = await fetch(weatherUrl);
+    const weatherData = await weatherResponse.json();
+
+    const weather = {
+      temperature: Math.round(weatherData.current_weather?.temperature || 0),
+      condition: getWeatherCondition(weatherData.current_weather?.weathercode || 0),
+      location: locationName,
+    };
+
+    let news = [];
+    try {
+      const newsResponse = await fetch(`${NEWS_API}?rss_url=https://feeds.bbci.co.uk/news/rss.xml&api_key=demo&count=${newsCount}`);
+      const newsData = await newsResponse.json();
+      
+      if (newsData.items) {
+        news = newsData.items.slice(0, newsCount).map(item => ({
+          title: item.title,
+          summary: item.description?.replace(/<[^>]*>/g, '').substring(0, 200) || '',
+          url: item.link,
+        }));
+      }
+    } catch {
+      news = [
+        { title: 'Stay informed with daily updates', summary: 'Check your favorite news source for the latest headlines.', url: '' },
+      ];
+    }
+
+    return {
+      weather,
+      news,
+      date: new Date().toISOString().split('T')[0],
+    };
+  } catch (error) {
+    console.error('Daily digest error:', error);
+    return {
+      weather: { temperature: 20, condition: 'Partly Cloudy', location: location },
+      news: [{ title: 'Unable to fetch news', summary: 'Please check your internet connection.', url: '' }],
+      date: new Date().toISOString().split('T')[0],
+    };
+  }
+}
+
+function getWeatherCondition(code) {
+  const conditions = {
+    0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
+    45: 'Fog', 48: 'Depositing rime fog', 51: 'Light drizzle', 53: 'Moderate drizzle',
+    55: 'Dense drizzle', 56: 'Light freezing drizzle', 57: 'Dense freezing drizzle',
+    61: 'Slight rain', 63: 'Moderate rain', 65: 'Heavy rain',
+    66: 'Light freezing rain', 67: 'Heavy freezing rain', 71: 'Slight snow fall',
+    73: 'Moderate snow fall', 75: 'Heavy snow fall', 77: 'Snow grains',
+    80: 'Slight rain showers', 81: 'Moderate rain showers', 82: 'Violent rain showers',
+    85: 'Slight snow showers', 86: 'Heavy snow showers', 95: 'Thunderstorm',
+    96: 'Thunderstorm with slight hail', 99: 'Thunderstorm with heavy hail',
+  };
+  return conditions[code] || 'Unknown';
+}
+
+async function scheduleMedicationReminder(pillName, timeString) {
+  const id = `med_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const reminder = {
+    id,
+    pillName,
+    timeString,
+    enabled: true,
+    createdAt: new Date().toISOString(),
+  };
+
+  medicationReminders.set(id, reminder);
+  startMedicationChecker();
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('sunny:medication-reminder-added', reminder);
+  }
+
+  return { success: true, reminderId: id };
+}
+
+function startMedicationChecker() {
+  if (medicationCheckInterval) return;
+
+  medicationCheckInterval = setInterval(() => {
+    const now = new Date();
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    for (const [id, reminder] of medicationReminders.entries()) {
+      if (reminder.enabled && reminder.timeString === currentTime) {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('sunny:medication-reminder-triggered', {
+            ...reminder,
+            triggeredAt: new Date().toISOString(),
+          });
+        }
+      }
+    }
+  }, 30000);
+}
+
+function stopMedicationChecker() {
+  if (medicationCheckInterval) {
+    clearInterval(medicationCheckInterval);
+    medicationCheckInterval = null;
+  }
+}
+
+// ============================================================================
+// Periodic status broadcast to the renderer
   assertPayloadSize({ toolName, params }, channel);
   const name = requireString(toolName, 'toolName');
   if (!SUNNY_TOOLS.includes(name)) {
@@ -463,7 +689,6 @@ async function handleExecuteTool(channel, toolName, params) {
     TOOL_CALL_TIMEOUT_MS,
     `The "${name}" action took too long and was stopped.`
   );
-}
 
 // ============================================================================
 // Periodic status broadcast to the renderer
@@ -492,6 +717,24 @@ function stopStatusBroadcast() {
   if (!statusEmitterTimer) return;
   clearInterval(statusEmitterTimer);
   statusEmitterTimer = null;
+}
+
+// ============================================================================
+// Cooking mode step emission
+// ============================================================================
+
+function emitCookingStepChange(stepIndex, totalSteps, instruction) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  try {
+    mainWindow.webContents.send('sunny:cooking-step-change', {
+      stepIndex,
+      totalSteps,
+      instruction,
+      timestamp: new Date().toISOString(),
+    });
+  } catch {
+    // Ignore emission errors
+  }
 }
 
 // ============================================================================
@@ -587,6 +830,53 @@ app.whenReady().then(() => {
     assertTrustedSender(event);
     const box = requirePlainObject(payload, 'notification');
     return handleExecuteTool('sunny:speak-notification', 'speak_notification', box);
+  });
+
+  ipcMain.handle('sunny:search-recipe', (event, payload) => {
+    assertTrustedSender(event);
+    const box = requirePlainObject(payload, 'recipe search');
+    return handleExecuteTool('sunny:search-recipe', 'search_recipe', box);
+  });
+
+  ipcMain.handle('sunny:get-daily-digest', (event, payload) => {
+    assertTrustedSender(event);
+    const box = requirePlainObject(payload || {}, 'daily digest');
+    return handleExecuteTool('sunny:get-daily-digest', 'get_daily_digest', box);
+  });
+
+  ipcMain.handle('sunny:schedule-medication-reminder', (event, payload) => {
+    assertTrustedSender(event);
+    const box = requirePlainObject(payload, 'medication reminder');
+    return handleExecuteTool('sunny:schedule-medication-reminder', 'schedule_medication_reminder', box);
+  });
+
+  ipcMain.handle('sunny:medication-taken', (event, payload) => {
+    assertTrustedSender(event);
+    const box = requirePlainObject(payload, 'medication taken');
+    const reminderId = requireString(box.reminderId, 'reminderId');
+    const reminder = medicationReminders.get(reminderId);
+    if (reminder) {
+      reminder.lastTaken = new Date().toISOString();
+      reminder.enabled = false; // Disable after taking
+      medicationReminders.set(reminderId, reminder);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('sunny:medication-reminder-updated', reminder);
+      }
+      return { success: true };
+    }
+    throw new Error('Reminder not found');
+  });
+
+  ipcMain.handle('sunny:get-medication-reminders', () => {
+    return Array.from(medicationReminders.values());
+  });
+
+  ipcMain.handle('sunny:delete-medication-reminder', (event, payload) => {
+    assertTrustedSender(event);
+    const box = requirePlainObject(payload, 'delete reminder');
+    const reminderId = requireString(box.reminderId, 'reminderId');
+    medicationReminders.delete(reminderId);
+    return { success: true };
   });
 
   ipcMain.handle('sunny:get-available-tools', () => SUNNY_TOOLS.slice());
