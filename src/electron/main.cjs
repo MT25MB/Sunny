@@ -589,7 +589,7 @@ async function getDailyDigest(location = 'auto', newsCount = 5) {
       if (newsData.items) {
         news = newsData.items.slice(0, newsCount).map(item => ({
           title: item.title,
-          summary: item.description?.replace(/<[^>]*>/g, '').substring(0, 200) || '',
+          summary: (item.description || '').replace(/[<>]/g, '').substring(0, 200),
           url: item.link,
         }));
       }
