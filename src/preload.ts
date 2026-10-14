@@ -27,18 +27,7 @@ import type {
   ElectronAPI,
   SpeakNotificationParams,
   SystemStatus,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Recipe,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   MedicationReminder,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DailyDigest,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  SearchRecipeParams,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DailyDigestParams,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  ScheduleMedicationParams,
 } from './types/electron';
 
 // ============================================================================

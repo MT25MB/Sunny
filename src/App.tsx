@@ -9,10 +9,12 @@ import {
   CheckCircle,
   XCircle,
   Volume2,
+  VolumeX,
   RefreshCw,
   Trash2,
   MessageSquare,
   Shield,
+  Home,
   Utensils,
   Pill,
   Newspaper,
@@ -38,7 +40,6 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [showChat, setShowChat] = useState(true);
   const [highContrast, setHighContrast] = useState(false);
@@ -157,7 +158,6 @@ function App() {
     }
   }, [describeError]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleSpeakStatus = useCallback(async () => {
     if (!systemStatus) return;
     setIsSpeaking(true);
@@ -174,7 +174,6 @@ function App() {
     }
   }, [systemStatus, describeError]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleClearChat = useCallback(() => {
     sunnyBrain.clearMessages();
     sunnyBrain.addMessage("system", "Chat cleared. System health status is still shown above.");
@@ -293,7 +292,6 @@ function App() {
   }, [dailyDigest, describeError]);
 
   // High contrast toggle
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleToggleHighContrast = useCallback(() => {
     setHighContrast(prev => !prev);
     sunnyBrain.addMessage('system', `High contrast mode ${highContrast ? 'disabled' : 'enabled'}.`);
@@ -356,7 +354,7 @@ function App() {
         <div className="header-right">
           <button 
             className="icon-btn" 
-            onClick={() => setHighContrast(!highContrast)}
+            onClick={handleToggleHighContrast}
             aria-label={highContrast ? "Disable high contrast mode" : "Enable high contrast mode"}
             aria-pressed={highContrast}
             title={highContrast ? "Disable high contrast" : "Enable high contrast"}
@@ -430,6 +428,42 @@ function App() {
 
           <div className="last-updated" aria-live="polite">
             Last updated: {systemStatus ? new Date(systemStatus.timestamp).toLocaleTimeString() : "—"}
+          </div>
+        </section>
+
+        <section className="actions-section" aria-labelledby="actions-title">
+          <h2 id="actions-title" className="section-title">Quick Actions</h2>
+          <div className="action-grid">
+            <ActionButton
+              icon={<RefreshCw size={28} />}
+              label="Check System Health"
+              description="Run a fresh health check now"
+              onClick={handleCheckHealth}
+              disabled={isLoading}
+              primary
+            />
+            <ActionButton
+              icon={isSpeaking ? <VolumeX size={28} /> : <Volume2 size={28} />}
+              label="Speak Status Aloud"
+              description="Hear your system status spoken"
+              onClick={handleSpeakStatus}
+              disabled={!systemStatus || isSpeaking}
+              loading={isSpeaking}
+            />
+            <ActionButton
+              icon={<Trash2 size={28} />}
+              label="Clear Chat History"
+              description="Remove all messages below"
+              onClick={handleClearChat}
+              variant="secondary"
+            />
+            <ActionButton
+              icon={<Home size={28} />}
+              label="Open Settings"
+              description="Adjust voice, speed, and AI model"
+              onClick={() => sunnyBrain.addMessage("system", "Settings would open here.")}
+              variant="secondary"
+            />
           </div>
         </section>
 
@@ -754,7 +788,6 @@ interface ActionButtonProps {
   variant?: "primary" | "secondary";
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function ActionButton({ 
   icon, 
   label, 

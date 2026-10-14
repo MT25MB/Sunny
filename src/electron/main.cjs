@@ -677,7 +677,27 @@ function stopMedicationChecker() {
 }
 
 // ============================================================================
+// Tool execution handler
+// ============================================================================
+
+async function handleExecuteTool(channel, toolName, params) {
+  assertPayloadSize({ toolName, params }, channel);
+  const name = requireString(toolName, 'toolName');
+  if (!SUNNY_TOOLS.includes(name)) {
+    throw new Error(`Unknown tool: ${name}. Available tools: ${SUNNY_TOOLS.join(', ')}`);
+  }
+  const validated = validateToolParams(name, params === undefined ? {} : params);
+  return withTimeout(
+    runTool(name, validated),
+    TOOL_CALL_TIMEOUT_MS,
+    `The "${name}" action took too long and was stopped.`
+  );
+}
+
+// ============================================================================
 // Periodic status broadcast to the renderer
+// ============================================================================
+
   assertPayloadSize({ toolName, params }, channel);
   const name = requireString(toolName, 'toolName');
   if (!SUNNY_TOOLS.includes(name)) {
@@ -742,6 +762,27 @@ function emitCookingStepChange(stepIndex, totalSteps, instruction) {
 // ============================================================================
 
 app.whenReady().then(() => {
+  // Content Security Policy
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com",
+      "img-src 'self' data: https:",
+      "connect-src 'self' https://www.themealdb.com https://api.open-meteo.com https://api.rss2json.com http://ip-api.com",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'"
+    ].join('; ');
+    
+    const responseHeaders = details.responseHeaders || [];
+    const filteredHeaders = responseHeaders.filter(h => h.name.toLowerCase() !== 'content-security-policy');
+    filteredHeaders.push({ name: 'Content-Security-Policy', value: csp });
+    
+    callback({ responseHeaders: filteredHeaders });
+  });
+
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     callback(permission === 'media');
   });
