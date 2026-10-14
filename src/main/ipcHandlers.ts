@@ -24,41 +24,59 @@ const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 
 /**
- * Helper function to safely execute shell commands with error handling
+ * Helper function to execute a platform command with error handling.
+ *
+ * `command` must always be a hardcoded caller-supplied literal. It is run with
+ * `shell: true` because the platform probes below are shell one-liners
+ * (PowerShell on Windows, `pmset`/`scutil` on macOS). Never pass user or model
+ * input into this function — do that and you reintroduce command injection.
  */
 function executeCommand(command, timeout = 5000) {
   return new Promise((resolve, reject) => {
-    // const startTime = Date.now();
+    const startTime = Date.now();
     const proc = spawn(command, { shell: true });
-    
+
     let stdout = '';
     let stderr = '';
-    
+    let settled = false;
+
+    // Hard stop: reap the process even if it never closes its pipes.
+    const killTimer = setTimeout(() => {
+      finish(false, new Error(`Command timed out after ${timeout}ms`));
+      proc.kill();
+    }, timeout);
+
+    function finish(ok, err) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(killTimer);
+      if (ok) resolve(stdout.trim());
+      else reject(err);
+    }
+
     proc.stdout.on('data', (data) => {
       stdout += data.toString();
     });
-    
+
     proc.stderr.on('data', (data) => {
       stderr += data.toString();
     });
-    
+
     proc.on('close', (code) => {
       const elapsed = Date.now() - startTime;
       if (elapsed > timeout) {
-        proc.kill();
-        reject(new Error(`Command timed out after ${timeout}ms`));
+        finish(false, new Error(`Command timed out after ${timeout}ms`));
         return;
       }
-      
       if (code === 0) {
-        resolve(stdout.trim());
+        finish(true);
       } else {
-        reject(new Error(`Command failed with exit code ${code}: ${stderr}`));
+        finish(false, new Error(`Command failed with exit code ${code}: ${stderr}`));
       }
     });
-    
+
     proc.on('error', (err) => {
-      reject(err);
+      finish(false, err);
     });
   });
 }
@@ -161,7 +179,6 @@ async function handleGetSystemStatus(__event) {
     let internetReachable = false;
     try {
       const testUrl = 'https://api.sunny-ai.org/ping';
-      // const startTime = Date.now();
       const response = await net.fetch(testUrl, { timeout: 3000 });
       internetReachable = response.status === 200;
     } catch {

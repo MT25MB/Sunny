@@ -969,8 +969,25 @@ textarea::placeholder { color: #65747b; }
   align-self: flex-start;
 }
 
+/*
+ * Speaker label ("You" / "Sunny").
+ *
+ * Kept off-screen visually but exposed to assistive technology. Using
+ * `display: none` or `visibility: hidden` would remove it from the
+ * accessibility tree entirely, leaving screen-reader users unable to tell who
+ * said what — the bubbles themselves only differ by alignment and colour.
+ */
 .msg-role {
-  display: none; /* Hidden, shown via CSS if needed */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 .msg-content {

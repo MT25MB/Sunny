@@ -67,35 +67,43 @@ function App() {
   }, [scrollToBottom]);
 
 
+  const describeError = useCallback((err: unknown): string => {
+    if (err instanceof Error && err.message) return err.message;
+    if (typeof err === 'string' && err) return err;
+    return 'Something went wrong and Sunny could not complete the request.';
+  }, []);
+
   const handleCheckHealth = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
       const status = await sunnyBrain.getSystemStatus();
       setSystemStatus(status);
-      sunnyBrain.addMessage("assistant", formatStatusForSpeech(status));
-    } catch (e) { const err = e as Error;
-      setError(err.message);
-      sunnyBrain.addMessage("system", "Error: " + err.message);
+      sunnyBrain.addMessage('assistant', formatStatusForSpeech(status));
+    } catch (e) {
+      const message = describeError(e);
+      setError(message);
+      sunnyBrain.addMessage('system', 'Error: ' + message);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [describeError]);
 
   const handleSpeakStatus = useCallback(async () => {
     if (!systemStatus) return;
     setIsSpeaking(true);
     try {
       const text = formatStatusForSpeech(systemStatus);
-      await sunnyBrain.speakNotification(text, "normal", 1);
-      sunnyBrain.addMessage("assistant", "SPOKEN: " + text);
-    } catch (e) { const err = e as Error;
-      setError(err.message);
-      sunnyBrain.addMessage("system", "Speech error: " + err.message);
+      await sunnyBrain.speakNotification(text, 'normal', 1);
+      sunnyBrain.addMessage('assistant', 'SPOKEN: ' + text);
+    } catch (e) {
+      const message = describeError(e);
+      setError(message);
+      sunnyBrain.addMessage('system', 'Speech error: ' + message);
     } finally {
       setIsSpeaking(false);
     }
-  }, [systemStatus]);
+  }, [systemStatus, describeError]);
 
   const handleClearChat = useCallback(() => {
     sunnyBrain.clearMessages();
