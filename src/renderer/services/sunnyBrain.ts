@@ -1,5 +1,6 @@
-﻿import type { SystemStatus } from '@/types/electron';
+﻿import type { ElectronAPI, SpeakNotificationParams, SystemStatus } from '@/types/electron';
 
+/** Result of invoking a Sunny tool. `success: false` always carries `error`. */
 export interface ToolResult<T = unknown> {
   timestamp: string;
   success: boolean;
@@ -8,6 +9,7 @@ export interface ToolResult<T = unknown> {
   error?: string;
 }
 
+/** One entry in the conversation / activity log. */
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -15,111 +17,175 @@ export interface ChatMessage {
   timestamp: Date;
 }
 
+type SpeechPriority = NonNullable<SpeakNotificationParams['priority']>;
+
+/** How long between automatic status refreshes. */
+const DEFAULT_POLL_INTERVAL_MS = 30_000;
+
+/** Bounds applied before a repeat count reaches the main process. */
+const MIN_REPEAT = 1;
+const MAX_REPEAT = 3;
+const MAX_MESSAGE_CHARS = 500;
+const SPEECH_PRIORITIES: readonly SpeechPriority[] = ['low', 'normal', 'high', 'urgent'];
+
+/**
+ * Client-side agent service.
+ *
+ * Every call goes through `window.electronAPI`, which only exists inside
+ * Electron. Outside Electron (for example, running the renderer in a browser
+ * during UI work) each method degrades gracefully instead of crashing.
+ */
 class SunnyBrain {
   private messageHistory: ChatMessage[] = [];
-  private listeners: Set<(messages: ChatMessage[]) => void> = new Set();
-  private statusListeners: Set<(status: SystemStatus) => void> = new Set();
+  private listeners = new Set<(messages: ChatMessage[]) => void>();
+  private statusListeners = new Set<(status: SystemStatus) => void>();
   private statusInterval: number | null = null;
 
+  // -------------------------------------------------------------------------
+  // System status
+  // -------------------------------------------------------------------------
+
+  /** Fetch the machine's current health snapshot. */
   async getSystemStatus(): Promise<SystemStatus> {
-    if (!window.electronAPI) {
-      throw new Error('Electron API is unavailable. Are you running inside Electron?');
-    }
+    this.requireElectronAPI();
     return window.electronAPI.getSystemStatus();
   }
 
-  startStatusPolling(intervalMs = 30000): void {
-    if (this.statusInterval) return;
-    
-    const poll = async () => {
+  /** Begin polling the main process for status changes. */
+  startStatusPolling(intervalMs: number = DEFAULT_POLL_INTERVAL_MS): void {
+    if (this.statusInterval || !Number.isFinite(intervalMs) || intervalMs <= 0) return;
+
+    const poll = async (): Promise<void> => {
       try {
         const status = await this.getSystemStatus();
-        this.statusListeners.forEach(fn => fn(status));
-      } catch { // Ignore polling errors }
+        this.statusListeners.forEach((listener) => listener(status));
+      } catch {
+        // A failed poll is not fatal: keep the last known state and try again.
       }
     };
-    
+
     poll();
     this.statusInterval = window.setInterval(poll, intervalMs);
   }
 
+  /** Stop polling. Safe to call more than once. */
   stopStatusPolling(): void {
-    if (this.statusInterval) {
-      clearInterval(this.statusInterval);
-      this.statusInterval = null;
-    }
+    if (this.statusInterval === null) return;
+    window.clearInterval(this.statusInterval);
+    this.statusInterval = null;
   }
 
+  /** Subscribe to status changes. Returns an unsubscribe function. */
   onSystemStatusChange(callback: (status: SystemStatus) => void): () => void {
     this.statusListeners.add(callback);
-    if (window.electronAPI?.onSystemStatusChange) {
-      const unsubscribe = window.electronAPI.onSystemStatusChange(callback);
-      return () => {
-        this.statusListeners.delete(callback);
-        unsubscribe();
-      };
-    }
-    return () => this.statusListeners.delete(callback);
+    return () => {
+      this.statusListeners.delete(callback);
+    };
   }
 
+  // -------------------------------------------------------------------------
+  // Spoken notifications
+  // -------------------------------------------------------------------------
+
+  /**
+   * Speak a notification aloud.
+   *
+   * The payload is first validated by the main process (which also applies rate
+   * limiting), then the renderer performs the actual speech via the platform
+   * Web Speech API so the user's installed voices are used.
+   *
+   * @throws Error when the message is invalid, or the main process refuses the
+   *         request (for example, because of rate limiting).
+   */
   async speakNotification(
     message: string,
-    priority: 'low' | 'normal' | 'high' | 'urgent' = 'normal',
+    priority: SpeechPriority = 'normal',
     repeat: number = 1
   ): Promise<void> {
-    const clampedRepeat = Math.min(Math.max(repeat, 1), 3);
-    
-    if (!window.electronAPI) {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(message);
-        utterance.rate = 0.9;
-        utterance.volume = 1.0;
-        utterance.pitch = 1.0;
-        for (let i = 0; i < clampedRepeat; i++) {
-          window.speechSynthesis.speak(utterance);
-        }
-        return;
-      }
-      throw new Error('Text-to-speech unavailable');
+    const cleanMessage = typeof message === 'string' ? message.trim() : '';
+    if (!cleanMessage) throw new Error('Notification message must be a non-empty string.');
+    if (cleanMessage.length > MAX_MESSAGE_CHARS) {
+      throw new Error(`Notification message must be ${MAX_MESSAGE_CHARS} characters or fewer.`);
+    }
+    if (!SPEECH_PRIORITIES.includes(priority)) {
+      throw new Error(`priority must be one of: ${SPEECH_PRIORITIES.join(', ')}`);
+    }
+    const clampedRepeat = Math.min(Math.max(Math.trunc(repeat) || 1, MIN_REPEAT), MAX_REPEAT);
+
+    // Only validate/acknowledge through Electron when it is available.
+    if (window.electronAPI) {
+      await window.electronAPI.speakNotification({
+        message: cleanMessage,
+        priority,
+        repeat: clampedRepeat,
+      });
     }
 
-    await window.electronAPI.speakNotification({
-      message,
-      priority,
-      repeat: clampedRepeat,
-    });
+    this.speakLocally(cleanMessage, clampedRepeat);
   }
 
+  // -------------------------------------------------------------------------
+  // Tool execution
+  // -------------------------------------------------------------------------
+
+  /**
+   * Invoke a Sunny tool by name and capture the outcome.
+   * Failures are returned as a rejected-shape result, never thrown, so callers
+   * can display the problem without an unhandled rejection.
+   */
   async invokeTool<T = unknown, P extends Record<string, unknown> = Record<string, unknown>>(
     toolName: string,
     params: P
   ): Promise<ToolResult<T>> {
+    const stamp = new Date().toISOString();
+
+    if (typeof toolName !== 'string' || toolName.trim() === '') {
+      return {
+        timestamp: stamp,
+        success: false,
+        toolName: String(toolName),
+        error: 'toolName must be a non-empty string.',
+      };
+    }
+
     if (!window.electronAPI) {
-      throw new Error('Electron API is not available.');
+      return {
+        timestamp: stamp,
+        success: false,
+        toolName,
+        error: 'Electron API is not available. Tool execution requires the Sunny desktop app.',
+      };
     }
 
     try {
-      const response = await window.electronAPI.invokeTool(toolName, params as Record<string, unknown>);
+      const result = await window.electronAPI.executeTool(toolName, params as Record<string, unknown>);
       return {
         timestamp: new Date().toISOString(),
         success: true,
         toolName,
-        result: response as T,
+        result: result as T,
       };
-    } catch (err) { const error = err as Error;
+    } catch (err) {
       return {
         timestamp: new Date().toISOString(),
         success: false,
         toolName,
-        error: error.message || 'Unknown error during tool execution',
+        error: this.describeError(err),
       };
     }
   }
 
-  addMessage(role: 'user' | 'assistant' | 'system', content: string): ChatMessage {
+  // -------------------------------------------------------------------------
+  // Conversation / activity log
+  // -------------------------------------------------------------------------
+
+  /** Append a message and notify subscribers. */
+  addMessage(role: ChatMessage['role'], content: string): ChatMessage {
+    if (typeof content !== 'string' || content.trim() === '') {
+      throw new Error('Message content must be a non-empty string.');
+    }
     const message: ChatMessage = {
-      id: Date.now().toString() + Math.random().toString(36).slice(2, 8),
+      id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
       role,
       content,
       timestamp: new Date(),
@@ -129,24 +195,76 @@ class SunnyBrain {
     return message;
   }
 
+  /** Copy of the log, newest last. */
   getMessages(): ChatMessage[] {
     return [...this.messageHistory];
   }
 
+  /** Subscribe to log changes. Returns an unsubscribe function. */
   subscribe(listener: (messages: ChatMessage[]) => void): () => void {
     this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
 
-  private notifyListeners(): void {
-    this.listeners.forEach(listener => listener(this.getMessages()));
-  }
-
+  /** Clear the log. The welcome message is not re-added automatically. */
   clearMessages(): void {
     this.messageHistory = [];
     this.notifyListeners();
   }
+
+  /** Release every listener and stop polling. */
+  dispose(): void {
+    this.stopStatusPolling();
+    this.listeners.clear();
+    this.statusListeners.clear();
+    this.messageHistory = [];
+  }
+
+  // -------------------------------------------------------------------------
+  // Internals
+  // -------------------------------------------------------------------------
+
+  private requireElectronAPI(): ElectronAPI {
+    if (!window.electronAPI) {
+      throw new Error('Electron API is unavailable. Are you running inside the Sunny app?');
+    }
+    return window.electronAPI;
+  }
+
+  private speakLocally(message: string, repeat: number): void {
+    if (!('speechSynthesis' in window) || !window.speechSynthesis) {
+      throw new Error('Text-to-speech is unavailable in this environment.');
+    }
+
+    // Cancel any in-flight speech so repeat requests start cleanly.
+    window.speechSynthesis.cancel();
+
+    // A slower rate, normal pitch, and full volume suit older listeners.
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.rate = 0.9;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    for (let i = 0; i < repeat; i += 1) {
+      window.speechSynthesis.speak(utterance);
+    }
+  }
+
+  private notifyListeners(): void {
+    const snapshot = this.getMessages();
+    this.listeners.forEach((listener) => listener(snapshot));
+  }
+
+  private describeError(err: unknown): string {
+    if (err instanceof Error && err.message) return err.message;
+    if (typeof err === 'string' && err) return err;
+    return 'Unknown error during tool execution.';
+  }
 }
 
+/** Shared singleton used by the UI. */
 export const sunnyBrain = new SunnyBrain();
 
+export { SunnyBrain };

@@ -1,9 +1,98 @@
 const { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, nativeImage, safeStorage, session, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const os = require('node:os');
 const { pathToFileURL } = require('node:url');
 const inference = require('./inference.cjs');
 const { interceptAction, sanitizeUntrustedContent } = require('../main/security/interceptor.cjs');
+
+// ============================================================================
+// IPC guardrails — rate limiting, payload sizing, input validation
+// ============================================================================
+
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_CALLS = 30;
+const MAX_PAYLOAD_BYTES = 128 * 1024;
+const MAX_LOG_ENTRY_CHARS = 20_000;
+const TOOL_CALL_TIMEOUT_MS = 10_000;
+const APP_LAUNCH_TIMEOUT_MS = 10_000;
+const MAX_ACTIONS_PER_BATCH = 30;
+const MAX_TYPED_CHARS = 4000;
+
+const SPEECH_PRIORITIES = ['low', 'normal', 'high', 'urgent'];
+const SUNNY_TOOLS = ['get_system_status', 'speak_notification'];
+
+const INTERNET_TEST_URL = 'https://www.google.com/generate_204';
+const INTERNET_TIMEOUT_MS = 4000;
+const STATUS_POLL_INTERVAL_MS = 30_000;
+
+const rateBuckets = new Map();
+
+/** Sliding-window rate limiter, one bucket per IPC channel. */
+function rateLimit(channel) {
+  const now = Date.now();
+  let hits = rateBuckets.get(channel);
+  if (!hits) {
+    hits = [];
+    rateBuckets.set(channel, hits);
+  }
+  while (hits.length > 0 && now - hits[0] >= RATE_LIMIT_WINDOW_MS) hits.shift();
+  if (hits.length >= RATE_LIMIT_MAX_CALLS) {
+    const retrySec = Math.max(1, Math.ceil((RATE_LIMIT_WINDOW_MS - (now - hits[0])) / 1000));
+    const err = new Error(`Too many requests. Please wait about ${retrySec} second(s) and try again.`);
+    err.code = 'RATE_LIMITED';
+    throw err;
+  }
+  hits.push(now);
+}
+
+/** Rejects IPC calls that originate outside our own app window. */
+function assertTrustedSender(event) {
+  if (mainWindow && event && event.sender && event.sender !== mainWindow.webContents) {
+    throw new Error('Sunny rejected a request from an unexpected source.');
+  }
+}
+
+function requireString(value, label) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`${label} must be a non-empty string.`);
+  }
+  return value.trim();
+}
+
+function requirePlainObject(value, label) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${label} must be an object.`);
+  }
+  return value;
+}
+
+function assertPayloadSize(value, label) {
+  if (value === undefined || value === null) return;
+  let size;
+  try {
+    size = Buffer.byteLength(JSON.stringify(value), 'utf8');
+  } catch {
+    throw new Error(`${label} could not be measured.`);
+  }
+  if (size > MAX_PAYLOAD_BYTES) {
+    throw new Error(`${label} is too large (${size} bytes, limit ${MAX_PAYLOAD_BYTES}).`);
+  }
+}
+
+function withTimeout(promise, ms, message) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (error) => { clearTimeout(timer); reject(error); }
+    );
+  });
+}
+
+// ============================================================================
+// Encrypted credential storage
+// ============================================================================
 
 function getCredentialsDir() {
   return path.join(app.getPath('userData'), 'credentials');
@@ -18,32 +107,17 @@ function ensureCredentialsDir() {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
 }
 
+// ============================================================================
+// Window
+// ============================================================================
+
 let mainWindow;
 let automationModule;
 let automationCancelled = false;
+let statusEmitterTimer = null;
 
 const isDev = !app.isPackaged;
 const rendererUrl = process.env.SUNNY_RENDERER_URL || 'http://localhost:5173';
-
-const APP_OPEN_MAP = {
-  browser: process.platform === 'darwin' ? 'https://' : process.platform === 'win32' ? 'start "" "https://"' : 'xdg-open https://',
-  email: process.platform === 'darwin' ? 'mailto:' : process.platform === 'win32' ? 'start "" "mailto:"' : 'xdg-open mailto:',
-  mail: process.platform === 'darwin' ? 'mailto:' : process.platform === 'win32' ? 'start "" "mailto:"' : 'xdg-open mailto:',
-  calculator: process.platform === 'darwin' ? 'open -a Calculator' : process.platform === 'win32' ? 'start calc' : 'gnome-calculator',
-  files: process.platform === 'darwin' ? 'open -a Finder' : process.platform === 'win32' ? 'start explorer' : 'nautilus',
-  finder: 'open -a Finder',
-  // terminal removed for security — opening a shell is a prerequisite for command injection
-  notepad: process.platform === 'win32' ? 'start notepad' : 'open -a TextEdit',
-  textedit: 'open -a TextEdit',
-  settings: process.platform === 'darwin' ? 'open -a "System Settings"' : process.platform === 'win32' ? 'start ms-settings:' : 'gnome-control-center',
-  word: 'open -a "Microsoft Word"',
-  excel: 'open -a "Microsoft Excel"',
-  calendar: process.platform === 'darwin' ? 'open -a Calendar' : process.platform === 'win32' ? 'start outlookcal:' : 'gnome-calendar',
-  maps: process.platform === 'darwin' ? 'open -a Maps' : 'https://maps.google.com',
-  weather: process.platform === 'darwin' ? 'open -a Weather' : 'https://weather.com',
-  music: process.platform === 'darwin' ? 'open -a Music' : process.platform === 'win32' ? 'start mspaint' : 'rhythmbox',
-  photos: process.platform === 'darwin' ? 'open -a Photos' : process.platform === 'win32' ? 'start msphotos:' : 'shotwell',
-};
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -69,6 +143,10 @@ function createWindow() {
   else mainWindow.loadURL(pathToFileURL(path.join(__dirname, '../../dist/index.html')).toString());
 }
 
+// ============================================================================
+// Desktop automation
+// ============================================================================
+
 async function getAutomation() {
   if (!automationModule) automationModule = await import('@nut-tree-fork/nut-js');
   return automationModule;
@@ -82,18 +160,121 @@ async function captureScreen() {
   return { dataUrl: image.toDataURL(), width: image.getSize().width, height: image.getSize().height };
 }
 
+// ---------------------------------------------------------------------------
+// Application launching
+//
+// Every launch target comes from the fixed table below — never from user or
+// model input. Targets are either:
+//   * a URI, opened with shell.openExternal (no process spawn at all), or
+//   * a bare executable plus an argument array, run with execFile (no shell).
+// This keeps command injection off the table: nothing is ever interpolated
+// into a shell string.
+// ---------------------------------------------------------------------------
+
+const APP_URI_OPENERS = {
+  browser: 'https://',
+  email: 'mailto:',
+  mail: 'mailto:',
+  maps: 'https://maps.google.com',
+  weather: 'https://weather.com',
+};
+
+const APP_EXE_OPENERS = {
+  win32: {
+    calculator: { exe: 'calc' },
+    files: { exe: 'explorer' },
+    notepad: { exe: 'notepad' },
+    word: { exe: 'winword' },
+    excel: { exe: 'excel' },
+    settings: { uri: 'ms-settings:' },
+    calendar: { uri: 'outlookcal:' },
+    photos: { uri: 'ms-photos:' },
+  },
+  darwin: {
+    calculator: { exe: 'open', args: ['-a', 'Calculator'] },
+    files: { exe: 'open', args: ['-a', 'Finder'] },
+    finder: { exe: 'open', args: ['-a', 'Finder'] },
+    notepad: { exe: 'open', args: ['-a', 'TextEdit'] },
+    textedit: { exe: 'open', args: ['-a', 'TextEdit'] },
+    settings: { exe: 'open', args: ['-a', 'System Settings'] },
+    word: { exe: 'open', args: ['-a', 'Microsoft Word'] },
+    excel: { exe: 'open', args: ['-a', 'Microsoft Excel'] },
+    calendar: { exe: 'open', args: ['-a', 'Calendar'] },
+    maps: { exe: 'open', args: ['-a', 'Maps'] },
+    weather: { exe: 'open', args: ['-a', 'Weather'] },
+    music: { exe: 'open', args: ['-a', 'Music'] },
+    photos: { exe: 'open', args: ['-a', 'Photos'] },
+  },
+  linux: {
+    calculator: { exe: 'gnome-calculator' },
+    files: { exe: 'nautilus' },
+    notepad: { exe: 'gedit' },
+    settings: { exe: 'gnome-control-center' },
+    calendar: { exe: 'gnome-calendar' },
+    maps: { uri: 'https://maps.google.com' },
+    weather: { uri: 'https://weather.com' },
+    music: { exe: 'rhythmbox' },
+    photos: { exe: 'shotwell' },
+  },
+};
+
+/** Resolve an app key to `{ uri }` or `{ exe, args }`, or null when unknown. */
+function resolveOpener(appKey) {
+  const uri = APP_URI_OPENERS[appKey];
+  if (uri) return { uri };
+  const table = APP_EXE_OPENERS[process.platform] || {};
+  const entry = table[appKey];
+  if (!entry) return null;
+  if (entry.uri) return { uri: entry.uri };
+  return { exe: entry.exe, args: entry.args || [] };
+}
+
+/** Spawn a process with no shell involved. */
+async function launchExecutable(exe, args) {
+  const { execFile } = require('node:child_process');
+  const { promisify } = require('node:util');
+  const execFileAsync = promisify(execFile);
+  try {
+    await execFileAsync(exe, args, { timeout: APP_LAUNCH_TIMEOUT_MS, windowsHide: true });
+    return { launched: true };
+  } catch (err) {
+    const code = err && err.code;
+    if (code === 'ENOENT' || code === 127) {
+      return { launched: false, error: `"${exe}" was not found on this computer.` };
+    }
+    if (code === 'ETIMEDOUT') {
+      return { launched: false, error: `"${exe}" took too long to start.` };
+    }
+    return { launched: false, error: (err && err.message) || 'Unknown error while launching the application.' };
+  }
+}
+
+async function openApp(appKey) {
+  const opener = resolveOpener(appKey);
+  if (!opener) {
+    throw new Error(`Sunny does not know how to open "${appKey}".`);
+  }
+  if (opener.uri) {
+    await shell.openExternal(opener.uri);
+    return { launched: true };
+  }
+  return launchExecutable(opener.exe, opener.args);
+}
+
 async function executeActions(actions) {
   const automation = await getAutomation();
   automationCancelled = false;
+  const completed = [];
+
   for (const action of actions) {
-    if (automationCancelled) return { completed: 0, cancelled: true };
+    if (automationCancelled) return { completed: completed.length, cancelled: true };
     if (!action || typeof action.type !== 'string') throw new Error('Sunny received an invalid desktop action.');
 
     if (action.type === 'move' && Number.isFinite(action.x) && Number.isFinite(action.y)) {
       await automation.mouse.setPosition(new automation.Point(action.x, action.y));
     } else if (action.type === 'click') {
       await automation.mouse.click(action.button === 'right' ? automation.Button.RIGHT : automation.Button.LEFT);
-    } else if (action.type === 'type' && typeof action.text === 'string' && action.text.length <= 4000) {
+    } else if (action.type === 'type' && typeof action.text === 'string' && action.text.length <= MAX_TYPED_CHARS) {
       await automation.keyboard.type(action.text);
     } else if (action.type === 'key' && typeof action.key === 'string') {
       await automation.keyboard.pressKey(automation.Key[action.key]);
@@ -102,73 +283,255 @@ async function executeActions(actions) {
     } else if (action.type === 'wait' && Number.isFinite(action.ms) && action.ms <= 10000) {
       await new Promise((resolve) => setTimeout(resolve, action.ms));
     } else if (action.type === 'screenshot') {
-      // Screenshot is handled by captureScreen separately
+      // Screenshots are taken through captureScreen; nothing to do here.
     } else if (action.type === 'open_app' && typeof action.app === 'string') {
-      const appKey = action.app.toLowerCase();
-      const cmd = APP_OPEN_MAP[appKey];
-      if (cmd) {
-        // Use shell.openExternal for URLs, exec only for app launch commands
-        if (cmd.startsWith('http') || cmd.startsWith('mailto')) {
-          shell.openExternal(cmd);
-        } else {
-                    const { execFile } = require('node:child_process');
-          const { promisify } = require('node:util');
-          const execFileAsync = promisify(execFile);
-
-          // Parse command safely (no shell)
-          const parts = cmd.split(b" ");
-          const cmdName = parts[0];
-          const args = parts.slice(1);
-
-          try {
-            await execFileAsync(cmdName, args, { timeout: 10000 });
-          } catch (err) {
-            throw new Error(Could not open : );
-          }
-        }
-      } else {
-        throw new Error(Sunny does not know how to open "".);
-      });
-        }
-      } else {
-        throw new Error(`Sunny does not know how to open "${action.app}".`);
-      }
+      await openApp(action.app.toLowerCase());
     } else {
       throw new Error('Sunny stopped because an action was not safe to run.');
     }
+
+    completed.push(action.type);
   }
-  return { completed: actions.length, cancelled: false };
+
+  return { completed: completed.length, cancelled: false };
 }
+
+// ============================================================================
+// System status tools
+// ============================================================================
+
+let lastCpuTimes = null;
+
+/** CPU utilisation since the previous sample (0 on the first call). */
+function readCpuUsage() {
+  let idle = 0;
+  let total = 0;
+  for (const cpu of os.cpus()) {
+    idle += cpu.times.idle;
+    total += cpu.times.user + cpu.times.nice + cpu.times.sys + cpu.times.idle + cpu.times.irq;
+  }
+  let usage = 0;
+  if (lastCpuTimes) {
+    const idleDelta = idle - lastCpuTimes.idle;
+    const totalDelta = total - lastCpuTimes.total;
+    if (totalDelta > 0) usage = 100 * (1 - idleDelta / totalDelta);
+  }
+  lastCpuTimes = { idle, total };
+  return Math.max(0, Math.min(100, Math.round(usage)));
+}
+
+/** Reports whether a real, non-link-local network adapter is up. */
+function readNetworkStatus() {
+  let connected = false;
+  let networkName = null;
+  for (const [name, addresses] of Object.entries(os.networkInterfaces())) {
+    if (!addresses) continue;
+    const usable = addresses.some(
+      (addr) => !addr.internal && addr.family === 'IPv4' && !addr.address.startsWith('169.254.')
+    );
+    if (!usable) continue;
+    connected = true;
+    networkName = name;
+    break;
+  }
+  return { connected, networkName, signalStrength: null };
+}
+
+async function readInternetStatus() {
+  const startedAt = Date.now();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), INTERNET_TIMEOUT_MS);
+  try {
+    await fetch(INTERNET_TEST_URL, { method: 'GET', signal: controller.signal, cache: 'no-store' });
+    return { reachable: true, testServer: INTERNET_TEST_URL, latency: `${Date.now() - startedAt} ms` };
+  } catch {
+    return { reachable: false, testServer: INTERNET_TEST_URL, latency: '—' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function buildUserFriendlyMessage(status) {
+  const { battery, wifi, internet, system } = status;
+  const parts = [];
+  if (battery.batteryPercent === null) {
+    parts.push('This computer has no battery, so power is not a concern.');
+  } else {
+    parts.push(`Battery is at ${battery.batteryPercent}%${battery.isCharging ? ' and charging' : ''}.`);
+  }
+  parts.push(wifi.connected
+    ? `Wi-Fi is connected${wifi.networkName ? ` to ${wifi.networkName}` : ''}.`
+    : 'Wi-Fi is not connected.');
+  parts.push(internet.reachable ? 'The internet is reachable.' : 'The internet is not reachable right now.');
+  parts.push(`Processor use is ${system.cpuUsage}% and ${system.memoryAvailableGB} GB of memory is free.`);
+  return parts.join(' ');
+}
+
+function buildRecommendations(status) {
+  const { battery, wifi, internet, system } = status;
+  const out = [];
+  if (battery.batteryPercent !== null && battery.batteryPercent <= 20 && !battery.isCharging) {
+    out.push('Your battery is low. Please plug in the charger when you can.');
+  }
+  if (!wifi.connected) {
+    out.push('Wi-Fi looks switched off. Check the wireless switch on your computer.');
+  } else if (!internet.reachable) {
+    out.push('Wi-Fi is on but the internet is not answering. Restarting your router often helps.');
+  }
+  if (system.cpuUsage >= 80) out.push('The processor is very busy. Closing a few programs may speed things up.');
+  if (system.memoryAvailableGB < 2) out.push('Free memory is running low. Restarting Sunny may help.');
+  if (out.length === 0) out.push('Everything looks healthy. Nothing needs your attention.');
+  return out;
+}
+
+async function buildSystemStatus() {
+  const battery = { batteryPercent: null, isCharging: false, health: 'unknown' };
+  const wifi = readNetworkStatus();
+  const internet = await readInternetStatus();
+  const system = {
+    cpuUsage: readCpuUsage(),
+    memoryAvailableGB: Number((os.freemem() / (1024 ** 3)).toFixed(1)),
+    uptime: Math.round(os.uptime()),
+    platform: process.platform,
+    nodeVersion: process.version,
+  };
+  const base = { battery, wifi, internet, system };
+  return {
+    timestamp: new Date().toISOString(),
+    success: true,
+    toolName: 'get_system_status',
+    ...base,
+    recommendations: buildRecommendations(base),
+    userFriendlyMessage: buildUserFriendlyMessage(base),
+  };
+}
+
+// ============================================================================
+// Tool registry — the only tools the renderer may invoke
+// ============================================================================
+
+function validateToolParams(toolName, params) {
+  const box = requirePlainObject(params, `parameters for "${toolName}"`);
+  if (toolName === 'get_system_status') return {};
+
+  if (toolName === 'speak_notification') {
+    const message = requireString(box.message, 'message');
+    if (message.length > 500) throw new Error('Notification message must be 500 characters or fewer.');
+    const priority = box.priority === undefined ? 'normal' : box.priority;
+    if (typeof priority !== 'string' || !SPEECH_PRIORITIES.includes(priority)) {
+      throw new Error(`priority must be one of: ${SPEECH_PRIORITIES.join(', ')}`);
+    }
+    const repeat = box.repeat === undefined ? 1 : box.repeat;
+    if (!Number.isInteger(repeat) || repeat < 1 || repeat > 3) {
+      throw new Error('repeat must be a whole number between 1 and 3.');
+    }
+    return { message, priority, repeat };
+  }
+
+  throw new Error(`Unknown tool: ${toolName}`);
+}
+
+async function runTool(toolName, params) {
+  if (toolName === 'get_system_status') return buildSystemStatus();
+
+  // Speech synthesis itself must happen in the renderer: the main process has
+  // no access to the platform text-to-speech voices. This handler validates
+  // and acknowledges the request; the renderer performs the speaking.
+  return {
+    ok: true,
+    toolName,
+    message: params.message,
+    priority: params.priority,
+    repeat: params.repeat,
+    spokenByRenderer: true,
+  };
+}
+
+async function handleExecuteTool(channel, toolName, params) {
+  rateLimit(channel);
+  assertPayloadSize({ toolName, params }, channel);
+  const name = requireString(toolName, 'toolName');
+  if (!SUNNY_TOOLS.includes(name)) {
+    throw new Error(`Unknown tool: ${name}. Available tools: ${SUNNY_TOOLS.join(', ')}`);
+  }
+  const validated = validateToolParams(name, params === undefined ? {} : params);
+  return withTimeout(
+    runTool(name, validated),
+    TOOL_CALL_TIMEOUT_MS,
+    `The "${name}" action took too long and was stopped.`
+  );
+}
+
+// ============================================================================
+// Periodic status broadcast to the renderer
+// ============================================================================
+
+async function emitSystemStatus() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  try {
+    const status = await buildSystemStatus();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('sunny:system-status-change', status);
+    }
+  } catch {
+    // Listeners simply keep their last known state.
+  }
+}
+
+function startStatusBroadcast() {
+  if (statusEmitterTimer) return;
+  emitSystemStatus();
+  statusEmitterTimer = setInterval(emitSystemStatus, STATUS_POLL_INTERVAL_MS);
+  if (typeof statusEmitterTimer.unref === 'function') statusEmitterTimer.unref();
+}
+
+function stopStatusBroadcast() {
+  if (!statusEmitterTimer) return;
+  clearInterval(statusEmitterTimer);
+  statusEmitterTimer = null;
+}
+
+// ============================================================================
+// App lifecycle
+// ============================================================================
 
 app.whenReady().then(() => {
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     callback(permission === 'media');
   });
 
+  // --- Screen capture & model -------------------------------------------
   ipcMain.handle('sunny:capture-screen', captureScreen);
 
-  ipcMain.handle('sunny:analyze-screen', async (_event, payload) => {
-    if (!payload || typeof payload.prompt !== 'string' || typeof payload.image !== 'string') {
-      throw new Error('Sunny needs a prompt and screenshot.');
-    }
-    const base64Image = payload.image.replace(/^data:image\/[^;]+;base64,/, '');
-    const result = await inference.runInference(payload.prompt, base64Image);
+  ipcMain.handle('sunny:analyze-screen', async (event, payload) => {
+    rateLimit('sunny:analyze-screen');
+    assertTrustedSender(event);
+    const box = requirePlainObject(payload, 'payload');
+    const prompt = requireString(box.prompt, 'prompt');
+    const image = requireString(box.image, 'image');
+    const base64Image = image.replace(/^data:image\/[^;]+;base64,/, '');
+    const result = await inference.runInference(prompt, base64Image);
     if (result.error) throw new Error(result.error);
     return { response: result.response };
   });
 
-  ipcMain.handle('sunny:decide-action', async (_event, payload) => {
-    if (!payload || typeof payload.prompt !== 'string') {
-      throw new Error('Sunny needs a prompt to decide actions.');
-    }
-    const result = await inference.runInference(payload.prompt, null);
+  ipcMain.handle('sunny:decide-action', async (event, payload) => {
+    rateLimit('sunny:decide-action');
+    assertTrustedSender(event);
+    const box = requirePlainObject(payload, 'payload');
+    const prompt = requireString(box.prompt, 'prompt');
+    const result = await inference.runInference(prompt, null);
     if (result.error) throw new Error(result.error);
     return { response: result.response };
   });
 
-  ipcMain.handle('sunny:execute-actions', async (_event, actions) => {
-    if (!Array.isArray(actions) || actions.length > 30) throw new Error('Sunny received too many actions.');
-    // Interceptor: validate every action before execution
+  ipcMain.handle('sunny:execute-actions', async (event, actions) => {
+    rateLimit('sunny:execute-actions');
+    assertTrustedSender(event);
+    if (!Array.isArray(actions) || actions.length > MAX_ACTIONS_PER_BATCH) {
+      throw new Error(`Sunny received too many actions (limit is ${MAX_ACTIONS_PER_BATCH}).`);
+    }
+    assertPayloadSize(actions, 'action batch');
     for (const action of actions) {
       const result = interceptAction(action);
       if (result.verdict === 'block') {
@@ -183,18 +546,20 @@ app.whenReady().then(() => {
     return { cancelled: true };
   });
 
-  ipcMain.handle('sunny:window-action', (_event, action) => {
+  ipcMain.handle('sunny:window-action', (event, action) => {
+    assertTrustedSender(event);
     if (!mainWindow) return;
     if (action === 'hide') mainWindow.hide();
     if (action === 'show') mainWindow.show();
     if (action === 'close') mainWindow.close();
   });
 
-  ipcMain.handle('sunny:get-model-status', () => {
-    return inference.getModelStatus();
-  });
+  // --- Model lifecycle ---------------------------------------------------
+  ipcMain.handle('sunny:get-model-status', () => inference.getModelStatus());
 
   ipcMain.handle('sunny:init-model', async (event) => {
+    rateLimit('sunny:init-model');
+    assertTrustedSender(event);
     await inference.initModel((status) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('sunny:model-progress', status);
@@ -203,32 +568,57 @@ app.whenReady().then(() => {
     return inference.getModelStatus();
   });
 
+  // --- Tool bridge (sunnyBrain / accessible UI) --------------------------
+  ipcMain.handle('sunny:execute-tool', (event, toolName, params) => {
+    assertTrustedSender(event);
+    return handleExecuteTool('sunny:execute-tool', toolName, params);
+  });
+
+  ipcMain.handle('sunny:get-system-status', (event) => {
+    assertTrustedSender(event);
+    rateLimit('sunny:get-system-status');
+    return withTimeout(buildSystemStatus(), TOOL_CALL_TIMEOUT_MS, 'The system check took too long and was stopped.');
+  });
+
+  ipcMain.handle('sunny:speak-notification', (event, payload) => {
+    assertTrustedSender(event);
+    const box = requirePlainObject(payload, 'notification');
+    return handleExecuteTool('sunny:speak-notification', 'speak_notification', box);
+  });
+
+  ipcMain.handle('sunny:get-available-tools', () => SUNNY_TOOLS.slice());
+
+  ipcMain.handle('sunny:is-tool-available', (_event, toolName) => SUNNY_TOOLS.includes(requireString(toolName, 'toolName')));
+
+  // --- Debug logs --------------------------------------------------------
   ipcMain.handle('sunny:write-debug-log', (_event, entry) => {
+    rateLimit('sunny:write-debug-log');
+    assertPayloadSize(entry, 'debug log entry');
+    const serialized = JSON.stringify(entry === undefined ? null : entry);
+    if (serialized.length > MAX_LOG_ENTRY_CHARS) {
+      throw new Error(`Debug log entry is too large (limit ${MAX_LOG_ENTRY_CHARS} characters).`);
+    }
     inference.writeDebugLog(entry);
     return { success: true };
   });
 
-  ipcMain.handle('sunny:clear-debug-logs', () => {
-    return inference.clearDebugLogs();
-  });
+  ipcMain.handle('sunny:clear-debug-logs', () => inference.clearDebugLogs());
+  ipcMain.handle('sunny:export-debug-logs', () => inference.exportDebugLogs());
+  ipcMain.handle('sunny:get-debug-log-count', () => inference.getDebugLogCount());
 
-  ipcMain.handle('sunny:export-debug-logs', () => {
-    return inference.exportDebugLogs();
-  });
-
+  // --- Content sanitisation ---------------------------------------------
   ipcMain.handle('sunny:sanitize-content', (_event, text) => {
     if (typeof text !== 'string') return '';
+    if (text.length > MAX_PAYLOAD_BYTES) return '';
     return sanitizeUntrustedContent(text);
   });
 
-  ipcMain.handle('sunny:get-debug-log-count', () => {
-    return inference.getDebugLogCount();
-  });
-
+  // --- Encrypted credentials --------------------------------------------
   ipcMain.handle('sunny:save-credential', (_event, key, value) => {
     if (typeof key !== 'string' || typeof value !== 'string') {
       throw new Error('Invalid credential parameters.');
     }
+    if (key.length > 128) throw new Error('Credential key is too long.');
     ensureCredentialsDir();
     const filePath = getCredentialPath(key);
     if (!value.trim()) {
@@ -263,6 +653,7 @@ app.whenReady().then(() => {
   });
 
   createWindow();
+  startStatusBroadcast();
 
   globalShortcut.register('CommandOrControl+Shift+Space', () => {
     if (!mainWindow) return;
@@ -278,6 +669,11 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  stopStatusBroadcast();
   globalShortcut.unregisterAll();
   if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
