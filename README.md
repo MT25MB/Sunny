@@ -5,7 +5,17 @@
 </p>
 
 <p align="center">
-  A friendly desktop companion that sees your screen and helps you get things done — built for everyone, especially older adults and people who aren't comfortable with computers.
+  <a href="https://sunny.example.com"><img src="https://img.shields.io/badge/Sunny-Desktop%20AI%20Assistant-fbbf24?style=for-the-badge&logo=sunny&logoColor=black" alt="Sunny"></a>
+  <a href="https://github.com/MT25MB/Sunny/releases/latest"><img src="https://img.shields.io/badge/Download-v2.0.0-fbbf24?style=for-the-badge&logo=github&logoColor=black" alt="Download"></a>
+  <a href="https://github.com/MT25MB/Sunny/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/MT25MB/Sunny/ci.yml?branch=main&label=CI&style=for-the-badge&logo=githubactions" alt="CI Status"></a>
+</p>
+
+<p align="center">
+  <strong>A friendly desktop AI assistant built for older adults and people who aren't comfortable with computers.</strong>
+</p>
+
+<p align="center">
+  <a href="https://sunny.example.com"><strong>Visit the Landing Page</strong></a> • <a href="https://github.com/MT25MB/Sunny/releases/latest"><strong>Download for Desktop</strong></a> • <a href="https://github.com/MT25MB/Sunny#features"><strong>Features</strong></a> • <a href="#accessibility">Accessibility</a>
 </p>
 
 ---
@@ -24,7 +34,41 @@ Sunny is designed with one priority above all: **safety**. It asks for your appr
 
 ---
 
+## Landing Page
+
+A dedicated landing page is available at **<https://sunny.example.com>** (or deploy the `index.html` in this repository to GitHub Pages/Vercel/Netlify).
+
+The landing page features:
+- **Hero section** with large heading, subheadline, download/CTA buttons, and a mock desktop app showcase
+- **Core Features Grid** showcasing all 5 main features
+- **Senior Accessibility Highlights** with badges (Large Text, High Contrast, Voice Activated, Offline First)
+- **Footer** with GitHub repository link and copyright notice
+
+The landing page is built as a single self-contained `index.html` file with embedded CSS/JS — ready for GitHub Pages, Vercel, or Netlify deployment.
+
+### Who is Sunny for?
+
+- **Older adults** who find computers confusing or frustrating
+- **Non-tech-savvy users** who want a patient, friendly helper
+- **Anyone** who wants to automate repetitive desktop tasks without writing scripts
+
+---
+
 ## Features
+
+### Core Features
+
+- **Verified Recipe Fetcher & Hands-Free Step-by-Step Cooking Mode**: Search for any recipe and get verified ingredients with step-by-step instructions. Enter Cooking Mode for giant single-step slides with huge tactile buttons — Sunny reads each step aloud so you never need to touch the screen with messy hands.
+
+- **Scheduled Vocal Medication Reminders**: Set reminders for any medication at specific times. When it's time, Sunny speaks the alert aloud and shows a high-contrast card with a large **"I Took My Medicine"** confirmation button — one click confirms you've taken it.
+
+- **Morning News & Local Weather Digest**: One click fetches your local weather (via Open-Meteo) and top headlines (via BBC RSS). Press **"Speak Digest Aloud"** and Sunny reads the entire summary aloud with natural TTS.
+
+- **One-Click High-Contrast & Text Magnifier Mode**: Instantly switch to ultra-high contrast mode with pure black backgrounds, yellow/gold accents, 3px borders, and enlarged fonts. Respects `prefers-contrast: high` and `prefers-reduced-motion` system settings automatically.
+
+- **Private & Local AI (Runs Ollama/Qwen Locally)**: All AI runs locally on your computer via Ollama — your voice, recipes, reminders, and screen data never leave your computer. Optional cloud providers (OpenAI, Anthropic, Groq) available with explicit consent.
+
+### Core Capabilities
 
 - **Screen understanding**: Sunny captures your screen and uses a vision model to understand what's on it — windows, buttons, text fields, and navigation elements.
 - **Click, type, and interact**: Sunny can move your mouse, click buttons, type text, scroll, and open apps — all with your permission.
@@ -62,6 +106,10 @@ Some websites, emails, or documents may contain hidden text designed to trick AI
 
 ## Download Sunny
 
+### Landing Page
+
+Visit the landing page at **<https://sunny.example.com>** (or deploy `index.html` from this repository to GitHub Pages/Vercel/Netlify) for a full overview of Sunny's features, accessibility highlights, and download links.
+
 ### Pre-built installers
 
 The easiest way to get Sunny is to download a pre-built installer from **[GitHub Releases](../../releases/latest)**:
@@ -80,6 +128,36 @@ When you open Sunny for the first time, an onboarding screen will guide you thro
 - **Windows**: No special permissions needed — just allow Sunny through any antivirus prompts
 
 After that, Sunny is ready to use. Just type or speak what you want help with.
+
+---
+
+## Deploy Landing Page
+
+The landing page (`index.html`) is a single self-contained file with embedded CSS/JS — ready for static hosting.
+
+### GitHub Pages (Recommended)
+
+1. **Enable GitHub Pages** in repository Settings → Pages
+2. **Source**: Deploy from branch `main`, folder `/ (root)`
+4. Your landing page will be live at `https://<username>.github.io/sunny/`
+
+### Vercel
+
+```bash
+npx vercel deploy --prod index.html
+```
+
+### Netlify
+
+Drag `index.html` to Netlify's drag-and-drop deploy area, or connect the repository.
+
+### Local Preview
+
+```bash
+npx serve index.html
+# or
+npx http-server .
+```
 
 ---
 
