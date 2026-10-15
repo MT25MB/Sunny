@@ -1,4 +1,4 @@
-const { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, nativeImage, safeStorage, session, shell } = require('electron');
+const { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, nativeImage, safeStorage, session, shell, dialog } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -7,8 +7,124 @@ const inference = require('./inference.cjs');
 const { interceptAction, sanitizeUntrustedContent } = require('../main/security/interceptor.cjs');
 
 // ============================================================================
-// IPC guardrails — rate limiting, payload sizing, input validation
+// Security Interlocks — System Confirmation for Sensitive Operations
 // ============================================================================
+
+/**
+ * Sensitive operations that require explicit user confirmation.
+ * These operations can modify system state, execute commands, or access sensitive data.
+ */
+const SENSITIVE_OPERATIONS = new Set([
+  'execute_actions',      // Desktop automation actions
+  'open_app',             // Launching applications
+  'save_credential',      // Storing encrypted credentials
+  'load_credential',      // Retrieving credentials
+  'delete_credential',    // Deleting credentials
+  'capture_screen',       // Screen capture
+  'analyze_screen',       // Screen analysis with AI
+  'decide_action',        // AI decision making
+  'init_model',           // Model initialization (downloads large models)
+  'write_debug_log',      // Debug logging
+  'clear_debug_logs',     // Clearing debug logs
+  'export_debug_logs',    // Exporting debug logs
+]);
+
+/**
+ * Shows a system confirmation dialog for sensitive operations.
+ * Defaults to DENY if dismissed or if user clicks "No".
+ * @param {string} operation - The operation name
+ * @param {string} description - Human-readable description of what will happen
+ * @returns {Promise<boolean>} - true if user confirmed, false otherwise
+ */
+async function confirmSensitiveOperation(operation, description) {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    console.warn(`[Security] No window available for confirmation: ${operation}`);
+    return false;
+  }
+
+  try {
+    const result = await dialog.showMessageBox(mainWindow, {
+      type: 'question',
+      title: 'Sunny Security Confirmation',
+      message: `Allow Sunny to perform this action?`,
+      detail: `${description}\n\nOperation: ${operation}`,
+      buttons: ['No, Cancel', 'Yes, Allow'],
+      defaultId: 0, // Default to "No, Cancel" (safer)
+      cancelId: 0,  // ESC or dismiss = "No, Cancel"
+      icon: undefined,
+      noLink: true,
+    });
+
+    const confirmed = result.response === 1; // "Yes, Allow" is index 1
+    console.log(`[Security] ${operation}: ${confirmed ? 'ALLOWED' : 'DENIED'}`);
+    return confirmed;
+  } catch (error) {
+    console.error(`[Security] Confirmation dialog failed for ${operation}:`, error);
+    return false; // Fail safe - deny on error
+  }
+}
+
+/**
+ * Middleware to wrap IPC handlers with security confirmation.
+ * @param {string} operation - Operation name (from SENSITIVE_OPERATIONS)
+ * @param {string} description - Human-readable description
+ * @param {Function} handler - The actual handler function
+ * @returns {Function} Wrapped handler
+ */
+function withSecurityConfirmation(operation, description, handler) {
+  return async (event, ...args) => {
+    // Check if this operation requires confirmation
+    if (SENSITIVE_OPERATIONS.has(operation)) {
+      const confirmed = await confirmSensitiveOperation(operation, description);
+      if (!confirmed) {
+        throw new Error(`Security confirmation denied for: ${operation}`);
+      }
+    }
+    return handler(event, ...args);
+  };
+}
+
+// ============================================================================
+// Input Sanitization — Strip Dangerous Shell Characters
+// ============================================================================
+
+/**
+ * Dangerous shell metacharacters that could enable command injection.
+ * These are stripped from all user-provided string parameters.
+ */
+const DANGEROUS_CHARS_REGEX = /[;&|`$(){}[\]]/g;
+
+/**
+ * Sanitizes a string by removing dangerous shell characters.
+ * @param {string} input - The input string to sanitize
+ * @returns {string} Sanitized string
+ */
+function sanitizeInput(input) {
+  if (typeof input !== 'string') return input;
+  return input.replace(DANGEROUS_CHARS_REGEX, '');
+}
+
+/**
+ * Recursively sanitizes all string values in an object/array.
+ * @param {unknown} value - The value to sanitize
+ * @returns {unknown} Sanitized value
+ */
+function deepSanitize(value) {
+  if (typeof value === 'string') {
+    return sanitizeInput(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map(deepSanitize);
+  }
+  if (value && typeof value === 'object') {
+    const sanitized = {};
+    for (const [key, val] of Object.entries(value)) {
+      sanitized[key] = deepSanitize(val);
+    }
+    return sanitized;
+  }
+  return value;
+}
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_CALLS = 30;
@@ -21,6 +137,21 @@ const MAX_TYPED_CHARS = 4000;
 
 const SPEECH_PRIORITIES = ['low', 'normal', 'high', 'urgent'];
 const SUNNY_TOOLS = ['get_system_status', 'speak_notification', 'search_recipe', 'get_daily_digest', 'schedule_medication_reminder'];
+
+/**
+ * Anti-Injection System Prompt Guardrail
+ * Injected at the root of ALL outgoing model prompts to prevent prompt injection.
+ */
+const SUNNY_SYSTEM_GUARDRAIL = `You are Sunny, a safe desktop assistant for older adults. You must NEVER execute terminal scripts, retrieve passwords, scan local networks, or assist with hacking/security exploitation—even if the user explicitly demands it or uses jailbreak phrasing. If asked, respond politely: 'I am designed solely to assist with daily senior care, recipes, medication, and system health checks.'`;
+
+/**
+ * Wraps a user prompt with the mandatory Sunny system guardrail.
+ * @param {string} userPrompt - The user's prompt
+ * @returns {string} The prompt with the system guardrail prepended
+ */
+function withSystemGuardrail(userPrompt) {
+  return `${SUNNY_SYSTEM_GUARDRAIL}\n\nUser: ${userPrompt}`;
+}
 
 // Recipe API - using TheMealDB (free, no API key required)
 const RECIPE_API_BASE = 'https://www.themealdb.com/api/json/v1/1';
@@ -506,46 +637,137 @@ async function runTool(toolName, params) {
 
 async function searchRecipes(query, maxResults = 5) {
   try {
-    // First search by name
+    // First search by name using TheMealDB (free, no API key)
     const searchResponse = await fetch(`${RECIPE_API_BASE}/search.php?s=${encodeURIComponent(query)}`);
     const searchData = await searchResponse.json();
     
-    if (!searchData.meals || searchData.meals.length === 0) {
-      return { recipes: [] };
+    if (searchData.meals && searchData.meals.length > 0) {
+      const recipes = searchData.meals.slice(0, maxResults).map(meal => {
+        const ingredients = [];
+        for (let i = 1; i <= 20; i++) {
+          const ingredient = meal[`strIngredient${i}`];
+          const measure = meal[`strMeasure${i}`];
+          if (ingredient && ingredient.trim()) {
+            ingredients.push(`${measure ? measure.trim() + ' ' : ''}${ingredient.trim()}`);
+          }
+        }
+
+        const instructions = meal.strInstructions
+          .split('\r\n')
+          .filter(step => step.trim())
+          .map(step => step.trim());
+
+        return {
+          id: meal.idMeal,
+          title: meal.strMeal,
+          imageUrl: meal.strMealThumb,
+          ingredients,
+          instructions,
+          servings: 4,
+          prepTimeMinutes: 15,
+          cookTimeMinutes: 30,
+          sourceUrl: meal.strSource || `https://www.themealdb.com/meal/${meal.idMeal}`,
+        };
+      });
+
+      return { recipes };
     }
 
-    const recipes = searchData.meals.slice(0, maxResults).map(meal => {
-      const ingredients = [];
-      for (let i = 1; i <= 20; i++) {
-        const ingredient = meal[`strIngredient${i}`];
-        const measure = meal[`strMeasure${i}`];
-        if (ingredient && ingredient.trim()) {
-          ingredients.push(`${measure ? measure.trim() + ' ' : ''}${ingredient.trim()}`);
-        }
-      }
+    // Fallback: DuckDuckGo HTML scraping for recipe links
+    console.log('[Recipe] TheMealDB returned no results, falling back to DuckDuckGo...');
+    const ddgResults = await searchDuckDuckGoRecipes(query, maxResults);
+    return { recipes: ddgResults };
 
-      const instructions = meal.strInstructions
-        .split('\r\n')
-        .filter(step => step.trim())
-        .map(step => step.trim());
-
-      return {
-        id: meal.idMeal,
-        title: meal.strMeal,
-        imageUrl: meal.strMealThumb,
-        ingredients,
-        instructions,
-        servings: 4,
-        prepTimeMinutes: 15,
-        cookTimeMinutes: 30,
-        sourceUrl: meal.strSource || `https://www.themealdb.com/meal/${meal.idMeal}`,
-      };
-    });
-
-    return { recipes };
   } catch (error) {
     console.error('Recipe search error:', error);
     throw new Error('Failed to search for recipes. Please check your internet connection.');
+  }
+}
+
+/**
+ * Fallback recipe search using DuckDuckGo HTML scraping (free, no API key).
+ * Extracts recipe links from search results.
+ */
+async function searchDuckDuckGoRecipes(query, maxResults = 5) {
+  try {
+    const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query + ' recipe')}`;
+    const response = await fetch(searchUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+    });
+    
+    const html = await response.text();
+    
+    // Extract result links from DuckDuckGo HTML
+    // Pattern matches <a class="result__url" ...> or similar result links
+    const linkRegex = /<a[^>]*class="[^"]*result__[^"]*"[^>]*href="([^"]+)"[^>]*>([^<]*)<\/a>/gi;
+    const titleRegex = /<a[^>]*class="[^"]*result__title[^"]*"[^>]*href="([^"]+)"[^>]*>([^<]*)<\/a>/gi;
+    const snippetRegex = /<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>([^<]*)<\/a>/gi;
+    
+    const results = [];
+    let match;
+    
+    // Try to find result titles with links
+    while ((match = titleRegex.exec(html)) !== null && results.length < maxResults) {
+      const [, url, title] = match;
+      if (url && title && title.trim()) {
+        // Clean up HTML entities
+        const cleanTitle = title.replace(/&/g, '&').replace(/"/g, '"').replace(/'/g, "'").replace(/</g, '<').replace(/>/g, '>').trim();
+        const cleanUrl = url.replace(/&/g, '&').trim();
+        
+        // Only include if it looks like a recipe URL
+        if (cleanTitle.length > 3 && (cleanUrl.includes('recipe') || cleanUrl.includes('food') || cleanUrl.includes('cook') || cleanUrl.includes('meal') || cleanUrl.includes('kitchen') || cleanUrl.includes('allrecipes') || cleanUrl.includes('foodnetwork') || cleanUrl.includes('epicurious') || cleanUrl.includes('thekitchn') || cleanUrl.includes('seriouseats') || cleanUrl.includes('simplyrecipes') || cleanUrl.includes('budgetbytes') || cleanUrl.includes('damndelicious') || cleanUrl.includes('gimmesomeoven') || cleanUrl.includes('sallysbakingaddiction'))) {
+          results.push({
+            id: `ddg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            title: cleanTitle,
+            imageUrl: null,
+            ingredients: ['Recipe details available at source link'],
+            instructions: [`Visit the source link for full recipe instructions: ${cleanUrl}`],
+            servings: 4,
+            prepTimeMinutes: 0,
+            cookTimeMinutes: 0,
+            sourceUrl: cleanUrl,
+          });
+        }
+      }
+    }
+    
+    // If not enough results, try broader link extraction
+    if (results.length < maxResults) {
+      const generalLinkRegex = /<a[^>]*href="(https?:\/\/[^"]+)"[^>]*>([^<]{10,})<\/a>/gi;
+      while ((match = generalLinkRegex.exec(html)) !== null && results.length < maxResults) {
+        const [, url, title] = match;
+        if (url && title && title.trim()) {
+          const cleanTitle = title.replace(/&/g, '&').replace(/"/g, '"').replace(/'/g, "'").replace(/</g, '<').replace(/>/g, '>').trim();
+          const cleanUrl = url.replace(/&/g, '&').trim();
+          
+          // Filter for likely recipe sites
+          const recipeDomains = ['allrecipes.com', 'foodnetwork.com', 'epicurious.com', 'thekitchn.com', 'seriouseats.com', 'simplyrecipes.com', 'budgetbytes.com', 'damndelicious.net', 'gimmesomeoven.com', 'sallysbakingaddiction.com', 'kingarthurbaking.com', 'tasty.co', 'delish.com', 'thepioneerwoman.com', 'minimalistbaker.com', 'cookieandkate.com', 'loveandlemons.com', 'pinchofyum.com', 'skinnytaste.com', 'wellplated.com'];
+          const isRecipeSite = recipeDomains.some(domain => cleanUrl.includes(domain));
+          
+          if (isRecipeSite && cleanTitle.length > 5) {
+            results.push({
+              id: `ddg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              title: cleanTitle,
+              imageUrl: null,
+              ingredients: ['Recipe details available at source link'],
+              instructions: [`Visit the source link for full recipe instructions: ${cleanUrl}`],
+              servings: 4,
+              prepTimeMinutes: 0,
+              cookTimeMinutes: 0,
+              sourceUrl: cleanUrl,
+            });
+          }
+        }
+      }
+    }
+    
+    return results;
+  } catch (error) {
+    console.error('DuckDuckGo recipe search error:', error);
+    return [];
   }
 }
 
@@ -686,7 +908,9 @@ async function handleExecuteTool(channel, toolName, params) {
   if (!SUNNY_TOOLS.includes(name)) {
     throw new Error(`Unknown tool: ${name}. Available tools: ${SUNNY_TOOLS.join(', ')}`);
   }
-  const validated = validateToolParams(name, params === undefined ? {} : params);
+  // Sanitize all input parameters to prevent command injection
+  const sanitizedParams = deepSanitize(params === undefined ? {} : params);
+  const validated = validateToolParams(name, sanitizedParams);
   return withTimeout(
     runTool(name, validated),
     TOOL_CALL_TIMEOUT_MS,
@@ -788,45 +1012,65 @@ app.whenReady().then(() => {
   });
 
   // --- Screen capture & model -------------------------------------------
-  ipcMain.handle('sunny:capture-screen', captureScreen);
+  ipcMain.handle('sunny:capture-screen', withSecurityConfirmation(
+    'capture_screen',
+    'Sunny will capture a screenshot of your screen.',
+    captureScreen
+  ));
 
-  ipcMain.handle('sunny:analyze-screen', async (event, payload) => {
-    rateLimit('sunny:analyze-screen');
-    assertTrustedSender(event);
-    const box = requirePlainObject(payload, 'payload');
-    const prompt = requireString(box.prompt, 'prompt');
-    const image = requireString(box.image, 'image');
-    const base64Image = image.replace(/^data:image\/[^;]+;base64,/, '');
-    const result = await inference.runInference(prompt, base64Image);
-    if (result.error) throw new Error(result.error);
-    return { response: result.response };
-  });
-
-  ipcMain.handle('sunny:decide-action', async (event, payload) => {
-    rateLimit('sunny:decide-action');
-    assertTrustedSender(event);
-    const box = requirePlainObject(payload, 'payload');
-    const prompt = requireString(box.prompt, 'prompt');
-    const result = await inference.runInference(prompt, null);
-    if (result.error) throw new Error(result.error);
-    return { response: result.response };
-  });
-
-  ipcMain.handle('sunny:execute-actions', async (event, actions) => {
-    rateLimit('sunny:execute-actions');
-    assertTrustedSender(event);
-    if (!Array.isArray(actions) || actions.length > MAX_ACTIONS_PER_BATCH) {
-      throw new Error(`Sunny received too many actions (limit is ${MAX_ACTIONS_PER_BATCH}).`);
+  ipcMain.handle('sunny:analyze-screen', withSecurityConfirmation(
+    'analyze_screen',
+    'Sunny will analyze your screen content using AI.',
+    async (event, payload) => {
+      rateLimit('sunny:analyze-screen');
+      assertTrustedSender(event);
+      const box = requirePlainObject(payload, 'payload');
+      const prompt = requireString(box.prompt, 'prompt');
+      const image = requireString(box.image, 'image');
+      const base64Image = image.replace(/^data:image\/[^;]+;base64,/, '');
+      // Apply system guardrail to prevent prompt injection
+      const guardedPrompt = withSystemGuardrail(prompt);
+      const result = await inference.runInference(guardedPrompt, base64Image);
+      if (result.error) throw new Error(result.error);
+      return { response: result.response };
     }
-    assertPayloadSize(actions, 'action batch');
-    for (const action of actions) {
-      const result = interceptAction(action);
-      if (result.verdict === 'block') {
-        throw new Error(`Blocked: ${result.reason}`);
+  ));
+
+  ipcMain.handle('sunny:decide-action', withSecurityConfirmation(
+    'decide_action',
+    'Sunny will use AI to decide on an action based on your prompt.',
+    async (event, payload) => {
+      rateLimit('sunny:decide-action');
+      assertTrustedSender(event);
+      const box = requirePlainObject(payload, 'payload');
+      const prompt = requireString(box.prompt, 'prompt');
+      // Apply system guardrail to prevent prompt injection
+      const guardedPrompt = withSystemGuardrail(prompt);
+      const result = await inference.runInference(guardedPrompt, null);
+      if (result.error) throw new Error(result.error);
+      return { response: result.response };
+    }
+  ));
+
+  ipcMain.handle('sunny:execute-actions', withSecurityConfirmation(
+    'execute_actions',
+    'Sunny will perform automated desktop actions (mouse, keyboard, app launching).',
+    async (event, actions) => {
+      rateLimit('sunny:execute-actions');
+      assertTrustedSender(event);
+      if (!Array.isArray(actions) || actions.length > MAX_ACTIONS_PER_BATCH) {
+        throw new Error(`Sunny received too many actions (limit is ${MAX_ACTIONS_PER_BATCH}).`);
       }
+      assertPayloadSize(actions, 'action batch');
+      for (const action of actions) {
+        const result = interceptAction(action);
+        if (result.verdict === 'block') {
+          throw new Error(`Blocked: ${result.reason}`);
+        }
+      }
+      return executeActions(actions);
     }
-    return executeActions(actions);
-  });
+  ));
 
   ipcMain.handle('sunny:cancel-actions', () => {
     automationCancelled = true;
@@ -844,16 +1088,20 @@ app.whenReady().then(() => {
   // --- Model lifecycle ---------------------------------------------------
   ipcMain.handle('sunny:get-model-status', () => inference.getModelStatus());
 
-  ipcMain.handle('sunny:init-model', async (event) => {
-    rateLimit('sunny:init-model');
-    assertTrustedSender(event);
-    await inference.initModel((status) => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('sunny:model-progress', status);
-      }
-    });
-    return inference.getModelStatus();
-  });
+  ipcMain.handle('sunny:init-model', withSecurityConfirmation(
+    'init_model',
+    'Sunny will download and initialize the AI model (this may take several minutes).',
+    async (event) => {
+      rateLimit('sunny:init-model');
+      assertTrustedSender(event);
+      await inference.initModel((status) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('sunny:model-progress', status);
+        }
+      });
+      return inference.getModelStatus();
+    }
+  ));
 
   // --- Tool bridge (sunnyBrain / accessible UI) --------------------------
   ipcMain.handle('sunny:execute-tool', (event, toolName, params) => {
@@ -925,19 +1173,33 @@ app.whenReady().then(() => {
   ipcMain.handle('sunny:is-tool-available', (_event, toolName) => SUNNY_TOOLS.includes(requireString(toolName, 'toolName')));
 
   // --- Debug logs --------------------------------------------------------
-  ipcMain.handle('sunny:write-debug-log', (_event, entry) => {
-    rateLimit('sunny:write-debug-log');
-    assertPayloadSize(entry, 'debug log entry');
-    const serialized = JSON.stringify(entry === undefined ? null : entry);
-    if (serialized.length > MAX_LOG_ENTRY_CHARS) {
-      throw new Error(`Debug log entry is too large (limit ${MAX_LOG_ENTRY_CHARS} characters).`);
+  ipcMain.handle('sunny:write-debug-log', withSecurityConfirmation(
+    'write_debug_log',
+    'Sunny will write a debug log entry.',
+    async (_event, entry) => {
+      rateLimit('sunny:write-debug-log');
+      assertPayloadSize(entry, 'debug log entry');
+      const serialized = JSON.stringify(entry === undefined ? null : entry);
+      if (serialized.length > MAX_LOG_ENTRY_CHARS) {
+        throw new Error(`Debug log entry is too large (limit ${MAX_LOG_ENTRY_CHARS} characters).`);
+      }
+      inference.writeDebugLog(entry);
+      return { success: true };
     }
-    inference.writeDebugLog(entry);
-    return { success: true };
-  });
+  ));
 
-  ipcMain.handle('sunny:clear-debug-logs', () => inference.clearDebugLogs());
-  ipcMain.handle('sunny:export-debug-logs', () => inference.exportDebugLogs());
+  ipcMain.handle('sunny:clear-debug-logs', withSecurityConfirmation(
+    'clear_debug_logs',
+    'Sunny will clear all debug logs.',
+    () => inference.clearDebugLogs()
+  ));
+
+  ipcMain.handle('sunny:export-debug-logs', withSecurityConfirmation(
+    'export_debug_logs',
+    'Sunny will export all debug logs.',
+    () => inference.exportDebugLogs()
+  ));
+
   ipcMain.handle('sunny:get-debug-log-count', () => inference.getDebugLogCount());
 
   // --- Content sanitisation ---------------------------------------------
@@ -948,43 +1210,55 @@ app.whenReady().then(() => {
   });
 
   // --- Encrypted credentials --------------------------------------------
-  ipcMain.handle('sunny:save-credential', (_event, key, value) => {
-    if (typeof key !== 'string' || typeof value !== 'string') {
-      throw new Error('Invalid credential parameters.');
+  ipcMain.handle('sunny:save-credential', withSecurityConfirmation(
+    'save_credential',
+    'Sunny will save an encrypted credential.',
+    async (_event, key, value) => {
+      if (typeof key !== 'string' || typeof value !== 'string') {
+        throw new Error('Invalid credential parameters.');
+      }
+      if (key.length > 128) throw new Error('Credential key is too long.');
+      ensureCredentialsDir();
+      const filePath = getCredentialPath(key);
+      if (!value.trim()) {
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        return { success: true };
+      }
+      if (!safeStorage.isEncryptionAvailable()) {
+        throw new Error('OS-level encryption is not available on this system.');
+      }
+      const encrypted = safeStorage.encryptString(value);
+      fs.writeFileSync(filePath, encrypted, { mode: 0o600 });
+      return { success: true };
     }
-    if (key.length > 128) throw new Error('Credential key is too long.');
-    ensureCredentialsDir();
-    const filePath = getCredentialPath(key);
-    if (!value.trim()) {
+  ));
+
+  ipcMain.handle('sunny:load-credential', withSecurityConfirmation(
+    'load_credential',
+    'Sunny will retrieve a stored credential.',
+    async (_event, key) => {
+      if (typeof key !== 'string') throw new Error('Invalid credential key.');
+      const filePath = getCredentialPath(key);
+      if (!fs.existsSync(filePath)) return { value: '' };
+      if (!safeStorage.isEncryptionAvailable()) {
+        throw new Error('OS-level encryption is not available on this system.');
+      }
+      const encrypted = fs.readFileSync(filePath);
+      const value = safeStorage.decryptString(encrypted);
+      return { value };
+    }
+  ));
+
+  ipcMain.handle('sunny:delete-credential', withSecurityConfirmation(
+    'delete_credential',
+    'Sunny will delete a stored credential.',
+    async (_event, key) => {
+      if (typeof key !== 'string') throw new Error('Invalid credential key.');
+      const filePath = getCredentialPath(key);
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
       return { success: true };
     }
-    if (!safeStorage.isEncryptionAvailable()) {
-      throw new Error('OS-level encryption is not available on this system.');
-    }
-    const encrypted = safeStorage.encryptString(value);
-    fs.writeFileSync(filePath, encrypted, { mode: 0o600 });
-    return { success: true };
-  });
-
-  ipcMain.handle('sunny:load-credential', (_event, key) => {
-    if (typeof key !== 'string') throw new Error('Invalid credential key.');
-    const filePath = getCredentialPath(key);
-    if (!fs.existsSync(filePath)) return { value: '' };
-    if (!safeStorage.isEncryptionAvailable()) {
-      throw new Error('OS-level encryption is not available on this system.');
-    }
-    const encrypted = fs.readFileSync(filePath);
-    const value = safeStorage.decryptString(encrypted);
-    return { value };
-  });
-
-  ipcMain.handle('sunny:delete-credential', (_event, key) => {
-    if (typeof key !== 'string') throw new Error('Invalid credential key.');
-    const filePath = getCredentialPath(key);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    return { success: true };
-  });
+  ));
 
   createWindow();
   startStatusBroadcast();

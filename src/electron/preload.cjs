@@ -25,6 +25,44 @@ const { contextBridge, ipcRenderer } = require('electron');
 const SUNNY_TOOLS = ['get_system_status', 'speak_notification', 'search_recipe', 'get_daily_digest', 'schedule_medication_reminder'];
 
 /**
+ * Dangerous shell metacharacters that could enable command injection.
+ * These are stripped from all user-provided string parameters.
+ */
+const DANGEROUS_CHARS_REGEX = /[;&|`$(){}[\]]/g;
+
+/**
+ * Sanitizes a string by removing dangerous shell characters.
+ * @param {string} input - The input string to sanitize
+ * @returns {string} Sanitized string
+ */
+function sanitizeInput(input) {
+  if (typeof input !== 'string') return input;
+  return input.replace(DANGEROUS_CHARS_REGEX, '');
+}
+
+/**
+ * Recursively sanitizes all string values in an object/array.
+ * @param {unknown} value - The value to sanitize
+ * @returns {unknown} Sanitized value
+ */
+function deepSanitize(value) {
+  if (typeof value === 'string') {
+    return sanitizeInput(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map(deepSanitize);
+  }
+  if (value && typeof value === 'object') {
+    const sanitized = {};
+    for (const [key, val] of Object.entries(value)) {
+      sanitized[key] = deepSanitize(val);
+    }
+    return sanitized;
+  }
+  return value;
+}
+
+/**
  * Build a listener on an IPC channel and return an unsubscribe function.
  * @param {string} channel
  * @param {(payload: unknown) => void} callback
@@ -55,7 +93,9 @@ const electronAPI = {
     if (params !== undefined && (params === null || typeof params !== 'object' || Array.isArray(params))) {
       throw new Error('params must be an object.');
     }
-    return ipcRenderer.invoke('sunny:execute-tool', toolName, params || {});
+    // Sanitize all input parameters to prevent command injection
+    const sanitizedParams = deepSanitize(params || {});
+    return ipcRenderer.invoke('sunny:execute-tool', toolName, sanitizedParams);
   },
 
   invokeTool: async (toolName, params) => {
