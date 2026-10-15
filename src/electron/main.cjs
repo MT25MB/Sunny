@@ -741,7 +741,7 @@ async function searchDuckDuckGoRecipes(query, maxResults = 5) {
         const [, url, title] = match;
         if (url && title && title.trim()) {
           const cleanTitle = title.replace(/&/g, '&').replace(/"/g, '"').replace(/'/g, "'").replace(/</g, '<').replace(/>/g, '>').trim();
-          const cleanUrl = url.replace(/&/g, '&').trim();
+          const cleanUrl = url.replace(/&amp;/g, '&').trim();
           
           // Filter for likely recipe sites
           const recipeDomains = ['allrecipes.com', 'foodnetwork.com', 'epicurious.com', 'thekitchn.com', 'seriouseats.com', 'simplyrecipes.com', 'budgetbytes.com', 'damndelicious.net', 'gimmesomeoven.com', 'sallysbakingaddiction.com', 'kingarthurbaking.com', 'tasty.co', 'delish.com', 'thepioneerwoman.com', 'minimalistbaker.com', 'cookieandkate.com', 'loveandlemons.com', 'pinchofyum.com', 'skinnytaste.com', 'wellplated.com'];
