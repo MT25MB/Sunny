@@ -994,7 +994,7 @@ app.whenReady().then(() => {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com",
       "img-src 'self' data: https:",
-      "connect-src 'self' https://www.themealdb.com https://api.open-meteo.com https://api.rss2json.com http://ip-api.com",
+      "connect-src 'self' https://www.themealdb.com https://api.open-meteo.com https://api.rss2json.com http://ip-api.com https://html.duckduckgo.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'"
