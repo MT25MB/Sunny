@@ -12,7 +12,6 @@ module.exports = {
     // Ensure code signing is disabled/bypassed for unsigned CI builds
     osxSign: undefined,
     ignore: [
-      /^\/src\/main\//,
       /^\/\.bolt$/,
       /^\/supabase$/,
       /^\/eslint\.config\.js$/,
@@ -21,6 +20,8 @@ module.exports = {
       /^\/tsconfig/,
       /^\/vite\.config\.ts$/,
       /^\/forge\.config\.js$/,
+      /^\/app\.html$/,
+      /^\/index\.html$/,
       /^\/src\/components\//,
       /^\/src\/lib\//,
       /^\/src\/App\.tsx$/,
@@ -29,7 +30,7 @@ module.exports = {
       /^\/src\/style\.css$/,
       /^\/src\/index\.html$/,
       /^\/src\/vite-env\.d\.ts$/,
-      /^\/index\.html$/,
+      /^\/src\/preload\.ts$/,
       /^\/src\/electron\/app\.js$/,
     ],
   },

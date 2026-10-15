@@ -89,10 +89,12 @@ function withSecurityConfirmation(operation, description, handler) {
 // ============================================================================
 
 /**
- * Dangerous shell metacharacters that could enable command injection.
- * These are stripped from all user-provided string parameters.
+ * Dangerous shell metacharacters / sequences that could enable command
+ * injection. Only actual command-substitution and chaining syntax is
+ * removed — a bare `&` is left alone so benign queries like
+ * "mac & cheese" keep working.
  */
-const DANGEROUS_CHARS_REGEX = /[;&|`$(){}[\]]/g;
+const DANGEROUS_CHARS_REGEX = /`|\$\{|\$\(|;|&&|\|\||\|/g;
 
 /**
  * Sanitizes a string by removing dangerous shell characters.
@@ -280,7 +282,7 @@ function createWindow() {
 
   mainWindow.setMenuBarVisibility(false);
   if (isDev) mainWindow.loadURL(rendererUrl);
-  else mainWindow.loadURL(pathToFileURL(path.join(__dirname, '../../dist/index.html')).toString());
+  else mainWindow.loadURL(pathToFileURL(path.join(__dirname, '../../dist/app.html')).toString());
 }
 
 // ============================================================================
@@ -779,7 +781,7 @@ async function getDailyDigest(location = 'auto', newsCount = 5) {
 
     if (location === 'auto') {
       try {
-        const ipResponse = await fetch('http://ip-api.com/json/');
+        const ipResponse = await fetch('https://ip-api.com/json/');
         const ipData = await ipResponse.json();
         if (ipData.status === 'success') {
           latitude = ipData.lat;
@@ -994,7 +996,7 @@ app.whenReady().then(() => {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com",
       "img-src 'self' data: https:",
-      "connect-src 'self' https://www.themealdb.com https://api.open-meteo.com https://api.rss2json.com http://ip-api.com https://html.duckduckgo.com",
+      "connect-src 'self' https://www.themealdb.com https://api.open-meteo.com https://api.rss2json.com https://ip-api.com https://html.duckduckgo.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'"
@@ -1156,7 +1158,8 @@ app.whenReady().then(() => {
     throw new Error('Reminder not found');
   });
 
-  ipcMain.handle('sunny:get-medication-reminders', () => {
+  ipcMain.handle('sunny:get-medication-reminders', (event) => {
+    assertTrustedSender(event);
     return Array.from(medicationReminders.values());
   });
 

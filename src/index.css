@@ -709,6 +709,40 @@ textarea::placeholder { color: #65747b; }
   font: 500 0.9375rem 'DM Sans', sans-serif;
 }
 
+.browser-preview-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  border: 3px solid #e08a1e;
+  border-radius: 12px;
+  background: rgba(224, 138, 30, 0.14);
+  color: #ffd9a0;
+  font: 500 0.9375rem 'DM Sans', sans-serif;
+}
+
+.browser-preview-banner strong {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 1.0625rem;
+}
+
+.browser-preview-banner p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.browser-preview-banner a {
+  color: #ffd9a0;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.browser-preview-banner a:hover {
+  color: #fff;
+}
+
 .retry-btn {
   margin-left: auto;
   padding: 0.5rem 1rem;

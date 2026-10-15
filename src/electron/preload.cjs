@@ -25,10 +25,12 @@ const { contextBridge, ipcRenderer } = require('electron');
 const SUNNY_TOOLS = ['get_system_status', 'speak_notification', 'search_recipe', 'get_daily_digest', 'schedule_medication_reminder'];
 
 /**
- * Dangerous shell metacharacters that could enable command injection.
- * These are stripped from all user-provided string parameters.
+ * Dangerous shell metacharacters / sequences that could enable command
+ * injection. Only actual command-substitution and chaining syntax is
+ * removed — a bare `&` is left alone so benign queries like
+ * "mac & cheese" keep working.
  */
-const DANGEROUS_CHARS_REGEX = /[;&|`$(){}[\]]/g;
+const DANGEROUS_CHARS_REGEX = /`|\$\{|\$\(|;|&&|\|\||\|/g;
 
 /**
  * Sanitizes a string by removing dangerous shell characters.
@@ -92,6 +94,11 @@ const electronAPI = {
     }
     if (params !== undefined && (params === null || typeof params !== 'object' || Array.isArray(params))) {
       throw new Error('params must be an object.');
+    }
+    // Defence in depth: reject unknown tools at the bridge as well as the
+    // main process. The main process performs the authoritative check.
+    if (!SUNNY_TOOLS.includes(toolName)) {
+      throw new Error(`Unknown tool: ${toolName}. Available tools: ${SUNNY_TOOLS.join(', ')}`);
     }
     // Sanitize all input parameters to prevent command injection
     const sanitizedParams = deepSanitize(params || {});
@@ -164,6 +171,42 @@ const electronAPI = {
       throw new Error('timeString must be in HH:MM format (24-hour).');
     }
     return ipcRenderer.invoke('sunny:schedule-medication-reminder', params);
+  },
+
+  /**
+   * Mark a medication reminder as taken.
+   * @param {{reminderId: string}} params
+   * @returns {Promise<{success: boolean}>}
+   */
+  markMedicationTaken: async (params) => {
+    if (!params || typeof params !== 'object' || Array.isArray(params)) {
+      throw new Error('markMedicationTaken requires an object with a reminderId.');
+    }
+    if (typeof params.reminderId !== 'string' || params.reminderId.trim() === '') {
+      throw new Error('reminderId must be a non-empty string.');
+    }
+    return ipcRenderer.invoke('sunny:medication-taken', params);
+  },
+
+  /**
+   * Get all medication reminders.
+   * @returns {Promise<Array<{id: string, pillName: string, timeString: string, enabled: boolean}>>}
+   */
+  getMedicationReminders: async () => ipcRenderer.invoke('sunny:get-medication-reminders'),
+
+  /**
+   * Delete a medication reminder.
+   * @param {{reminderId: string}} params
+   * @returns {Promise<{success: boolean}>}
+   */
+  deleteMedicationReminder: async (params) => {
+    if (!params || typeof params !== 'object' || Array.isArray(params)) {
+      throw new Error('deleteMedicationReminder requires an object with a reminderId.');
+    }
+    if (typeof params.reminderId !== 'string' || params.reminderId.trim() === '') {
+      throw new Error('reminderId must be a non-empty string.');
+    }
+    return ipcRenderer.invoke('sunny:delete-medication-reminder', params);
   },
 
   // -------------------------------------------------------------------------

@@ -138,6 +138,44 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke('sunny:schedule-medication-reminder', params);
   },
 
+  /**
+   * Mark a medication reminder as taken.
+   * @param {{reminderId: string}} params
+   * @returns {Promise<{success: boolean}>}
+   */
+  markMedicationTaken: async (params) => {
+    if (!params || typeof params !== 'object' || Array.isArray(params)) {
+      throw new Error('markMedicationTaken requires an object with a reminderId.');
+    }
+    if (typeof params.reminderId !== 'string' || params.reminderId.trim() === '') {
+      throw new Error('reminderId must be a non-empty string.');
+    }
+    return ipcRenderer.invoke('sunny:medication-taken', params);
+  },
+
+  /**
+   * Get all medication reminders.
+   * @returns {Promise<MedicationReminder[]>}
+   */
+  getMedicationReminders: async () => {
+    return ipcRenderer.invoke('sunny:get-medication-reminders') as Promise<MedicationReminder[]>;
+  },
+
+  /**
+   * Delete a medication reminder.
+   * @param {{reminderId: string}} params
+   * @returns {Promise<{success: boolean}>}
+   */
+  deleteMedicationReminder: async (params) => {
+    if (!params || typeof params !== 'object' || Array.isArray(params)) {
+      throw new Error('deleteMedicationReminder requires an object with a reminderId.');
+    }
+    if (typeof params.reminderId !== 'string' || params.reminderId.trim() === '') {
+      throw new Error('reminderId must be a non-empty string.');
+    }
+    return ipcRenderer.invoke('sunny:delete-medication-reminder', params);
+  },
+
   // -------------------------------------------------------------------------
   // Spoken notifications
   // -------------------------------------------------------------------------

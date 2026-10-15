@@ -262,8 +262,7 @@ class SunnyBrain {
     if (!window.electronAPI) {
       throw new Error('Electron API is not available.');
     }
-    const result = await window.electronAPI.executeTool('medication_taken', { reminderId });
-    return { success: (result as { success: boolean }).success };
+    return window.electronAPI.markMedicationTaken({ reminderId });
   }
 
   /**
@@ -274,8 +273,7 @@ class SunnyBrain {
     if (!window.electronAPI) {
       throw new Error('Electron API is not available.');
     }
-    const result = await window.electronAPI.executeTool('get_medication_reminders', {});
-    return (result as { success: boolean; reminders: MedicationReminder[] }).reminders || [];
+    return window.electronAPI.getMedicationReminders();
   }
 
   /**
@@ -287,8 +285,7 @@ class SunnyBrain {
     if (!window.electronAPI) {
       throw new Error('Electron API is not available.');
     }
-    const result = await window.electronAPI.executeTool('delete_medication_reminder', { reminderId });
-    return { success: (result as { success: boolean }).success };
+    return window.electronAPI.deleteMedicationReminder({ reminderId });
   }
 
   // -------------------------------------------------------------------------
@@ -389,20 +386,28 @@ class SunnyBrain {
 
   private speakLocally(message: string, repeat: number): void {
     if (!('speechSynthesis' in window) || !window.speechSynthesis) {
-      throw new Error('Text-to-speech is unavailable in this environment.');
+      // Speech synthesis unavailable (e.g. some Linux setups): log and
+      // continue rather than crashing the caller.
+      console.warn('[Sunny] Text-to-speech is unavailable in this environment.');
+      return;
     }
 
-    // Cancel any in-flight speech so repeat requests start cleanly.
-    window.speechSynthesis.cancel();
+    try {
+      // Cancel any in-flight speech so repeat requests start cleanly.
+      window.speechSynthesis.cancel();
 
-    // A slower rate, normal pitch, and full volume suit older listeners.
-    const utterance = new SpeechSynthesisUtterance(message);
-    utterance.rate = 0.9;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
+      // A slower rate, normal pitch, and full volume suit older listeners.
+      const utterance = new SpeechSynthesisUtterance(message);
+      utterance.rate = 0.9;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
 
-    for (let i = 0; i < repeat; i += 1) {
-      window.speechSynthesis.speak(utterance);
+      for (let i = 0; i < repeat; i += 1) {
+        window.speechSynthesis.speak(utterance);
+      }
+    } catch (error) {
+      // A speech failure must never break the calling flow.
+      console.warn('[Sunny] Speech playback failed:', error);
     }
   }
 

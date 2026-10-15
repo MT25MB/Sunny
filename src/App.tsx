@@ -36,6 +36,7 @@ import mascot from '/assets/mascot.png';
 const POLL_INTERVAL = 30000;
 
 function App() {
+  const isBrowserPreview = typeof window !== 'undefined' && !window.electronAPI;
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -116,12 +117,24 @@ function App() {
     };
     loadMedicationReminders();
 
-    sunnyBrain.getSystemStatus()
-      .then(setSystemStatus)
-      .catch((e) => setError(e.message))
-      .finally(() => setIsLoading(false));
-    
-    sunnyBrain.startStatusPolling(POLL_INTERVAL);
+    if (!window.electronAPI) {
+      // Outside Electron the system tools are unavailable. Show a friendly
+      // explanation instead of a raw error, and skip the polling that would
+      // otherwise fail every few seconds.
+      setError(null);
+      setIsLoading(false);
+      sunnyBrain.addMessage(
+        'system',
+        "You are viewing Sunny in a web browser. To check your computer's health, hear spoken reminders, and use the medication tools, please download the free Sunny desktop app from GitHub Releases."
+      );
+    } else {
+      sunnyBrain.getSystemStatus()
+        .then(setSystemStatus)
+        .catch((e) => setError(e.message))
+        .finally(() => setIsLoading(false));
+
+      sunnyBrain.startStatusPolling(POLL_INTERVAL);
+    }
 
     sunnyBrain.addMessage("system", "Welcome to Sunny. Your computer's health status appears above. Press the buttons below to check your system or hear it spoken aloud.");
 
@@ -373,6 +386,21 @@ function App() {
       </header>
 
       <main className="app-main" role="main">
+        {isBrowserPreview && (
+          <div className="browser-preview-banner" role="note">
+            <span aria-hidden="true">☀️</span>
+            <div>
+              <strong>You are previewing Sunny in a web browser.</strong>
+              <p>
+                Download the free Sunny desktop app from{' '}
+                <a href="https://github.com/MT25MB/Sunny/releases/latest" target="_blank" rel="noopener noreferrer">
+                  GitHub Releases
+                </a>{' '}
+                to check your computer's health, set medication reminders, and hear spoken answers.
+              </p>
+            </div>
+          </div>
+        )}
         <section className="health-card" aria-labelledby="health-title">
           <h2 id="health-title" className="section-title">
             <Shield size={20} /> System Health

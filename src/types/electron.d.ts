@@ -226,6 +226,15 @@ export interface ElectronAPI {
   /** Schedule a medication reminder */
   scheduleMedicationReminder(params: ScheduleMedicationParams): Promise<{ success: boolean; reminderId: string }>;
 
+  /** Mark a medication reminder as taken */
+  markMedicationTaken(params: { reminderId: string }): Promise<{ success: boolean }>;
+
+  /** Get all medication reminders */
+  getMedicationReminders(): Promise<MedicationReminder[]>;
+
+  /** Delete a medication reminder */
+  deleteMedicationReminder(params: { reminderId: string }): Promise<{ success: boolean }>;
+
   /** Subscribe to medication reminder notifications */
   onMedicationReminder(callback: (reminder: MedicationReminder) => void): Unsubscribe;
 

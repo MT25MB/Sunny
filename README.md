@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://sunny.example.com"><img src="https://img.shields.io/badge/Sunny-Desktop%20AI%20Assistant-fbbf24?style=for-the-badge&logo=sunny&logoColor=black" alt="Sunny"></a>
+  <a href="https://mt25mb.github.io/Sunny/"><img src="https://img.shields.io/badge/Sunny-Desktop%20AI%20Assistant-fbbf24?style=for-the-badge&logo=sunny&logoColor=black" alt="Sunny"></a>
   <a href="https://github.com/MT25MB/Sunny/releases/latest"><img src="https://img.shields.io/badge/Download-v2.0.0-fbbf24?style=for-the-badge&logo=github&logoColor=black" alt="Download"></a>
   <a href="https://github.com/MT25MB/Sunny/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/MT25MB/Sunny/ci.yml?branch=main&label=CI&style=for-the-badge&logo=githubactions" alt="CI Status"></a>
 </p>
@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <a href="https://sunny.example.com"><strong>Visit the Landing Page</strong></a> • <a href="https://github.com/MT25MB/Sunny/releases/latest"><strong>Download for Desktop</strong></a> • <a href="https://github.com/MT25MB/Sunny#features"><strong>Features</strong></a> • <a href="#accessibility">Accessibility</a>
+  <a href="https://mt25mb.github.io/Sunny/"><strong>Visit the Landing Page</strong></a> • <a href="https://github.com/MT25MB/Sunny/releases/latest"><strong>Download for Desktop</strong></a> • <a href="https://github.com/MT25MB/Sunny#features"><strong>Features</strong></a> • <a href="#accessibility">Accessibility</a>
 </p>
 
 ---
@@ -36,7 +36,7 @@ Sunny is designed with one priority above all: **safety**. It asks for your appr
 
 ## Landing Page
 
-A dedicated landing page is available at **<https://sunny.example.com>** (or deploy the `index.html` in this repository to GitHub Pages/Vercel/Netlify).
+A dedicated landing page is available at **<https://mt25mb.github.io/Sunny/>** (or deploy the `index.html` in this repository to GitHub Pages/Vercel/Netlify).
 
 The landing page features:
 - **Hero section** with large heading, subheadline, download/CTA buttons, and a mock desktop app showcase
@@ -108,7 +108,7 @@ Some websites, emails, or documents may contain hidden text designed to trick AI
 
 ### Landing Page
 
-Visit the landing page at **<https://sunny.example.com>** (or deploy `index.html` from this repository to GitHub Pages/Vercel/Netlify) for a full overview of Sunny's features, accessibility highlights, and download links.
+Visit the landing page at **<https://mt25mb.github.io/Sunny/>** (or deploy `index.html` from this repository to GitHub Pages/Vercel/Netlify) for a full overview of Sunny's features, accessibility highlights, and download links.
 
 ### Pre-built installers
 
