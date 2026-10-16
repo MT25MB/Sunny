@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#11161b" />
+  <meta name="theme-color" content="#faf6ef" />
   <meta name="description" content="Sunny is a free, accessible AI desktop assistant that helps older adults with daily tasks, medication reminders, recipes, and computer help using voice and text." />
   <meta property="og:title" content="Sunny — Accessible AI Desktop Companion for Older Adults" />
   <meta property="og:description" content="Sunny is a free, accessible AI desktop assistant that helps older adults with daily tasks, medication reminders, recipes, and computer help using voice and text." />
@@ -16,626 +16,516 @@
   <meta name="twitter:description" content="Sunny is a free, accessible AI desktop assistant that helps older adults with daily tasks, medication reminders, recipes, and computer help using voice and text." />
   <meta name="twitter:image" content="https://mt25mb.github.io/Sunny/public/assets/mascot.png" />
   <link rel="icon" href="public/assets/mascot.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet" />
   <title>Sunny — Accessible AI Desktop Companion for Older Adults</title>
 
 <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: "Atkinson Hyperlegible", "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #fdf9f3;
-      color: #1d2433;
-      line-height: 1.6;
-      font-size: 1.125rem;
-    }
-    :focus-visible {
-      outline: 4px solid #1a56db;
-      outline-offset: 3px;
-      border-radius: 6px;
-    }
-    .container {
-      width: 100%;
-      max-width: 1080px;
-      margin: 0 auto;
-      padding: 0 1.25rem;
-    }
-    html { scroll-behavior: smooth; }
-    @media (prefers-reduced-motion: reduce) {
-      html { scroll-behavior: auto; }
-      *, *::before, *::after { transition: none !important; animation: none !important; }
-    }
-    .skip-link {
-      position: absolute;
-      left: -9999px;
-      top: 0;
-      background: #1d2433;
-      color: #fff;
-      padding: 0.75rem 1.25rem;
-      z-index: 100;
-      font-weight: 700;
-    }
-    .skip-link:focus { left: 0.5rem; top: 0.5rem; }
-    header.site {
-      background: #ffffff;
-      border-bottom: 1px solid #e6dcc8;
-      position: sticky;
-      top: 0;
-      z-index: 50;
-    }
-    .site-header-inner {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      padding: 0.85rem 0;
-      flex-wrap: wrap;
-    }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      font-weight: 800;
-      font-size: 1.5rem;
-      color: #1d2433;
-      text-decoration: none;
-    }
-    .brand-mark-img {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      object-fit: cover;
-      flex-shrink: 0;
-      box-shadow: 0 2px 8px rgba(224, 138, 30, 0.25);
-    }
-    .brand-text small {
-      display: block;
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: #8a97ab;
-      letter-spacing: 0.02em;
-    }
-    nav.site-nav {
-      display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-    }
-    nav.site-nav a {
-      color: #1d2433;
-      text-decoration: none;
-      font-weight: 700;
-      padding: 0.6rem 0.9rem;
-      border-radius: 10px;
-      min-height: 44px;
-      display: inline-flex;
-      align-items: center;
-    }
-    nav.site-nav a:hover { background: #f5efe4; }
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      font: inherit;
-      font-weight: 800;
-      text-decoration: none;
-      border: 3px solid transparent;
-      border-radius: 14px;
-      padding: 0.9rem 1.6rem;
-      min-height: 56px;
-      cursor: pointer;
-      transition: transform 0.12s ease, background 0.12s ease;
-    }
-    .btn:hover { transform: translateY(-2px); }
-    .btn-primary {
-      background: #e08a1e;
-      color: #1d1305;
-      border-color: #b96f10;
-    }
-    .btn-primary:hover { background: #b96f10; color: #fff; }
-    .btn-secondary {
-      background: #ffffff;
-      color: #1d2433;
-      border-color: #1d2433;
-    }
-    .btn-secondary:hover { background: #f5efe4; }
-    .hero {
-      padding: 4rem 0 3.5rem;
-      background:
-        radial-gradient(1000px 420px at 50% -180px, #fdf0dd, transparent 70%);
-    }
-    .hero-inner {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 2.5rem;
-      flex-wrap: wrap;
-    }
-    .hero-text {
-      flex: 1 1 320px;
-      min-width: 280px;
-      text-align: center;
-    }
-    .hero-mascot {
-      flex: 0 0 auto;
-      min-width: 200px;
-      text-align: center;
-    }
-    .hero-mascot img {
-      max-width: 360px;
-      width: 100%;
-      height: auto;
-      border-radius: 24px;
-      box-shadow: 0 24px 48px rgba(224, 138, 30, 0.3);
-    }
-    .hero .sun-badge {
-      display: inline-block;
-      background: #e2f2ee;
-      color: #1f6f5c;
-      border: 2px solid #1f6f5c;
-      font-weight: 800;
-      font-size: 0.95rem;
-      padding: 0.4rem 1rem;
-      border-radius: 999px;
-      margin-bottom: 1.25rem;
-    }
-    .hero h1 {
-      font-size: clamp(2.4rem, 6vw, 3.8rem);
-      line-height: 1.1;
-      margin: 0 0 1rem;
-      font-weight: 800;
-    }
-    .hero h1 .highlight { color: #b96f10; }
-    .hero p.lead {
-      font-size: clamp(1.15rem, 2.5vw, 1.4rem);
-      color: #52607d;
-      max-width: 44rem;
-      margin: 0 auto 2rem;
-    }
-    .hero-actions {
-      display: flex;
-      gap: 1rem;
-      justify-content: center;
-      flex-wrap: wrap;
-      margin-bottom: 1.25rem;
-    }
-    .hero-note {
-      font-size: 1rem;
-      color: #52607d;
-    }
-    section { padding: 3.5rem 0; }
-    section.alt { background: #f5efe4; }
-    .section-head {
-      text-align: center;
-      max-width: 46rem;
-      margin: 0 auto 2.5rem;
-    }
-    .section-head h2 {
-      font-size: clamp(1.8rem, 4vw, 2.5rem);
-      margin: 0 0 0.75rem;
-      font-weight: 800;
-    }
-    .section-head p {
-      color: #52607d;
-      font-size: 1.15rem;
-      margin: 0;
-    }
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1.5rem;
-    }
-    .card {
-      background: #ffffff;
-      border: 2px solid #e6dcc8;
-      border-radius: 16px;
-      padding: 1.75rem;
-      box-shadow: 0 6px 24px rgba(29, 36, 51, 0.08);
-    }
-    .card .icon {
-      width: 56px;
-      height: 56px;
-      border-radius: 14px;
-      background: #fdf0dd;
-      display: grid;
-      place-items: center;
-      font-size: 1.8rem;
-      margin-bottom: 1rem;
-    }
-    .card h3 {
-      margin: 0 0 0.5rem;
-      font-size: 1.3rem;
-      font-weight: 800;
-    }
-    .card p {
-      margin: 0;
-      color: #52607d;
-      font-size: 1.05rem;
-    }
-    .a11y-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 1.25rem;
-    }
-    .a11y-item {
-      background: #ffffff;
-      border: 2px solid #e6dcc8;
-      border-left: 8px solid #1f6f5c;
-      border-radius: 12px;
-      padding: 1.25rem 1.5rem;
-      display: flex;
-      gap: 1rem;
-      align-items: flex-start;
-    }
-    .a11y-item .check {
-      color: #1f6f5c;
-      font-size: 1.5rem;
-      font-weight: 900;
-      line-height: 1.2;
-      flex-shrink: 0;
-    }
-    .a11y-item strong { display: block; font-size: 1.15rem; margin-bottom: 0.25rem; }
-    .a11y-item span { color: #52607d; font-size: 1rem; }
-    .steps {
-      counter-reset: step;
-      display: grid;
-      gap: 1.25rem;
-      max-width: 46rem;
-      margin: 0 auto;
-    }
-    .step {
-      display: flex;
-      gap: 1.25rem;
-      align-items: flex-start;
-      background: #ffffff;
-      border: 2px solid #e6dcc8;
-      border-radius: 16px;
-      padding: 1.5rem;
-    }
-    .step .number {
-      counter-increment: step;
-      width: 52px;
-      height: 52px;
-      flex-shrink: 0;
-      border-radius: 50%;
-      background: #e08a1e;
-      color: #1d1305;
-      font-size: 1.5rem;
-      font-weight: 900;
-      display: grid;
-      place-items: center;
-    }
-    .step .number::before { content: counter(step); }
-    .step h3 { margin: 0 0 0.35rem; font-size: 1.25rem; }
-    .step p { margin: 0; color: #52607d; }
-    .cta-band {
-      background: #1d2433;
-      color: #fff;
-      border-radius: 24px;
-      padding: 3rem 1.5rem;
-      text-align: center;
-      margin: 1rem auto 0;
-      max-width: 1080px;
-    }
-    .cta-band h2 { font-size: clamp(1.8rem, 4vw, 2.4rem); margin: 0 0 0.75rem; }
-    .cta-band p { color: #c9d1e0; max-width: 40rem; margin: 0 auto 1.75rem; font-size: 1.15rem; }
-    .cta-band .btn-primary { background: #e08a1e; }
-    .cta-band .btn-secondary {
-      background: transparent;
-      color: #fff;
-      border-color: #fff;
-    }
-    .cta-band .btn-secondary:hover { background: rgba(255,255,255,0.12); }
-    .cta-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
-    details.faq {
-      background: #ffffff;
-      border: 2px solid #e6dcc8;
-      border-radius: 12px;
-      padding: 1rem 1.25rem;
-      margin-bottom: 1rem;
-    }
-    details.faq summary {
-      font-weight: 800;
-      font-size: 1.15rem;
-      cursor: pointer;
-      min-height: 44px;
-      display: flex;
-      align-items: center;
-    }
-    details.faq p { margin: 0.75rem 0 0.25rem; color: #52607d; }
-    footer.site {
-      background: #ffffff;
-      border-top: 1px solid #e6dcc8;
-      padding: 2.5rem 0;
-      margin-top: 3.5rem;
-    }
-    .footer-grid {
-      display: flex;
-      justify-content: space-between;
-      gap: 2rem;
-      flex-wrap: wrap;
-      align-items: flex-start;
-    }
-    .footer-brand {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      font-weight: 800;
-      font-size: 1.25rem;
-      color: #1d2433;
-    }
-    .footer-brand img {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      object-fit: cover;
-    }
-    .footer-links { display: flex; gap: 1.5rem; flex-wrap: wrap; }
-    .footer-links a {
-      color: #1d2433;
-      text-decoration: underline;
-      font-weight: 700;
-      min-height: 44px;
-      display: inline-flex;
-      align-items: center;
-    }
-    .footer-note { color: #52607d; font-size: 0.95rem; margin-top: 1.5rem; }
-    @media (max-width: 640px) {
-      .site-header-inner { flex-direction: column; align-items: stretch; }
-      nav.site-nav { justify-content: center; }
-      .brand { justify-content: center; }
-      .hero-text { text-align: center; }
-    }
-  </style>
+  :root {
+    --bg: #faf6ef;
+    --bg-2: #f3ecdf;
+    --surface: #ffffff;
+    --surface-2: #f7f1e6;
+    --text: #1b2230;
+    --text-muted: #5a657a;
+    --text-soft: #8a93a6;
+    --brand: #e08a1e;
+    --brand-dark: #b96f10;
+    --brand-soft: #fdf0dd;
+    --accent: #1f6f5c;
+    --accent-soft: #e2f2ee;
+    --border: #e6dcc8;
+    --border-strong: #d4c9b0;
+    --focus: #1a56db;
+    --radius-sm: 10px;
+    --radius: 18px;
+    --radius-lg: 28px;
+    --shadow-sm: 0 2px 8px rgba(29,36,51,0.06);
+    --shadow: 0 12px 40px rgba(29,36,51,0.10);
+    --shadow-lg: 0 30px 80px rgba(29,36,51,0.14);
+    --space-1: .5rem;
+    --space-2: 1rem;
+    --space-3: 1.5rem;
+    --space-4: 2rem;
+    --space-5: 3rem;
+    --space-6: 4.5rem;
+    --space-7: 6rem;
+    --max: 1180px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+  }
+  body {
+    margin: 0;
+    font-family: "Atkinson Hyperlegible", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-size: 1.0625rem;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  h1,h2,h3,h4 { font-family: "Fraunces", Georgia, serif; font-weight: 600; letter-spacing: -0.01em; line-height: 1.05; margin: 0; }
+  p { margin: 0; }
+  a { color: inherit; }
+  img { max-width: 100%; display: block; }
+  .container { width: 100%; max-width: var(--max); margin: 0 auto; padding: 0 1.5rem; }
+  .skip-link {
+    position: absolute; left: -9999px; top: 0; background: var(--text); color: #fff;
+    padding: .75rem 1.25rem; z-index: 100; font-weight: 700; border-radius: var(--radius-sm);
+  }
+  .skip-link:focus { left: .5rem; top: .5rem; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 6px; }
+
+  /* Header */
+  header.site {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(250,246,239,0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .site-header-inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 0; }
+  .brand { display: flex; align-items: center; gap: .7rem; text-decoration: none; color: var(--text); font-weight: 700; }
+  .brand-mark { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; box-shadow: var(--shadow-sm); }
+  .brand-text small { display: block; font-size: .72rem; font-weight: 600; color: var(--text-soft); letter-spacing: .04em; text-transform: uppercase; }
+  nav.site-nav { display: flex; gap: .25rem; flex-wrap: wrap; }
+  nav.site-nav a {
+    text-decoration: none; font-weight: 600; font-size: .95rem; padding: .5rem .85rem;
+    border-radius: 999px; color: var(--text-muted); transition: background .2s, color .2s;
+  }
+  nav.site-nav a:hover { background: var(--surface); color: var(--text); }
+  .nav-cta {
+    background: var(--text); color: #fff; padding: .5rem 1.1rem; border-radius: 999px; font-weight: 700; font-size: .9rem;
+    text-decoration: none; transition: transform .2s;
+  }
+  .nav-cta:hover { transform: translateY(-1px); }
+
+  /* Hero */
+  .hero {
+    padding: var(--space-7) 0 var(--space-6);
+    background:
+      radial-gradient(900px 500px at 80% -10%, rgba(224,138,30,0.18), transparent 60%),
+      radial-gradient(700px 400px at 10% 110%, rgba(31,111,92,0.12), transparent 60%);
+    position: relative; overflow: hidden;
+  }
+  .hero-grid {
+    display: grid; grid-template-columns: 1.05fr .95fr; gap: var(--space-5); align-items: center;
+  }
+  .hero-eyebrow {
+    display: inline-flex; align-items: center; gap: .5rem;
+    font-size: .8rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--accent); background: var(--accent-soft); padding: .4rem .9rem; border-radius: 999px;
+  }
+  .hero h1 { font-size: clamp(2.6rem, 5.5vw, 4.4rem); margin: var(--space-2) 0 var(--space-3); }
+  .hero h1 em { font-style: italic; color: var(--brand-dark); }
+  .hero-lead { font-size: clamp(1.1rem, 1.6vw, 1.3rem); color: var(--text-muted); max-width: 34rem; }
+  .hero-actions { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: var(--space-4); }
+  .btn {
+    display: inline-flex; align-items: center; gap: .5rem; font: inherit; font-weight: 700;
+    text-decoration: none; border: 0; border-radius: 14px; padding: .9rem 1.5rem; min-height: 52px;
+    cursor: pointer; transition: transform .15s, box-shadow .2s;
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn-primary { background: var(--brand); color: #1d1305; box-shadow: 0 8px 24px rgba(224,138,30,.35); }
+  .btn-primary:hover { background: var(--brand-dark); color: #fff; }
+  .btn-ghost { background: transparent; color: var(--text); border: 1.5px solid var(--border-strong); }
+  .btn-ghost:hover { background: var(--surface); }
+  .hero-note { margin-top: var(--space-2); font-size: .9rem; color: var(--text-soft); }
+  .hero-art {
+    position: relative; aspect-ratio: 4/3; border-radius: var(--radius-lg);
+    overflow: hidden; box-shadow: var(--shadow-lg); background: var(--brand-soft);
+  }
+  .hero-art img { width: 100%; height: 100%; object-fit: cover; }
+  .hero-art::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 60%, rgba(29,36,51,.18));
+  }
+  .hero-badge {
+    position: absolute; bottom: 1.25rem; left: 1.25rem; z-index: 2;
+    background: rgba(255,255,255,.92); backdrop-filter: blur(8px);
+    padding: .6rem .9rem; border-radius: 12px; box-shadow: var(--shadow-sm);
+    font-size: .85rem; font-weight: 700; color: var(--text);
+  }
+
+  /* Section base */
+  section { padding: var(--space-7) 0; }
+  .section-head { max-width: 40rem; margin-bottom: var(--space-5); }
+  .section-head .eyebrow { font-size: .78rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--brand-dark); }
+  .section-head h2 { font-size: clamp(2rem, 4vw, 3rem); margin: .5rem 0 1rem; }
+  .section-head p { color: var(--text-muted); font-size: 1.15rem; }
+
+  /* Bento features */
+  .bento {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem;
+    grid-auto-rows: minmax(180px, auto);
+  }
+  .bento > * { grid-column: span 2; }
+  .bento .wide { grid-column: span 3; }
+  .bento .tall { grid-row: span 2; }
+  .tile {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1.6rem; display: flex; flex-direction: column; gap: .6rem;
+    transition: transform .25s, box-shadow .25s; position: relative; overflow: hidden;
+  }
+  .tile:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
+  .tile .tile-icon { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: 1.4rem; background: var(--brand-soft); }
+  .tile h3 { font-size: 1.25rem; font-family: "Fraunces", serif; }
+  .tile p { color: var(--text-muted); font-size: .95rem; }
+  .tile.dark { background: var(--text); color: #fff; }
+  .tile.dark p { color: #c9d1e0; }
+  .tile.dark .tile-icon { background: rgba(255,255,255,.12); }
+  .tile.accent { background: var(--accent); color: #fff; }
+  .tile.accent p { color: #d6efe8; }
+  .tile.accent .tile-icon { background: rgba(255,255,255,.18); }
+  .tile .tile-art { margin-top: auto; border-radius: var(--radius-sm); overflow: hidden; }
+  .tile .tile-art img { width: 100%; height: 120px; object-fit: cover; }
+
+  /* Principles strip */
+  .principles { background: var(--text); color: #fff; border-radius: var(--radius-lg); padding: var(--space-5); }
+  .principles-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }
+  .principle { border-left: 3px solid var(--brand); padding-left: 1rem; }
+  .principle .num { font-family: "Fraunces", serif; font-size: 2.6rem; color: var(--brand); line-height: 1; }
+  .principle h3 { font-size: 1.15rem; margin: .4rem 0 .3rem; color: #fff; }
+  .principle p { color: #b8c0d0; font-size: .95rem; }
+
+  /* How it works */
+  .timeline { position: relative; max-width: 760px; margin: 0 auto; }
+  .timeline::before { content: ""; position: absolute; left: 26px; top: 0; bottom: 0; width: 2px; background: var(--border-strong); }
+  .t-step { display: flex; gap: 1.5rem; padding: 1.5rem 0; position: relative; }
+  .t-num {
+    flex-shrink: 0; width: 54px; height: 54px; border-radius: 50%;
+    background: var(--brand); color: #1d1305; font-family: "Fraunces", serif; font-size: 1.4rem; font-weight: 700;
+    display: grid; place-items: center; position: relative; z-index: 1; box-shadow: 0 0 0 6px var(--bg);
+  }
+  .t-body h3 { font-size: 1.3rem; margin-bottom: .3rem; }
+  .t-body p { color: var(--text-muted); }
+
+  /* FAQ */
+  .faq-wrap { max-width: 760px; margin: 0 auto; }
+  details.faq { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.4rem; margin-bottom: .8rem; transition: box-shadow .2s; }
+  details.faq[open] { box-shadow: var(--shadow-sm); }
+  details.faq summary { font-weight: 700; font-size: 1.05rem; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+  details.faq summary::-webkit-details-marker { display: none; }
+  details.faq summary::after { content: "+"; font-size: 1.4rem; color: var(--brand-dark); }
+  details.faq[open] summary::after { content: "–"; }
+  details.faq p { margin-top: .8rem; color: var(--text-muted); }
+
+  /* CTA band */
+  .cta-band {
+    background: linear-gradient(135deg, var(--text) 0%, #2a3346 100%);
+    color: #fff; border-radius: var(--radius-lg); padding: var(--space-6) var(--space-4);
+    text-align: center; position: relative; overflow: hidden;
+  }
+  .cta-band::before {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(600px 300px at 50% 0%, rgba(224,138,30,.25), transparent 70%);
+  }
+  .cta-band > * { position: relative; }
+  .cta-band h2 { font-size: clamp(2rem, 4vw, 2.8rem); }
+  .cta-band p { color: #c9d1e0; max-width: 38rem; margin: 1rem auto 2rem; font-size: 1.1rem; }
+  .cta-actions { display: flex; gap: .75rem; justify-content: center; flex-wrap: wrap; }
+
+  /* Footer */
+  footer.site { background: var(--surface); border-top: 1px solid var(--border); padding: var(--space-6) 0 var(--space-4); margin-top: var(--space-6); }
+  .footer-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: var(--space-4); }
+  .footer-brand { display: flex; align-items: center; gap: .8rem; }
+  .footer-brand img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+  .footer-brand strong { font-family: "Fraunces", serif; font-size: 1.2rem; display: block; }
+  .footer-brand small { color: var(--text-soft); font-size: .85rem; }
+  .footer-col h4 { font-size: .8rem; text-transform: uppercase; letter-spacing: .1em; color: var(--text-soft); margin-bottom: .8rem; font-family: "Atkinson Hyperlegible", sans-serif; font-weight: 700; }
+  .footer-col a { display: block; color: var(--text-muted); text-decoration: none; padding: .35rem 0; font-size: .95rem; }
+  .footer-col a:hover { color: var(--text); }
+  .footer-bottom { margin-top: var(--space-5); padding-top: var(--space-3); border-top: 1px solid var(--border); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; color: var(--text-soft); font-size: .85rem; }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .hero-grid { grid-template-columns: 1fr; }
+    .hero-art { aspect-ratio: 16/9; max-width: 520px; margin: 0 auto; }
+    .bento { grid-template-columns: repeat(2, 1fr); }
+    .bento .wide, .bento > * { grid-column: span 1; }
+    .principles-grid { grid-template-columns: 1fr; }
+    .footer-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 600px) {
+    .bento { grid-template-columns: 1fr; }
+    .footer-grid { grid-template-columns: 1fr; }
+    .site-header-inner { flex-direction: column; align-items: stretch; }
+    nav.site-nav { justify-content: center; }
+    .brand { justify-content: center; }
+  }
+
+  /* Animations */
+  .reveal { opacity: 0; transform: translateY(20px); transition: opacity .7s ease, transform .7s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } }
+</style>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
+
   <header class="site">
     <div class="container site-header-inner">
       <a class="brand" href="#top">
-        <img class="brand-mark-img" src="public/assets/mascot.png" alt="" width="48" height="48" />
+        <img class="brand-mark" src="public/assets/mascot.png" alt="" width="40" height="40" />
         <span class="brand-text">
           Sunny
-          <small>Your friendly computer helper</small>
+          <small>Desktop companion</small>
         </span>
       </a>
       <nav class="site-nav" aria-label="Main navigation">
         <a href="#features">Features</a>
-        <a href="#accessibility">Accessibility</a>
+        <a href="#principles">Principles</a>
         <a href="#how">How it works</a>
         <a href="#faq">FAQ</a>
-        <a href="#download">Download</a>
       </nav>
+      <a class="nav-cta" href="https://github.com/MT25MB/Sunny/releases/latest">Download</a>
     </div>
   </header>
 
   <main id="main">
+    <!-- HERO -->
     <section class="hero" id="top">
-      <div class="container">
-        <div class="hero-inner">
-          <div class="hero-text">
-            <p class="sun-badge">Free &amp; open source &#183; No accounts &#183; No tracking</p>
-            <h1>Technology help that feels like a <span class="highlight">sunny day</span></h1>
-            <p class="lead">
-              Sunny is a gentle AI desktop companion built for older adults. Speak naturally or type a
-              question, and Sunny helps you with your computer, your medications, your meals, and your
-              day &mdash; out loud, in plain language.
-            </p>
-            <div class="hero-actions">
-              <a class="btn btn-primary" href="https://github.com/MT25MB/Sunny/releases/latest">
-                &#11015; Download Sunny &mdash; Free
-              </a>
-              <a class="btn btn-secondary" href="https://github.com/MT25MB/Sunny">
-                &#11088; View on GitHub
-              </a>
-            </div>
-            <p class="hero-note">Available for Windows, macOS, and Linux. Works on screens as small as a phone.</p>
+      <div class="container hero-grid">
+        <div>
+          <span class="hero-eyebrow">Free & open source · No accounts · No tracking</span>
+          <h1>Technology help that feels like a <em>sunny day</em></h1>
+          <p class="hero-lead">Sunny is a gentle AI desktop companion built for older adults. Speak naturally or type a question, and Sunny helps with your computer, medications, meals, and day — out loud, in plain language.</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="https://github.com/MT25MB/Sunny/releases/latest">Download Sunny — Free</a>
+            <a class="btn btn-ghost" href="https://github.com/MT25MB/Sunny">View on GitHub</a>
           </div>
-          <div class="hero-mascot">
-            <img src="public/assets/sunny-hero.jpg" alt="Sunny, a friendly AI desktop companion helping older adults" width="1376" height="768" loading="eager" decoding="async" />
-          </div>
+          <p class="hero-note">Available for Windows, macOS, and Linux. Works on screens as small as a phone.</p>
+        </div>
+        <div class="hero-art reveal">
+          <img src="public/assets/sunny-hero.jpg" alt="Sunny, a friendly AI desktop companion helping older adults" width="1376" height="768" loading="eager" decoding="async" />
+          <div class="hero-badge">☀️ Your friendly computer helper</div>
         </div>
       </div>
     </section>
 
+    <!-- FEATURES -->
     <section id="features">
       <div class="container">
-        <div class="section-head">
+        <div class="section-head reveal">
+          <span class="eyebrow">What Sunny can do</span>
           <h2>Everything Sunny can do for you</h2>
           <p>Simple tools for daily life, designed one button at a time.</p>
         </div>
-        <div class="features-grid">
-          <article class="card">
-            <div class="icon" aria-hidden="true">&#127908;</div>
+        <div class="bento">
+          <article class="tile wide tall reveal">
+            <div class="tile-icon">🎤</div>
             <h3>Hands-free voice input</h3>
             <p>Tap the microphone and speak. Sunny turns your words into text, streams them live, and sends your question when you pause.</p>
+            <div class="tile-art"><img src="public/assets/sunny-mascot-wave.png" alt="" loading="lazy" /></div>
           </article>
-          <article class="card">
-            <div class="icon" aria-hidden="true">&#128266;</div>
-            <h3>Gentle audio alerts</h3>
-            <p>A soft two-tone chime and clear spoken reminders let you know when it is time for medication &mdash; without startling you.</p>
+          <article class="tile accent reveal">
+            <div class="tile-icon">🍲</div>
+            <h3>Recipes & cooking mode</h3>
+            <p>Ask for any dish. Sunny finds a recipe, reads ingredients, and walks through each step out loud.</p>
           </article>
-          <article class="card">
-            <div class="icon" aria-hidden="true">&#128292;</div>
-            <h3>Instant text resizing</h3>
-            <p>One tap makes every word bigger &mdash; headings, messages, recipes, and cards. Scale up to 175% without losing your place.</p>
-          </article>
-          <article class="card">
-            <div class="icon" aria-hidden="true">&#128138;</div>
+          <article class="tile reveal">
+            <div class="tile-icon">💊</div>
             <h3>Medication reminders</h3>
-            <p>Set a pill name and a time. Sunny remembers and speaks up when the time comes, so nothing is missed.</p>
+            <p>Set a pill name and time. Sunny speaks up when it's time, with a big "I Took It" button.</p>
           </article>
-          <article class="card">
-            <div class="icon" aria-hidden="true">&#127858;</div>
-            <h3>Recipes &amp; cooking mode</h3>
-            <p>Ask for any dish. Sunny finds a recipe, reads the ingredients, and walks through each step out loud while you cook.</p>
+          <article class="tile dark wide reveal">
+            <div class="tile-icon">🖥️</div>
+            <h3>Computer help & health</h3>
+            <p>"My internet is slow" or "Is my battery okay?" Sunny checks Wi-Fi, battery, memory, and updates in plain English.</p>
           </article>
-          <article class="card">
-            <div class="icon" aria-hidden="true">&#128421;</div>
-            <h3>Computer help &amp; health</h3>
-            <p>"My internet is slow" or "Is my battery okay?" Sunny checks your Wi-Fi, battery, memory, and updates in plain English.</p>
+          <article class="tile reveal">
+            <div class="tile-icon">🔊</div>
+            <h3>Gentle audio alerts</h3>
+            <p>A soft chime and clear spoken reminders — never startling.</p>
           </article>
-          <article class="card">
-            <div class="icon" aria-hidden="true">&#128737;</div>
+          <article class="tile reveal">
+            <div class="tile-icon">🔤</div>
+            <h3>Instant text resizing</h3>
+            <p>One tap makes every word bigger, up to 175%.</p>
+          </article>
+          <article class="tile reveal">
+            <div class="tile-icon">🛡️</div>
             <h3>Safe by design</h3>
-            <p>Sunny never runs terminal scripts or touches passwords. Every sensitive action asks for your permission first, and always defaults to "No".</p>
+            <p>No terminal scripts, no passwords. Every sensitive action asks permission first.</p>
           </article>
-          <article class="card">
-            <div class="icon" aria-hidden="true">&#128240;</div>
-            <h3>Daily digest</h3>
-            <p>Ask for your morning briefing and Sunny reads the weather and today's headlines in a calm, easy voice.</p>
+          <article class="tile accent reveal">
+            <div class="tile-icon">📰</div>
+            <h3>Morning digest</h3>
+            <p>Weather and headlines, read aloud in a calm voice.</p>
           </article>
         </div>
       </div>
     </section>
 
-    <section id="accessibility" class="alt">
+    <!-- PRINCIPLES -->
+    <section id="principles" style="padding-top:0">
       <div class="container">
-        <div class="section-head">
-          <h2>Built for every pair of eyes, ears, and hands</h2>
-          <p>Accessibility is not an afterthought &mdash; it is the foundation.</p>
-        </div>
-        <div class="a11y-grid">
-          <div class="a11y-item">
-            <span class="check" aria-hidden="true">&#10003;</span>
-            <div>
-              <strong>Large, clear text</strong>
-              <span>Readable fonts and high contrast colours, with one-tap text resizing up to 175%.</span>
-            </div>
+        <div class="principles reveal">
+          <div class="section-head" style="margin-bottom:var(--space-4)">
+            <span class="eyebrow" style="color:var(--brand)">Accessibility first</span>
+            <h2 style="color:#fff">Built for every pair of eyes, ears, and hands</h2>
+            <p style="color:#b8c0d0">Accessibility isn't an afterthought — it's the foundation.</p>
           </div>
-          <div class="a11y-item">
-            <span class="check" aria-hidden="true">&#10003;</span>
-            <div>
-              <strong>Big touch targets</strong>
-              <span>Every button is at least 48&#215;48 pixels and clearly labelled for screen readers.</span>
+          <div class="principles-grid">
+            <div class="principle">
+              <div class="num">01</div>
+              <h3>Large, clear text</h3>
+              <p>Readable fonts and high contrast, one-tap resizing up to 175%.</p>
             </div>
-          </div>
-          <div class="a11y-item">
-            <span class="check" aria-hidden="true">&#10003;</span>
-            <div>
-              <strong>Speaks out loud</strong>
-              <span>Full text-to-speech support, plus an easy mute switch for quiet rooms.</span>
+            <div class="principle">
+              <div class="num">02</div>
+              <h3>Big touch targets</h3>
+              <p>Every button at least 48×48 px, labelled for screen readers.</p>
             </div>
-          </div>
-          <div class="a11y-item">
-            <span class="check" aria-hidden="true">&#10003;</span>
-            <div>
-              <strong>Reduced motion</strong>
-              <span>Honours the system reduce motion setting for calm, distraction-free use.</span>
+            <div class="principle">
+              <div class="num">03</div>
+              <h3>Speaks out loud</h3>
+              <p>Full text-to-speech plus an easy mute switch.</p>
             </div>
-          </div>
-          <div class="a11y-item">
-            <span class="check" aria-hidden="true">&#10003;</span>
-            <div>
-              <strong>Keyboard friendly</strong>
-              <span>Complete keyboard navigation with a visible focus ring and a skip-to-content link.</span>
+            <div class="principle">
+              <div class="num">04</div>
+              <h3>Reduced motion</h3>
+              <p>Honours your system's reduce-motion setting.</p>
             </div>
-          </div>
-          <div class="a11y-item">
-            <span class="check" aria-hidden="true">&#10003;</span>
-            <div>
-              <strong>Privacy respected</strong>
-              <span>No accounts, no ads, no tracking. Your data stays on your own computer.</span>
+            <div class="principle">
+              <div class="num">05</div>
+              <h3>Keyboard friendly</h3>
+              <p>Complete keyboard nav with a visible focus ring.</p>
+            </div>
+            <div class="principle">
+              <div class="num">06</div>
+              <h3>Privacy respected</h3>
+              <p>No accounts, ads, or tracking. Data stays on your computer.</p>
             </div>
           </div>
         </div>
       </div>
     </section>
 
+    <!-- HOW IT WORKS -->
     <section id="how">
       <div class="container">
-        <div class="section-head">
-          <h2>How Sunny works</h2>
-          <p>Three steps, and you are never stuck again.</p>
+        <div class="section-head reveal">
+          <span class="eyebrow">How it works</span>
+          <h2>Three steps, and you're never stuck again</h2>
+          <p>Grab Sunny, speak or type, and get patient help.</p>
         </div>
-        <div class="steps">
-          <div class="step">
-            <span class="number" aria-hidden="true"></span>
-            <div>
+        <div class="timeline">
+          <div class="t-step reveal">
+            <div class="t-num">1</div>
+            <div class="t-body">
               <h3>Download and open</h3>
-              <p>Grab Sunny from GitHub Releases for your computer and double-click. Nothing to configure and no sign-up needed.</p>
+              <p>Grab Sunny from GitHub Releases and double-click. Nothing to configure, no sign-up.</p>
             </div>
           </div>
-          <div class="step">
-            <span class="number" aria-hidden="true"></span>
-            <div>
+          <div class="t-step reveal">
+            <div class="t-num">2</div>
+            <div class="t-body">
               <h3>Speak or type</h3>
-              <p>Tap the microphone and talk, or type your question in the big friendly box. Both work exactly the same way.</p>
+              <p>Tap the microphone and talk, or type your question in the big friendly box. Both work the same way.</p>
             </div>
           </div>
-          <div class="step">
-            <span class="number" aria-hidden="true"></span>
-            <div>
+          <div class="t-step reveal">
+            <div class="t-num">3</div>
+            <div class="t-body">
               <h3>Sunny helps</h3>
-              <p>Get a spoken answer, step-by-step help, a recipe, or a health check &mdash; explained in plain, patient language.</p>
+              <p>Get a spoken answer, step-by-step help, a recipe, or a health check — explained in plain, patient language.</p>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <section id="faq" class="alt">
+    <!-- FAQ -->
+    <section id="faq" style="background:var(--bg-2)">
       <div class="container">
-        <div class="section-head">
-          <h2>Questions people ask</h2>
-          <p>Straight answers, in plain language.</p>
+        <div class="section-head reveal">
+          <span class="eyebrow">Questions</span>
+          <h2>Straight answers, in plain language</h2>
         </div>
-        <div style="max-width: 46rem; margin: 0 auto;">
-          <details class="faq">
+        <div class="faq-wrap">
+          <details class="faq reveal">
             <summary>Does Sunny cost anything?</summary>
-            <p>No. Sunny is completely free and open source. There are no subscriptions, no ads, and no hidden fees.</p>
+            <p>No. Sunny is completely free and open source. No subscriptions, ads, or hidden fees.</p>
           </details>
-          <details class="faq">
+          <details class="faq reveal">
             <summary>Do I need an internet connection?</summary>
             <p>An internet connection helps Sunny fetch recipes, weather, and news. Basic computer help works without one.</p>
           </details>
-          <details class="faq">
+          <details class="faq reveal">
             <summary>Can Sunny be tricked into doing something dangerous?</summary>
-            <p>No. Sunny is instructed to refuse requests for terminal commands, passwords, network scanning, or anything related to hacking. Any action that touches your system asks your permission first, and defaults to "No".</p>
+            <p>No. Sunny refuses terminal commands, passwords, network scanning, or hacking. Every sensitive action asks permission first and defaults to "No".</p>
           </details>
-          <details class="faq">
+          <details class="faq reveal">
             <summary>Which computers does Sunny run on?</summary>
-            <p>Windows, macOS, and Linux. If you are not sure, start with the Windows download &mdash; it is the easiest.</p>
+            <p>Windows, macOS, and Linux. Not sure? Start with the Windows download — it's the easiest.</p>
           </details>
         </div>
       </div>
     </section>
 
+    <!-- CTA -->
     <section id="download">
       <div class="container">
-        <div class="cta-band">
+        <div class="cta-band reveal">
           <h2>Bring a little sunshine to your computer</h2>
-          <p>
-            Download Sunny free from GitHub Releases and get a patient helper who never rushes you,
-            never shouts, and is always happy to explain again.
-          </p>
+          <p>Download Sunny free from GitHub Releases and get a patient helper who never rushes you, never shouts, and is always happy to explain again.</p>
           <div class="cta-actions">
-            <a class="btn btn-primary" href="https://github.com/MT25MB/Sunny/releases/latest">&#11015; Download for free</a>
-            <a class="btn btn-secondary" href="https://github.com/MT25MB/Sunny">Read the docs</a>
+            <a class="btn btn-primary" href="https://github.com/MT25MB/Sunny/releases/latest">Download for free</a>
+            <a class="btn btn-ghost" href="https://github.com/MT25MB/Sunny" style="background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.25)">Read the docs</a>
           </div>
         </div>
       </div>
     </section>
   </main>
+
   <footer class="site">
     <div class="container">
       <div class="footer-grid">
         <div class="footer-brand">
-          <img src="public/assets/mascot.png" alt="" width="40" height="40" />
-          <span>Sunny <small>Desktop Companion</small></span>
+          <img src="public/assets/mascot.png" alt="" width="44" height="44" />
+          <div>
+            <strong>Sunny</strong>
+            <small>Desktop companion for older adults</small>
+          </div>
         </div>
-        <nav class="footer-links" aria-label="Footer navigation">
+        <div class="footer-col">
+          <h4>Product</h4>
+          <a href="#features">Features</a>
+          <a href="#principles">Accessibility</a>
+          <a href="#how">How it works</a>
+          <a href="https://github.com/MT25MB/Sunny/releases">Download</a>
+        </div>
+        <div class="footer-col">
+          <h4>Project</h4>
           <a href="https://github.com/MT25MB/Sunny">GitHub</a>
-          <a href="https://github.com/MT25MB/Sunny/releases">Releases</a>
           <a href="https://github.com/MT25MB/Sunny/blob/main/README.md">README</a>
-          <a href="https://github.com/MT25MB/Sunny/blob/main/LICENSE">License</a>
           <a href="privacy-policy.html">Privacy Policy</a>
           <a href="terms-of-service.html">Terms of Service</a>
-        </nav>
+        </div>
       </div>
-      <p class="footer-note">
-        Made with care for older adults everywhere. Free and open source software.
-      </p>
+      <div class="footer-bottom">
+        <span>Made with care for older adults everywhere. Free and open source (MIT).</span>
+        <span>© Sunny contributors</span>
+      </div>
     </div>
   </footer>
+
+  <script>
+    // Gentle scroll reveal
+    (function () {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      var els = document.querySelectorAll('.reveal');
+      if (!('IntersectionObserver' in window)) { els.forEach(function(e){e.classList.add('in');}); return; }
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+      }, { threshold: 0.12 });
+      els.forEach(function (e) { io.observe(e); });
+    })();
+  </script>
 </body>
 </html>
