@@ -5,78 +5,59 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#11161b" />
   <meta name="description" content="Sunny is a free, accessible AI desktop assistant that helps older adults with daily tasks, medication reminders, recipes, and computer help using voice and text." />
+  <meta property="og:title" content="Sunny — Accessible AI Desktop Companion for Older Adults" />
+  <meta property="og:description" content="Sunny is a free, accessible AI desktop assistant that helps older adults with daily tasks, medication reminders, recipes, and computer help using voice and text." />
+  <meta property="og:image" content="https://mt25mb.github.io/Sunny/assets/mascot.png" />
+  <meta property="og:url" content="https://mt25mb.github.io/Sunny/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Sunny" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Sunny — Accessible AI Desktop Companion for Older Adults" />
+  <meta name="twitter:description" content="Sunny is a free, accessible AI desktop assistant that helps older adults with daily tasks, medication reminders, recipes, and computer help using voice and text." />
+  <meta name="twitter:image" content="https://mt25mb.github.io/Sunny/assets/mascot.png" />
+  <link rel="icon" href="assets/mascot.png" />
   <title>Sunny — Accessible AI Desktop Companion for Older Adults</title>
-  <style>
-    /* ============================================================
-       Sunny landing page — fully standalone, no build step needed.
-       All CSS is inline so GitHub Pages can serve it as a plain
-       static file with zero tooling.
-       ============================================================ */
-    :root {
-      --bg: #fdf9f3;
-      --surface: #ffffff;
-      --surface-alt: #f5efe4;
-      --text: #1d2433;
-      --text-muted: #52607d;
-      --brand: #e08a1e;
-      --brand-dark: #b96f10;
-      --brand-soft: #fdf0dd;
-      --accent: #1f6f5c;
-      --accent-soft: #e2f2ee;
-      --border: #e6dcc8;
-      --focus: #1a56db;
-      --radius: 16px;
-      --shadow: 0 6px 24px rgba(29, 36, 51, 0.08);
-    }
 
+<style>
     * { box-sizing: border-box; }
-
-    html { scroll-behavior: smooth; }
-
-    @media (prefers-reduced-motion: reduce) {
-      html { scroll-behavior: auto; }
-      *, *::before, *::after { transition: none !important; animation: none !important; }
-    }
-
     body {
       margin: 0;
       font-family: "Atkinson Hyperlegible", "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
+      background: #fdf9f3;
+      color: #1d2433;
       line-height: 1.6;
       font-size: 1.125rem;
     }
-
     :focus-visible {
-      outline: 4px solid var(--focus);
+      outline: 4px solid #1a56db;
       outline-offset: 3px;
       border-radius: 6px;
     }
-
     .container {
       width: 100%;
       max-width: 1080px;
       margin: 0 auto;
       padding: 0 1.25rem;
     }
-
-    /* ---------- Skip link ---------- */
+    html { scroll-behavior: smooth; }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition: none !important; animation: none !important; }
+    }
     .skip-link {
       position: absolute;
       left: -9999px;
       top: 0;
-      background: var(--text);
+      background: #1d2433;
       color: #fff;
       padding: 0.75rem 1.25rem;
       z-index: 100;
       font-weight: 700;
     }
     .skip-link:focus { left: 0.5rem; top: 0.5rem; }
-
-    /* ---------- Header ---------- */
     header.site {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
+      background: #ffffff;
+      border-bottom: 1px solid #e6dcc8;
       position: sticky;
       top: 0;
       z-index: 50;
@@ -95,24 +76,22 @@
       gap: 0.75rem;
       font-weight: 800;
       font-size: 1.5rem;
-      color: var(--text);
+      color: #1d2433;
       text-decoration: none;
     }
-    .brand-mark {
+    .brand-mark-img {
       width: 48px;
       height: 48px;
       border-radius: 50%;
-      background: linear-gradient(135deg, var(--brand) 0%, #f4b860 100%);
-      display: grid;
-      place-items: center;
-      font-size: 1.6rem;
+      object-fit: cover;
       flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(224, 138, 30, 0.25);
     }
     .brand-text small {
       display: block;
       font-size: 0.8rem;
       font-weight: 600;
-      color: var(--text-muted);
+      color: #8a97ab;
       letter-spacing: 0.02em;
     }
     nav.site-nav {
@@ -121,7 +100,7 @@
       flex-wrap: wrap;
     }
     nav.site-nav a {
-      color: var(--text);
+      color: #1d2433;
       text-decoration: none;
       font-weight: 700;
       padding: 0.6rem 0.9rem;
@@ -130,9 +109,7 @@
       display: inline-flex;
       align-items: center;
     }
-    nav.site-nav a:hover { background: var(--surface-alt); }
-
-    /* ---------- Buttons ---------- */
+    nav.site-nav a:hover { background: #f5efe4; }
     .btn {
       display: inline-flex;
       align-items: center;
@@ -150,30 +127,51 @@
     }
     .btn:hover { transform: translateY(-2px); }
     .btn-primary {
-      background: var(--brand);
+      background: #e08a1e;
       color: #1d1305;
-      border-color: var(--brand-dark);
+      border-color: #b96f10;
     }
-    .btn-primary:hover { background: var(--brand-dark); color: #fff; }
+    .btn-primary:hover { background: #b96f10; color: #fff; }
     .btn-secondary {
-      background: var(--surface);
-      color: var(--text);
-      border-color: var(--text);
+      background: #ffffff;
+      color: #1d2433;
+      border-color: #1d2433;
     }
-    .btn-secondary:hover { background: var(--surface-alt); }
-
-    /* ---------- Hero ---------- */
+    .btn-secondary:hover { background: #f5efe4; }
     .hero {
       padding: 4rem 0 3.5rem;
-      text-align: center;
       background:
-        radial-gradient(1000px 420px at 50% -180px, var(--brand-soft), transparent 70%);
+        radial-gradient(1000px 420px at 50% -180px, #fdf0dd, transparent 70%);
+    }
+    .hero-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 2.5rem;
+      flex-wrap: wrap;
+    }
+    .hero-text {
+      flex: 1 1 320px;
+      min-width: 280px;
+      text-align: center;
+    }
+    .hero-mascot {
+      flex: 0 0 auto;
+      min-width: 200px;
+      text-align: center;
+    }
+    .hero-mascot img {
+      max-width: 360px;
+      width: 100%;
+      height: auto;
+      border-radius: 24px;
+      box-shadow: 0 24px 48px rgba(224, 138, 30, 0.3);
     }
     .hero .sun-badge {
       display: inline-block;
-      background: var(--accent-soft);
-      color: var(--accent);
-      border: 2px solid var(--accent);
+      background: #e2f2ee;
+      color: #1f6f5c;
+      border: 2px solid #1f6f5c;
       font-weight: 800;
       font-size: 0.95rem;
       padding: 0.4rem 1rem;
@@ -186,10 +184,10 @@
       margin: 0 0 1rem;
       font-weight: 800;
     }
-    .hero h1 .highlight { color: var(--brand-dark); }
+    .hero h1 .highlight { color: #b96f10; }
     .hero p.lead {
       font-size: clamp(1.15rem, 2.5vw, 1.4rem);
-      color: var(--text-muted);
+      color: #52607d;
       max-width: 44rem;
       margin: 0 auto 2rem;
     }
@@ -202,12 +200,10 @@
     }
     .hero-note {
       font-size: 1rem;
-      color: var(--text-muted);
+      color: #52607d;
     }
-
-    /* ---------- Sections ---------- */
     section { padding: 3.5rem 0; }
-    section.alt { background: var(--surface-alt); }
+    section.alt { background: #f5efe4; }
     .section-head {
       text-align: center;
       max-width: 46rem;
@@ -219,29 +215,27 @@
       font-weight: 800;
     }
     .section-head p {
-      color: var(--text-muted);
+      color: #52607d;
       font-size: 1.15rem;
       margin: 0;
     }
-
-    /* ---------- Feature cards ---------- */
     .features-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 1.5rem;
     }
     .card {
-      background: var(--surface);
-      border: 2px solid var(--border);
-      border-radius: var(--radius);
+      background: #ffffff;
+      border: 2px solid #e6dcc8;
+      border-radius: 16px;
       padding: 1.75rem;
-      box-shadow: var(--shadow);
+      box-shadow: 0 6px 24px rgba(29, 36, 51, 0.08);
     }
     .card .icon {
       width: 56px;
       height: 56px;
       border-radius: 14px;
-      background: var(--brand-soft);
+      background: #fdf0dd;
       display: grid;
       place-items: center;
       font-size: 1.8rem;
@@ -254,20 +248,18 @@
     }
     .card p {
       margin: 0;
-      color: var(--text-muted);
+      color: #52607d;
       font-size: 1.05rem;
     }
-
-    /* ---------- Accessibility highlights ---------- */
     .a11y-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       gap: 1.25rem;
     }
     .a11y-item {
-      background: var(--surface);
-      border: 2px solid var(--border);
-      border-left: 8px solid var(--accent);
+      background: #ffffff;
+      border: 2px solid #e6dcc8;
+      border-left: 8px solid #1f6f5c;
       border-radius: 12px;
       padding: 1.25rem 1.5rem;
       display: flex;
@@ -275,16 +267,14 @@
       align-items: flex-start;
     }
     .a11y-item .check {
-      color: var(--accent);
+      color: #1f6f5c;
       font-size: 1.5rem;
       font-weight: 900;
       line-height: 1.2;
       flex-shrink: 0;
     }
     .a11y-item strong { display: block; font-size: 1.15rem; margin-bottom: 0.25rem; }
-    .a11y-item span { color: var(--text-muted); font-size: 1rem; }
-
-    /* ---------- How it works / steps ---------- */
+    .a11y-item span { color: #52607d; font-size: 1rem; }
     .steps {
       counter-reset: step;
       display: grid;
@@ -296,9 +286,9 @@
       display: flex;
       gap: 1.25rem;
       align-items: flex-start;
-      background: var(--surface);
-      border: 2px solid var(--border);
-      border-radius: var(--radius);
+      background: #ffffff;
+      border: 2px solid #e6dcc8;
+      border-radius: 16px;
       padding: 1.5rem;
     }
     .step .number {
@@ -307,7 +297,7 @@
       height: 52px;
       flex-shrink: 0;
       border-radius: 50%;
-      background: var(--brand);
+      background: #e08a1e;
       color: #1d1305;
       font-size: 1.5rem;
       font-weight: 900;
@@ -316,11 +306,9 @@
     }
     .step .number::before { content: counter(step); }
     .step h3 { margin: 0 0 0.35rem; font-size: 1.25rem; }
-    .step p { margin: 0; color: var(--text-muted); }
-
-    /* ---------- Download / CTA band ---------- */
+    .step p { margin: 0; color: #52607d; }
     .cta-band {
-      background: var(--text);
+      background: #1d2433;
       color: #fff;
       border-radius: 24px;
       padding: 3rem 1.5rem;
@@ -330,7 +318,7 @@
     }
     .cta-band h2 { font-size: clamp(1.8rem, 4vw, 2.4rem); margin: 0 0 0.75rem; }
     .cta-band p { color: #c9d1e0; max-width: 40rem; margin: 0 auto 1.75rem; font-size: 1.15rem; }
-    .cta-band .btn-primary { background: var(--brand); }
+    .cta-band .btn-primary { background: #e08a1e; }
     .cta-band .btn-secondary {
       background: transparent;
       color: #fff;
@@ -338,11 +326,9 @@
     }
     .cta-band .btn-secondary:hover { background: rgba(255,255,255,0.12); }
     .cta-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
-
-    /* ---------- FAQ ---------- */
     details.faq {
-      background: var(--surface);
-      border: 2px solid var(--border);
+      background: #ffffff;
+      border: 2px solid #e6dcc8;
       border-radius: 12px;
       padding: 1rem 1.25rem;
       margin-bottom: 1rem;
@@ -355,12 +341,10 @@
       display: flex;
       align-items: center;
     }
-    details.faq p { margin: 0.75rem 0 0.25rem; color: var(--text-muted); }
-
-    /* ---------- Footer ---------- */
+    details.faq p { margin: 0.75rem 0 0.25rem; color: #52607d; }
     footer.site {
-      background: var(--surface);
-      border-top: 1px solid var(--border);
+      background: #ffffff;
+      border-top: 1px solid #e6dcc8;
       padding: 2.5rem 0;
       margin-top: 3.5rem;
     }
@@ -371,31 +355,44 @@
       flex-wrap: wrap;
       align-items: flex-start;
     }
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 800;
+      font-size: 1.25rem;
+      color: #1d2433;
+    }
+    .footer-brand img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
     .footer-links { display: flex; gap: 1.5rem; flex-wrap: wrap; }
     .footer-links a {
-      color: var(--text);
+      color: #1d2433;
       text-decoration: underline;
       font-weight: 700;
       min-height: 44px;
       display: inline-flex;
       align-items: center;
     }
-    .footer-note { color: var(--text-muted); font-size: 0.95rem; margin-top: 1.5rem; }
-
+    .footer-note { color: #52607d; font-size: 0.95rem; margin-top: 1.5rem; }
     @media (max-width: 640px) {
       .site-header-inner { flex-direction: column; align-items: stretch; }
       nav.site-nav { justify-content: center; }
       .brand { justify-content: center; }
+      .hero-text { text-align: center; }
     }
   </style>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
-
   <header class="site">
     <div class="container site-header-inner">
       <a class="brand" href="#top">
-        <span class="brand-mark" aria-hidden="true">☀️</span>
+        <img class="brand-mark-img" src="assets/mascot.png" alt="" width="48" height="48" />
         <span class="brand-text">
           Sunny
           <small>Your friendly computer helper</small>
@@ -412,29 +409,34 @@
   </header>
 
   <main id="main">
-    <!-- ============================ HERO ============================ -->
     <section class="hero" id="top">
       <div class="container">
-        <p class="sun-badge">Free &amp; open source · No accounts · No tracking</p>
-        <h1>Technology help that feels like a <span class="highlight">sunny day</span></h1>
-        <p class="lead">
-          Sunny is a gentle AI desktop companion built for older adults. Speak naturally or type a
-          question, and Sunny helps you with your computer, your medications, your meals, and your
-          day — out loud, in plain language.
-        </p>
-        <div class="hero-actions">
-          <a class="btn btn-primary" href="https://github.com/MT25MB/Sunny/releases/latest">
-            ⬇️ Download Sunny — Free
-          </a>
-          <a class="btn btn-secondary" href="https://github.com/MT25MB/Sunny">
-            ⭐ View on GitHub
-          </a>
+        <div class="hero-inner">
+          <div class="hero-text">
+            <p class="sun-badge">Free &amp; open source &#183; No accounts &#183; No tracking</p>
+            <h1>Technology help that feels like a <span class="highlight">sunny day</span></h1>
+            <p class="lead">
+              Sunny is a gentle AI desktop companion built for older adults. Speak naturally or type a
+              question, and Sunny helps you with your computer, your medications, your meals, and your
+              day &mdash; out loud, in plain language.
+            </p>
+            <div class="hero-actions">
+              <a class="btn btn-primary" href="https://github.com/MT25MB/Sunny/releases/latest">
+                &#11015; Download Sunny &mdash; Free
+              </a>
+              <a class="btn btn-secondary" href="https://github.com/MT25MB/Sunny">
+                &#11088; View on GitHub
+              </a>
+            </div>
+            <p class="hero-note">Available for Windows, macOS, and Linux. Works on screens as small as a phone.</p>
+          </div>
+          <div class="hero-mascot">
+            <img src="assets/sunny-hero.jpg" alt="Sunny, a friendly AI desktop companion helping older adults" width="1376" height="768" loading="eager" decoding="async" />
+          </div>
         </div>
-        <p class="hero-note">Available for Windows, macOS, and Linux. Works on screens as small as a phone.</p>
       </div>
     </section>
 
-    <!-- ========================== FEATURES ========================= -->
     <section id="features">
       <div class="container">
         <div class="section-head">
@@ -443,42 +445,42 @@
         </div>
         <div class="features-grid">
           <article class="card">
-            <div class="icon" aria-hidden="true">🎤</div>
+            <div class="icon" aria-hidden="true">&#127908;</div>
             <h3>Hands-free voice input</h3>
             <p>Tap the microphone and speak. Sunny turns your words into text, streams them live, and sends your question when you pause.</p>
           </article>
           <article class="card">
-            <div class="icon" aria-hidden="true">🔊</div>
+            <div class="icon" aria-hidden="true">&#128266;</div>
             <h3>Gentle audio alerts</h3>
-            <p>A soft two-tone chime and clear spoken reminders let you know when it is time for medication — without startling you.</p>
+            <p>A soft two-tone chime and clear spoken reminders let you know when it is time for medication &mdash; without startling you.</p>
           </article>
           <article class="card">
-            <div class="icon" aria-hidden="true">🔤</div>
+            <div class="icon" aria-hidden="true">&#128292;</div>
             <h3>Instant text resizing</h3>
-            <p>One tap makes every word bigger — headings, messages, recipes, and cards. Scale up to 175% without losing your place.</p>
+            <p>One tap makes every word bigger &mdash; headings, messages, recipes, and cards. Scale up to 175% without losing your place.</p>
           </article>
           <article class="card">
-            <div class="icon" aria-hidden="true">💊</div>
+            <div class="icon" aria-hidden="true">&#128138;</div>
             <h3>Medication reminders</h3>
             <p>Set a pill name and a time. Sunny remembers and speaks up when the time comes, so nothing is missed.</p>
           </article>
           <article class="card">
-            <div class="icon" aria-hidden="true">🍲</div>
+            <div class="icon" aria-hidden="true">&#127858;</div>
             <h3>Recipes &amp; cooking mode</h3>
             <p>Ask for any dish. Sunny finds a recipe, reads the ingredients, and walks through each step out loud while you cook.</p>
           </article>
           <article class="card">
-            <div class="icon" aria-hidden="true">🖥️</div>
+            <div class="icon" aria-hidden="true">&#128421;</div>
             <h3>Computer help &amp; health</h3>
             <p>"My internet is slow" or "Is my battery okay?" Sunny checks your Wi-Fi, battery, memory, and updates in plain English.</p>
           </article>
           <article class="card">
-            <div class="icon" aria-hidden="true">🛡️</div>
+            <div class="icon" aria-hidden="true">&#128737;</div>
             <h3>Safe by design</h3>
             <p>Sunny never runs terminal scripts or touches passwords. Every sensitive action asks for your permission first, and always defaults to "No".</p>
           </article>
           <article class="card">
-            <div class="icon" aria-hidden="true">📰</div>
+            <div class="icon" aria-hidden="true">&#128240;</div>
             <h3>Daily digest</h3>
             <p>Ask for your morning briefing and Sunny reads the weather and today's headlines in a calm, easy voice.</p>
           </article>
@@ -486,51 +488,50 @@
       </div>
     </section>
 
-    <!-- ======================= ACCESSIBILITY ======================= -->
     <section id="accessibility" class="alt">
       <div class="container">
         <div class="section-head">
           <h2>Built for every pair of eyes, ears, and hands</h2>
-          <p>Accessibility is not an afterthought — it is the foundation.</p>
+          <p>Accessibility is not an afterthought &mdash; it is the foundation.</p>
         </div>
         <div class="a11y-grid">
           <div class="a11y-item">
-            <span class="check" aria-hidden="true">✓</span>
+            <span class="check" aria-hidden="true">&#10003;</span>
             <div>
               <strong>Large, clear text</strong>
               <span>Readable fonts and high contrast colours, with one-tap text resizing up to 175%.</span>
             </div>
           </div>
           <div class="a11y-item">
-            <span class="check" aria-hidden="true">✓</span>
+            <span class="check" aria-hidden="true">&#10003;</span>
             <div>
               <strong>Big touch targets</strong>
-              <span>Every button is at least 48×48 pixels and clearly labelled for screen readers.</span>
+              <span>Every button is at least 48&#215;48 pixels and clearly labelled for screen readers.</span>
             </div>
           </div>
           <div class="a11y-item">
-            <span class="check" aria-hidden="true">✓</span>
+            <span class="check" aria-hidden="true">&#10003;</span>
             <div>
               <strong>Speaks out loud</strong>
               <span>Full text-to-speech support, plus an easy mute switch for quiet rooms.</span>
             </div>
           </div>
           <div class="a11y-item">
-            <span class="check" aria-hidden="true">✓</span>
+            <span class="check" aria-hidden="true">&#10003;</span>
             <div>
               <strong>Reduced motion</strong>
-              <span>Honours your system's "reduce motion" setting for calm, distraction-free use.</span>
+              <span>Honours the system reduce motion setting for calm, distraction-free use.</span>
             </div>
           </div>
           <div class="a11y-item">
-            <span class="check" aria-hidden="true">✓</span>
+            <span class="check" aria-hidden="true">&#10003;</span>
             <div>
               <strong>Keyboard friendly</strong>
               <span>Complete keyboard navigation with a visible focus ring and a skip-to-content link.</span>
             </div>
           </div>
           <div class="a11y-item">
-            <span class="check" aria-hidden="true">✓</span>
+            <span class="check" aria-hidden="true">&#10003;</span>
             <div>
               <strong>Privacy respected</strong>
               <span>No accounts, no ads, no tracking. Your data stays on your own computer.</span>
@@ -540,7 +541,6 @@
       </div>
     </section>
 
-    <!-- ========================= HOW IT WORKS ====================== -->
     <section id="how">
       <div class="container">
         <div class="section-head">
@@ -566,14 +566,13 @@
             <span class="number" aria-hidden="true"></span>
             <div>
               <h3>Sunny helps</h3>
-              <p>Get a spoken answer, step-by-step help, a recipe, or a health check — explained in plain, patient language.</p>
+              <p>Get a spoken answer, step-by-step help, a recipe, or a health check &mdash; explained in plain, patient language.</p>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ======================= FAQ ======================= -->
     <section id="faq" class="alt">
       <div class="container">
         <div class="section-head">
@@ -595,13 +594,12 @@
           </details>
           <details class="faq">
             <summary>Which computers does Sunny run on?</summary>
-            <p>Windows, macOS, and Linux. If you are not sure, start with the Windows download — it is the easiest.</p>
+            <p>Windows, macOS, and Linux. If you are not sure, start with the Windows download &mdash; it is the easiest.</p>
           </details>
         </div>
       </div>
     </section>
 
-    <!-- ======================= DOWNLOAD CTA ======================= -->
     <section id="download">
       <div class="container">
         <div class="cta-band">
@@ -611,28 +609,27 @@
             never shouts, and is always happy to explain again.
           </p>
           <div class="cta-actions">
-            <a class="btn btn-primary" href="https://github.com/MT25MB/Sunny/releases/latest">⬇️ Download for free</a>
+            <a class="btn btn-primary" href="https://github.com/MT25MB/Sunny/releases/latest">&#11015; Download for free</a>
             <a class="btn btn-secondary" href="https://github.com/MT25MB/Sunny">Read the docs</a>
           </div>
         </div>
       </div>
     </section>
   </main>
-
   <footer class="site">
     <div class="container">
       <div class="footer-grid">
-        <div>
-          <a class="brand" href="#top">
-            <span class="brand-mark" aria-hidden="true">☀️</span>
-            <span class="brand-text">Sunny <small>Desktop Companion</small></span>
-          </a>
+        <div class="footer-brand">
+          <img src="assets/mascot.png" alt="" width="40" height="40" />
+          <span>Sunny <small>Desktop Companion</small></span>
         </div>
         <nav class="footer-links" aria-label="Footer navigation">
           <a href="https://github.com/MT25MB/Sunny">GitHub</a>
           <a href="https://github.com/MT25MB/Sunny/releases">Releases</a>
           <a href="https://github.com/MT25MB/Sunny/blob/main/README.md">README</a>
           <a href="https://github.com/MT25MB/Sunny/blob/main/LICENSE">License</a>
+          <a href="privacy-policy.html">Privacy Policy</a>
+          <a href="terms-of-service.html">Terms of Service</a>
         </nav>
       </div>
       <p class="footer-note">
