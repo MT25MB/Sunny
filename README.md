@@ -116,7 +116,7 @@ The easiest way to get Sunny is to download a pre-built installer from **[GitHub
 
 | Platform | File | Notes |
 |----------|------|-------|
-| **Windows** | `Sunny-Setup.exe` | Double-click to install. If SmartScreen appears, click "More info" → "Run anyway." |
+| **Windows** | `Sunny-Setup.exe` | Double-click to install. Windows SmartScreen may show “Windows protected your PC” because the installer is not yet code-signed. Click **More info → Run anyway**. Download only from the official GitHub Releases page. |
 | **macOS** | `Sunny-x.x.x.dmg` | Open the DMG and drag Sunny to your Applications folder. |
 | **Linux** | `sunny_x.x.x_amd64.deb` | Install with `sudo dpkg -i sunny_*.deb` |
 
