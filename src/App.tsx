@@ -49,6 +49,7 @@ function App() {
   const [highContrast, setHighContrast] = useState(false);
   const [cookingMode, setCookingMode] = useState<{ recipe: Recipe; currentStep: number } | null>(null);
   const [medicationReminders, setMedicationReminders] = useState<Array<{ id: string; pillName: string; timeString: string; enabled: boolean; lastTaken?: string; triggeredAt?: string }>>([]);
+  const [medModal, setMedModal] = useState<{ open: boolean; pillName: string; timeString: string }>({ open: false, pillName: "", timeString: "" });
   const [dailyDigest, setDailyDigest] = useState<DailyDigest | null>(null);
   const [isFetchingDigest, setIsFetchingDigest] = useState(false);
   const [recipeSearchQuery, setRecipeSearchQuery] = useState("");
@@ -626,19 +627,57 @@ function App() {
                   <h2 id="medication-title" className="section-title">
                     <Pill size={20} /> Medication Reminders
                   </h2>
-                  <button className="add-medication-btn" onClick={() => {
-                    const pillName = prompt("Medication name:");
-                    if (!pillName) return;
-                    const timeString = prompt("Time (HH:MM, 24-hour):");
-                    if (timeString && /^([01]\d|2[0-3]):([0-5]\d)$/.test(timeString)) {
-                      handleScheduleMedication(pillName.trim(), timeString);
-                    } else if (timeString) {
-                      alert("Invalid time format. Use HH:MM (24-hour).");
-                    }
-                  }}>
+                  <button className="add-medication-btn" onClick={() => setMedModal({ open: true, pillName: "", timeString: "" })}>
                     <Plus size={20} /> Add Reminder
                   </button>
                 </div>
+
+                {medModal.open && (
+                  <div className="med-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="med-modal-title">
+                    <div className="med-modal">
+                      <h3 id="med-modal-title">Add Medication Reminder</h3>
+                      <label>
+                        Medication name
+                        <input
+                          type="text"
+                          value={medModal.pillName}
+                          onChange={(e) => setMedModal((m) => ({ ...m, pillName: e.target.value }))}
+                          placeholder="e.g. Vitamin D"
+                        />
+                      </label>
+                      <label>
+                        Time (HH:MM, 24-hour)
+                        <input
+                          type="text"
+                          value={medModal.timeString}
+                          onChange={(e) => setMedModal((m) => ({ ...m, timeString: e.target.value }))}
+                          placeholder="08:30"
+                        />
+                      </label>
+                      <div className="med-modal-actions">
+                        <button className="medication-btn" onClick={() => setMedModal({ open: false, pillName: "", timeString: "" })}>
+                          Cancel
+                        </button>
+                        <button
+                          className="medication-btn taken-btn"
+                          onClick={() => {
+                            const name = medModal.pillName.trim();
+                            const time = medModal.timeString.trim();
+                            if (!name) return;
+                            if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(time)) {
+                              alert("Invalid time format. Use HH:MM (24-hour).");
+                              return;
+                            }
+                            handleScheduleMedication(name, time);
+                            setMedModal({ open: false, pillName: "", timeString: "" });
+                          }}
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="medication-list" role="list" aria-label="Medication reminders">
                   {medicationReminders.length === 0 ? (

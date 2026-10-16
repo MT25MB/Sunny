@@ -130,16 +130,21 @@ async function handleGetSystemStatus(__event) {
       }
     } else if (process.platform === 'win32') {
       try {
-        // Try to get battery info from Windows PowerShell
-        const output = await executeCommand('$battery = Get-WmiObject -Class Win32_Battery; $battery.PropertyData');
-        if (output) {
-          // Parse Windows battery info
-          batteryInfo.batteryPercent = 85; // Placeholder - would need actual parsing
-          batteryInfo.isCharging = false;
-          batteryInfo.health = 'good';
+        const output = await executeCommand('powershell -NoProfile -Command "Get-CimInstance Win32_Battery | Select-Object -ExpandProperty EstimatedChargeRemaining"');
+        const percentMatch = output.match(/(\d+)/);
+        if (percentMatch) {
+          batteryInfo.batteryPercent = parseInt(percentMatch[1], 10);
+          batteryInfo.health = batteryInfo.batteryPercent < 20 ? 'low' : 'good';
+        }
+        const chargingOutput = await executeCommand('powershell -NoProfile -Command "Get-CimInstance Win32_Battery | Select-Object -ExpandProperty BatteryStatus"');
+        const statusMatch = chargingOutput.match(/(\d+)/);
+        if (statusMatch) {
+          const status = parseInt(statusMatch[1], 10);
+          // BatteryStatus 2 = charging
+          batteryInfo.isCharging = status === 2;
         }
       } catch {
-        console.warn('Could not get battery info on Windows:', err.message);
+        console.warn('Could not get battery info on Windows:', err && err.message ? err.message : err);
       }
     }
     

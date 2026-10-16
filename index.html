@@ -320,7 +320,27 @@
             <div class="tile-icon">🎤</div>
             <h3>Hands-free voice input</h3>
             <p>Tap the microphone and speak. Sunny turns your words into text, streams them live, and sends your question when you pause.</p>
-            <div class="tile-art"><img src="public/assets/sunny-mascot-wave.png" alt="" loading="lazy" /></div>
+            <div class="tile-art" aria-hidden="true">
+              <svg viewBox="0 0 240 120" width="100%" height="120" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="wave" x1="0" x2="1" y1="0" y2="0">
+                    <stop offset="0" stop-color="#e08a1e" stop-opacity="0.2"/>
+                    <stop offset="0.5" stop-color="#e08a1e" stop-opacity="0.8"/>
+                    <stop offset="1" stop-color="#1f6f5c" stop-opacity="0.3"/>
+                  </linearGradient>
+                </defs>
+                <rect width="240" height="120" fill="none"/>
+                <g fill="none" stroke="url(#wave)" stroke-width="3" stroke-linecap="round">
+                  <path d="M0 60 Q20 30 40 60 T80 60 T120 60 T160 60 T200 60 T240 60"/>
+                  <path d="M0 60 Q20 80 40 60 T80 60 T120 60 T160 60 T200 60 T240 60" opacity="0.6"/>
+                </g>
+                <g transform="translate(108,34)">
+                  <rect x="0" y="0" width="24" height="36" rx="12" fill="#e08a1e"/>
+                  <path d="M-8 30 a20 20 0 0 0 40 0" fill="none" stroke="#b96f10" stroke-width="3"/>
+                  <line x1="12" y1="50" x2="12" y2="62" stroke="#b96f10" stroke-width="3"/>
+                </g>
+              </svg>
+            </div>
           </article>
           <article class="tile accent reveal">
             <div class="tile-icon">🍲</div>
