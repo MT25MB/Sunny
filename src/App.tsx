@@ -28,7 +28,7 @@ import {
   Plus,
 } from "lucide-react";
 import { sunnyBrain, type ChatMessage } from "@/renderer/services/sunnyBrain";
-import type { SystemStatus, Recipe, MedicationReminder, DailyDigest, CookingStep } from "@/types/electron";
+import type { SystemStatus, Recipe, DailyDigest } from "@/types/electron";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import OfflineFallback from "@/components/OfflineFallback";
 import Footer from "@/components/Footer";
@@ -43,8 +43,6 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [fontScale, setFontScale] = useState(100);
-  const [audioMuted, setAudioMuted] = useState(false);
   const [showChat, setShowChat] = useState(true);
   const [highContrast, setHighContrast] = useState(false);
   const [cookingMode, setCookingMode] = useState<{ recipe: Recipe; currentStep: number } | null>(null);
@@ -55,7 +53,7 @@ function App() {
   const [recipeSearchQuery, setRecipeSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Recipe[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [modelStatus, setModelStatus] = useState<string | null>(null);
+  const [modelStatus] = useState<string | null>(null);
   const [modelError, setModelError] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [medicationRemindersLoaded, setMedicationRemindersLoaded] = useState(false);
