@@ -18,19 +18,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-      - run: npm ci --legacy-peer-deps
-      - run: npm run build
-      # The Vite entry is app.html (React app for Electron). GitHub Pages
-      # needs an index.html at the artifact root, so publish the standalone
-      # landing page as the site index.
-      - name: Publish landing page as site index
-        run: cp index.html dist/index.html
+      - name: Prepare site
+        run: |
+          mkdir -p site
+          cp index.html privacy-policy.html terms-of-service.html site/
+          cp -r public site/public
       - uses: actions/configure-pages@v4
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
-          path: ./dist
+          path: ./site
       - uses: actions/deploy-pages@v4
