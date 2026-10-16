@@ -122,6 +122,8 @@ The easiest way to get Sunny is to download a pre-built installer from **[GitHub
 
 ### First-run setup
 
+> **Note:** Older installers (before v1.2.x) may show a JavaScript error on first launch due to a missing packaged file. If you see this, download the **latest** release from [GitHub Releases](../../releases/latest) — it’s already fixed.
+
 When you open Sunny for the first time, an onboarding screen will guide you through granting the permissions Sunny needs:
 
 - **macOS**: Screen Recording and Accessibility permissions (System Settings → Privacy & Security)
