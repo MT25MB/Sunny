@@ -164,6 +164,40 @@ const NEWS_API = 'https://api.rss2json.com/v1/api.json'; // Free tier available
 const medicationReminders = new Map();
 let medicationCheckInterval = null;
 
+// Persistence file path
+function getRemindersFilePath() {
+  return path.join(app.getPath('userData'), 'medication-reminders.json');
+}
+
+/** Load reminders from disk on startup. */
+function loadMedicationReminders() {
+  const filePath = getRemindersFilePath();
+  try {
+    if (fs.existsSync(filePath)) {
+      const content = fs.readFileSync(filePath, 'utf8');
+      const data = JSON.parse(content);
+      if (Array.isArray(data)) {
+        for (const r of data) {
+          medicationReminders.set(r.id, r);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[Medication] Failed to load reminders:', err);
+  }
+}
+
+/** Persist reminders to disk. */
+function saveMedicationReminders() {
+  const filePath = getRemindersFilePath();
+  try {
+    const data = Array.from(medicationReminders.values());
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+  } catch (err) {
+    console.error('[Medication] Failed to save reminders:', err);
+  }
+}
+
 const INTERNET_TEST_URL = 'https://www.google.com/generate_204';
 const INTERNET_TIMEOUT_MS = 4000;
 const STATUS_POLL_INTERVAL_MS = 30_000;
@@ -579,12 +613,16 @@ async function readBatteryStatus() {
     } else if (process.platform === 'win32') {
       const { stdout } = await run(
         'powershell.exe',
-        ['-NoProfile', '-NonInteractive', '-Command', '(Get-CimInstance Win32_Battery).EstimatedChargeRemaining'],
+        ['-NoProfile', '-NonInteractive', '-Command', '(Get-CimInstance Win32_Battery).EstimatedChargeRemaining, (Get-CimInstance Win32_Battery).BatteryStatus'],
         { timeout: 6000, windowsHide: true }
       );
-      const pct = Number.parseInt(stdout.trim(), 10);
+      const lines = stdout.trim().split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const pct = Number.parseInt(lines[0] || '', 10);
+      const battStatus = Number.parseInt(lines[1] || '', 10);
       if (Number.isFinite(pct)) {
-        status = { batteryPercent: pct, isCharging: false, health: 'good' };
+        // BatteryStatus: 1=Discharging, 2=AC, 3=Fully Charged, 4=Low, 5=Critical, 6=Charging...
+        const isCharging = [2, 6, 7, 8, 9, 10, 11].includes(battStatus);
+        status = { batteryPercent: pct, isCharging, health: 'good' };
       }
     } else if (process.platform === 'linux') {
       // /sys/class/power_supply exposes battery state as plain files — no exec needed.
@@ -969,6 +1007,7 @@ async function scheduleMedicationReminder(pillName, timeString) {
   };
 
   medicationReminders.set(id, reminder);
+  saveMedicationReminders();
   startMedicationChecker();
 
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -984,15 +1023,23 @@ function startMedicationChecker() {
   medicationCheckInterval = setInterval(() => {
     const now = new Date();
     const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const today = now.toISOString().split('T')[0];
 
     for (const [id, reminder] of medicationReminders.entries()) {
-      if (reminder.enabled && reminder.timeString === currentTime) {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('sunny:medication-reminder-triggered', {
-            ...reminder,
-            triggeredAt: new Date().toISOString(),
-          });
-        }
+      if (!reminder.enabled) continue;
+      if (reminder.timeString !== currentTime) continue;
+      if (reminder.takenOn === today) continue;
+      if (reminder.lastFiredOn === `${today} ${currentTime}`) continue;
+
+      reminder.lastFiredOn = `${today} ${currentTime}`;
+      medicationReminders.set(id, reminder);
+      saveMedicationReminders();
+
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('sunny:medication-reminder-triggered', {
+          ...reminder,
+          triggeredAt: new Date().toISOString(),
+        });
       }
     }
   }, 30000);
@@ -1077,6 +1124,9 @@ function emitCookingStepChange(stepIndex, totalSteps, instruction) {
 // ============================================================================
 
 app.whenReady().then(() => {
+  // Load persisted medication reminders
+  loadMedicationReminders();
+
   // Content Security Policy
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     const csp = [
@@ -1251,9 +1301,11 @@ app.whenReady().then(() => {
     const reminderId = requireString(box.reminderId, 'reminderId');
     const reminder = medicationReminders.get(reminderId);
     if (reminder) {
+      const today = new Date().toISOString().split('T')[0];
       reminder.lastTaken = new Date().toISOString();
-      reminder.enabled = false; // Disable after taking
+      reminder.takenOn = today;
       medicationReminders.set(reminderId, reminder);
+      saveMedicationReminders();
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('sunny:medication-reminder-updated', reminder);
       }
@@ -1272,6 +1324,7 @@ app.whenReady().then(() => {
     const box = requirePlainObject(payload, 'delete reminder');
     const reminderId = requireString(box.reminderId, 'reminderId');
     medicationReminders.delete(reminderId);
+    saveMedicationReminders();
     return { success: true };
   });
 
