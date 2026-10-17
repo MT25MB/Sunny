@@ -138,7 +138,7 @@ const MAX_ACTIONS_PER_BATCH = 30;
 const MAX_TYPED_CHARS = 4000;
 
 const SPEECH_PRIORITIES = ['low', 'normal', 'high', 'urgent'];
-const SUNNY_TOOLS = ['get_system_status', 'speak_notification', 'search_recipe', 'get_daily_digest', 'schedule_medication_reminder'];
+const SUNNY_TOOLS = ['get_system_status', 'speak_notification', 'search_recipe', 'get_daily_digest', 'schedule_medication_reminder', 'emit_cooking_step'];
 
 /**
  * Anti-Injection System Prompt Guardrail
@@ -602,6 +602,16 @@ function validateToolParams(toolName, params) {
     return { pillName, timeString };
   }
 
+  if (toolName === 'emit_cooking_step') {
+    const stepIndex = requireString(box.stepIndex, 'stepIndex');
+    const totalSteps = requireString(box.totalSteps, 'totalSteps');
+    const instruction = requireString(box.instruction, 'instruction');
+    if (!Number.isInteger(Number(stepIndex)) || !Number.isInteger(Number(totalSteps))) {
+      throw new Error('stepIndex and totalSteps must be integers.');
+    }
+    return { stepIndex: Number(stepIndex), totalSteps: Number(totalSteps), instruction };
+  }
+
   throw new Error(`Unknown tool: ${toolName}`);
 }
 
@@ -632,6 +642,11 @@ async function runTool(toolName, params) {
 
   if (toolName === 'schedule_medication_reminder') {
     return await scheduleMedicationReminder(params.pillName, params.timeString);
+  }
+
+  if (toolName === 'emit_cooking_step') {
+    emitCookingStepChange(params.stepIndex, params.totalSteps, params.instruction);
+    return { ok: true };
   }
 
   throw new Error(`Unknown tool: ${toolName}`);

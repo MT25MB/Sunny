@@ -468,7 +468,7 @@ function App() {
       )}
       {!showOfflineFallback && (
         <>
-          <div className="app-shell">
+          <div className={`app-shell ${highContrast ? 'high-contrast' : ''}`}>
             <header className="app-header" role="banner">
               <div className="header-left">
                 <img src={mascot} alt="Sunny logo" className="app-logo" />
