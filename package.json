@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "sunny-desktop",
   "private": true,
   "version": "1.2.2",
@@ -47,5 +47,8 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.3.0",
     "vite": "^7.3.7"
+  },
+  "optionalDependencies": {
+    "@electron-forge/maker-deb": "^8.0.1"
   }
 }
