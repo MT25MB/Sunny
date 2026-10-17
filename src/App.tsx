@@ -14,7 +14,6 @@ import {
   Trash2,
   MessageSquare,
   Shield,
-  Home,
   Utensils,
   Pill,
   Newspaper,
@@ -40,6 +39,7 @@ import {
   loadLocalPreferences,
   saveLocalPreferences,
   defaultPreferences,
+  type SunnyPreferences,
 } from "@/lib/local-preferences";
 import mascot from "/assets/mascot.png";
 
@@ -90,8 +90,8 @@ function App() {
       try {
         const status = await window.sunnyDesktop.getModelStatus();
         if (status) setModelStatus(status);
-        const count = await window.sunnyDesktop.getDebugLogCount?.();
-        if (typeof count === 'number') setDebugLogCount(count);
+        const result = await window.sunnyDesktop.getDebugLogCount?.();
+        if (result && typeof result.count === 'number') setDebugLogCount(result.count);
       } catch {
         // Ignore model status errors
       }
@@ -153,7 +153,7 @@ function App() {
   const handleInitModel = useCallback(async () => {
     if (!window.sunnyDesktop?.initModel) return;
     try {
-      const status = await window.sunnyDesktop.initModel((s) => setModelStatus(s));
+      const status = await window.sunnyDesktop.initModel();
       setModelStatus(status);
     } catch (e) {
       console.error('Failed to init model:', e);
