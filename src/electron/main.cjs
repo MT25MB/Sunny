@@ -924,22 +924,6 @@ async function handleExecuteTool(channel, toolName, params) {
 // Periodic status broadcast to the renderer
 // ============================================================================
 
-  assertPayloadSize({ toolName, params }, channel);
-  const name = requireString(toolName, 'toolName');
-  if (!SUNNY_TOOLS.includes(name)) {
-    throw new Error(`Unknown tool: ${name}. Available tools: ${SUNNY_TOOLS.join(', ')}`);
-  }
-  const validated = validateToolParams(name, params === undefined ? {} : params);
-  return withTimeout(
-    runTool(name, validated),
-    TOOL_CALL_TIMEOUT_MS,
-    `The "${name}" action took too long and was stopped.`
-  );
-
-// ============================================================================
-// Periodic status broadcast to the renderer
-// ============================================================================
-
 async function emitSystemStatus() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   try {

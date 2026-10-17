@@ -89,7 +89,7 @@ function App() {
         }
         return [...prev, reminder];
       });
-      sunnyBrain.addMessage("system", "?? Medication Reminder: Time to take ${reminder.pillName}!");
+      sunnyBrain.addMessage("system", `?? Medication Reminder: Time to take ${reminder.pillName}!`);
       sunnyBrain.speakNotification(`Time to take your ${reminder.pillName}!`, "high", 2);
     });
 
