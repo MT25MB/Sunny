@@ -52,6 +52,23 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
+       # ------------------------------------------------------------------
+       # OPTIONAL: SignPath.io free code signing for open source
+       # Uncomment and configure if you want to sign Windows installers
+       # to avoid SmartScreen "Windows protected your PC" warning.
+       # See https://signpath.io/ for setup instructions.
+       # ------------------------------------------------------------------
+       # - name: Sign Windows installer with SignPath
+       #   if: runner.os == 'Windows'
+       #   uses: SignPath/signpath-action@v2
+       #   with:
+       #     project_id: ${{ secrets.SIGNPATH_PROJECT_ID }}
+       #     project_key: ${{ secrets.SIGNPATH_PROJECT_KEY }}
+       #     # artifacts must be specified relative to workspace root
+       #     artifacts: 'out/make/**/*.exe'
+       #     # optional: add timestamp server for LTV
+       #     timestamp_server: 'http://timestamp.digicert.com'
+      
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:

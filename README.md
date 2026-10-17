@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://mt25mb.github.io/Sunny/"><img src="https://img.shields.io/badge/Sunny-Desktop%20AI%20Assistant-fbbf24?style=for-the-badge&logo=sunny&logoColor=black" alt="Sunny"></a>
-  <a href="https://github.com/MT25MB/Sunny/releases/latest"><img src="https://img.shields.io/badge/Download-v2.0.0-fbbf24?style=for-the-badge&logo=github&logoColor=black" alt="Download"></a>
+  <a href="https://github.com/MT25MB/Sunny/releases/latest"><img src="https://img.shields.io/badge/Download-v1.2.5-fbbf24?style=for-the-badge&logo=github&logoColor=black" alt="Download"></a>
   <a href="https://github.com/MT25MB/Sunny/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/MT25MB/Sunny/ci.yml?branch=main&label=CI&style=for-the-badge&logo=githubactions" alt="CI Status"></a>
 </p>
 
@@ -116,9 +116,20 @@ The easiest way to get Sunny is to download a pre-built installer from **[GitHub
 
 | Platform | File | Notes |
 |----------|------|-------|
-| **Windows** | `Sunny-Setup.exe` | Double-click to install. Windows SmartScreen may show “Windows protected your PC” because the installer is not yet code-signed. Click **More info → Run anyway**. Download only from the official GitHub Releases page. |
+| **Windows** | `Sunny-Setup.exe` | Double-click to install. ⚠️ **Windows SmartScreen may show "Windows protected your PC"** because the installer is not code-signed. Click **More info → Run anyway**. Download only from the official GitHub Releases page. |
 | **macOS** | `Sunny-x.x.x.dmg` | Open the DMG and drag Sunny to your Applications folder. |
 | **Linux** | `sunny_x.x.x_amd64.deb` | Install with `sudo dpkg -i sunny_*.deb` |
+
+#### Why does Windows show a warning?
+
+The installer isn't code-signed with an Extended Validation (EV) certificate, which costs ~$300–600/year. Without it, Windows SmartScreen shows a protective warning until enough users download and run the installer to build reputation.
+
+**Workaround (one-time):**
+1. When the "Windows protected your PC" dialog appears, click **More info**
+2. Click **Run anyway**
+3. Sunny installs normally — you won't see this again for this version
+
+This is normal for open-source Electron apps. We publish every release on [GitHub Releases](../../releases) with transparent build logs so you can verify what you're running.
 
 ### First-run setup
 
