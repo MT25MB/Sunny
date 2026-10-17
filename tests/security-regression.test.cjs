@@ -400,3 +400,39 @@ test('preferences store keeps onboarding and safety defaults safe', () => {
     'onboarding must not be pre-completed'
   );
 });
+
+test('vision inference never falls back to text pipeline when an image is provided (H6 invariant)', () => {
+  const src = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '..', 'src', 'electron', 'inference.cjs'),
+    'utf8'
+  );
+
+  // runInference must immediately branch to runVisionInference when imageBase64 is truthy
+  assert.ok(
+    /if \(imageBase64\) \{\s*return runVisionInference/.test(src),
+    'runInference must immediately delegate to runVisionInference when an image is provided'
+  );
+
+  // runVisionInference must exist and NOT contain any fallback to the text pipeline
+  const visionStart = src.indexOf('async function runVisionInference');
+  const visionEnd = src.indexOf('async function runInference', visionStart);
+  const visionFn = src.slice(visionStart, visionEnd === -1 ? undefined : visionEnd);
+  assert.ok(
+    !/initModel\(\)/.test(visionFn),
+    'runVisionInference must not call the text-only initModel as fallback'
+  );
+  assert.ok(
+    !/pipeline\(prompt/.test(visionFn),
+    'runVisionInference must not use the text pipeline'
+  );
+  assert.ok(
+    /throw|return.*error|catch/.test(visionFn),
+    'runVisionInference must handle errors explicitly'
+  );
+
+  // The image-dropping shortcut must be completely gone
+  assert.ok(
+    !/`<image>\\n\\n\$\{prompt\}`/.test(src),
+    'the image-dropping prompt-only shortcut must be gone'
+  );
+});

@@ -176,6 +176,43 @@ async function decodeImage(imageBase64) {
 }
 
 /**
+ * Vision branch: runs a prompt against a screenshot using the multimodal
+ * Moondream2 stack. This MUST succeed or throw — no fallback to text pipeline.
+ * See the invariant comment in `runInference`.
+ */
+async function runVisionInference(prompt, imageBase64) {
+  try {
+    const { model, processor, tokenizer } = await initVisionModel();
+    const image = await decodeImage(imageBase64);
+
+    // Moondream expects the image marker plus an explicit Q/A scaffold.
+    const text = `<image>\n\nQuestion: ${prompt}\n\nAnswer:`;
+    const textInputs = tokenizer(text);
+    const visionInputs = await processor(image);
+
+    const output = await model.generate({
+      ...textInputs,
+      ...visionInputs,
+      do_sample: false,
+      max_new_tokens: 200,
+    });
+
+    const decoded = tokenizer.batch_decode(output, { skip_special_tokens: true });
+    const text2 = Array.isArray(decoded) ? decoded[0] : decoded;
+    const answer = typeof text2 === 'string'
+      ? text2.split('Answer:').pop().trim()
+      : '';
+    return { response: answer };
+  } catch (err) {
+    // Never fall back to text pipeline — the invariant requires loud failure.
+    return {
+      response: '',
+      error: `Vision inference failed: ${err instanceof Error ? err.message : String(err)}`
+    };
+  }
+}
+
+/**
  * Runs a prompt, optionally against a screen capture.
  *
  * With an image this uses the multimodal Moondream stack and actually feeds the
@@ -183,32 +220,15 @@ async function decodeImage(imageBase64) {
  * pipeline, which is cheaper and is what decide-action wants.
  */
 async function runInference(prompt, imageBase64) {
+  // INVARIANT: when a screenshot is supplied, the answer MUST come from the
+  // vision encoder. Falling back to the text pipeline would return a confident
+  // reply that never saw the screen — far worse than an error, because the user
+  // has no way to tell. So the vision branch fails loudly instead.
+  if (imageBase64) {
+    return runVisionInference(prompt, imageBase64);
+  }
+
   try {
-    if (imageBase64) {
-      const { model, processor, tokenizer } = await initVisionModel();
-      const image = await decodeImage(imageBase64);
-
-      // Moondream expects the image marker plus an explicit Q/A scaffold.
-      const text = `<image>\n\nQuestion: ${prompt}\n\nAnswer:`;
-      const textInputs = tokenizer(text);
-      const visionInputs = await processor(image);
-
-      const output = await model.generate({
-        ...textInputs,
-        ...visionInputs,
-        do_sample: false,
-        max_new_tokens: 200,
-      });
-
-      const decoded = tokenizer.batch_decode(output, { skip_special_tokens: true });
-      const text2 = Array.isArray(decoded) ? decoded[0] : decoded;
-      // Strip the echoed prompt so callers only get the answer.
-      const answer = typeof text2 === 'string'
-        ? text2.split('Answer:').pop().trim()
-        : '';
-      return { response: answer };
-    }
-
     if (!pipeline) {
       await initModel();
     }
