@@ -89,6 +89,18 @@ function interceptAction(action) {
 
 function interceptKey(a) {
   if (!a.key) return { verdict: 'block', reason: 'Key action has no key specified.' };
+
+  // Blocked key combos (shell-level danger)
+  const blockedKeyPatterns = [
+    /Meta\+Key/,
+    /Control\+C.*Control\+C/, // Ctrl+C Ctrl+C in terminal
+  ];
+  for (const p of blockedKeyPatterns) {
+    if (p.test(a.key)) {
+      return { verdict: 'block', reason: `Blocked key combination: "${a.key}".` };
+    }
+  }
+
   if (a.key === 'Delete' || a.key === 'Backspace') {
     return { verdict: 'confirm', reason: 'Delete/Backspace key.', confirmLabel: 'Delete key', confirmReason: 'Pressing Delete or Backspace may remove text, files, or items. This may not be undoable.' };
   }
@@ -103,7 +115,7 @@ function interceptType(a) {
   const text = a.text;
 
   for (const p of BLOCKED_COMMAND_PATTERNS) {
-    if (p.test(text)) return { verdict: 'block', reason: `Blocked: text matches dangerous command pattern.`, confirmLabel: 'Blocked command', confirmReason: `Sunny detected a dangerous command in the text it was about to type. This was blocked.` };
+    if (p.test(text)) return { verdict: 'block', reason: `Blocked: text matches dangerous command pattern.`, confirmLabel: 'Blocked command', confirmReason: `Sunny detected a dangerous command in the text it was about to type: "${text.slice(0, 80)}". This was blocked.` };
   }
   const confirmGroups = [
     { patterns: FILE_DELETION_PATTERNS, label: 'Delete files', reason: 'Sunny is about to type text that could delete files or data. Deleted items may not be recoverable.' },
@@ -115,7 +127,7 @@ function interceptType(a) {
   ];
   for (const group of confirmGroups) {
     for (const p of group.patterns) {
-      if (p.test(text)) return { verdict: 'confirm', reason: 'High-risk text detected.', confirmLabel: group.label, confirmReason: group.reason };
+      if (p.test(text)) return { verdict: 'confirm', reason: 'High-risk text detected.', confirmLabel: group.label, confirmReason: `${group.reason} Text: "${text.slice(0, 80)}"` };
     }
   }
   return { verdict: 'allow', reason: 'Type text is safe.' };

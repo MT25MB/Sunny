@@ -977,23 +977,8 @@ app.whenReady().then(() => {
     const csp = [
       "default-src 'self'",
       "script-src 'self'",
-      // KNOWN COMPLIANCE GAP — fonts.googleapis.com and fonts.gstatic.com are still
-      // permitted here. Loading them discloses the user's IP to a third country
-      // with no EU adequacy decision, which German case law treats as
-      // consent-requiring (LG Muenchen I, 3 O 17493/20).
-      //
-      // They are still needed because src/index.css line 1 imports DM Sans,
-      // DM Mono and Manrope from the Google CDN, and that stylesheet is bundled
-      // into the shipped app. Restricting font-src to 'self' without first
-      // vendoring those families silently strips the app's typography in
-      // production, and font metrics drive the whole React layout.
-      //
-      // TODO: vendor DM Sans, DM Mono and Manrope into the app build, remove
-      // the @import from src/index.css, then tighten both directives to
-      // 'self'. Requires a full `npm run make` plus visual verification of the
-      // packaged app, which cannot be done from a source checkout alone.
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com",
+      "style-src 'self' 'unsafe-inline'",
+      "font-src 'self'",
       "img-src 'self' data: https:",
       // Loopback is allowed because `ollama_endpoint` is user-configurable in
       // Settings (default http://localhost:11434). Local inference is the
@@ -1073,6 +1058,15 @@ app.whenReady().then(() => {
         if (result.verdict === 'block') {
           throw new Error(`Blocked: ${result.reason}`);
         }
+        if (result.verdict === 'confirm') {
+          const confirmed = await confirmSensitiveOperation(
+            'confirm_action',
+            result.confirmReason ?? 'This action requires your approval before proceeding.'
+          );
+          if (!confirmed) {
+            throw new Error('Security confirmation denied for confirm_action');
+          }
+        }
       }
       return executeActions(actions);
     }
@@ -1112,6 +1106,7 @@ app.whenReady().then(() => {
   // --- Tool bridge (sunnyBrain / accessible UI) --------------------------
   ipcMain.handle('sunny:execute-tool', (event, toolName, params) => {
     assertTrustedSender(event);
+    rateLimit('sunny:execute-tool');
     return handleExecuteTool('sunny:execute-tool', toolName, params);
   });
 
@@ -1210,9 +1205,15 @@ app.whenReady().then(() => {
   ipcMain.handle('sunny:get-debug-log-count', () => inference.getDebugLogCount());
 
   // --- Content sanitisation ---------------------------------------------
-  ipcMain.handle('sunny:sanitize-content', (_event, text) => {
-    if (typeof text !== 'string') return '';
-    if (text.length > MAX_PAYLOAD_BYTES) return '';
+  ipcMain.handle('sunny:sanitize-content', (event, text) => {
+    assertTrustedSender(event);
+    if (typeof text !== 'string') {
+      throw new Error('Input must be a string.');
+    }
+    const byteLength = Buffer.byteLength(text, 'utf8');
+    if (byteLength > MAX_PAYLOAD_BYTES) {
+      throw new Error(`Input too large (${byteLength} bytes, limit ${MAX_PAYLOAD_BYTES}).`);
+    }
     return sanitizeUntrustedContent(text);
   });
 
