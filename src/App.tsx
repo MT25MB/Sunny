@@ -26,12 +26,21 @@ import {
   Clock,
   Search,
   Plus,
+  Settings,
 } from "lucide-react";
 import { sunnyBrain, type ChatMessage } from "@/renderer/services/sunnyBrain";
 import type { SystemStatus, Recipe, DailyDigest } from "@/types/electron";
+import type { ModelStatus } from "@/vite-env";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import OfflineFallback from "@/components/OfflineFallback";
 import Footer from "@/components/Footer";
+import { SettingsModal } from "@/components/SettingsModal";
+import { OnboardingScreen } from "@/components/OnboardingScreen";
+import {
+  loadLocalPreferences,
+  saveLocalPreferences,
+  defaultPreferences,
+} from "@/lib/local-preferences";
 import mascot from "/assets/mascot.png";
 
 const POLL_INTERVAL = 30000;
@@ -53,10 +62,12 @@ function App() {
   const [recipeSearchQuery, setRecipeSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Recipe[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [modelStatus] = useState<string | null>(null);
+  const [modelStatus, setModelStatus] = useState<ModelStatus | null>(null);
   const [modelError, setModelError] = useState<string | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [medicationRemindersLoaded, setMedicationRemindersLoaded] = useState(false);
+  const [debugLogCount, setDebugLogCount] = useState(0);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [preferences, setPreferences] = useState<SunnyPreferences>(defaultPreferences);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -69,6 +80,101 @@ function App() {
   const medicationAddedUnsubscribeRef = useRef<(() => void) | null>(null);
   const cookingStepUnsubscribeRef = useRef<(() => void) | null>(null);
 
+  const loadPreferences = useCallback(async () => {
+    const prefs = loadLocalPreferences();
+    setPreferences(prefs);
+    if (!prefs.has_completed_onboarding) {
+      setShowOnboarding(true);
+    }
+    if (window.sunnyDesktop?.getModelStatus) {
+      try {
+        const status = await window.sunnyDesktop.getModelStatus();
+        if (status) setModelStatus(status);
+        const count = await window.sunnyDesktop.getDebugLogCount?.();
+        if (typeof count === 'number') setDebugLogCount(count);
+      } catch {
+        // Ignore model status errors
+      }
+    }
+  }, []);
+
+  const handlePreferencesUpdate = useCallback((patch: Partial<SunnyPreferences>) => {
+    const newPrefs = { ...preferences, ...patch };
+    setPreferences(newPrefs);
+    saveLocalPreferences(newPrefs);
+  }, [preferences]);
+
+  const handlePreferencesReset = useCallback(() => {
+    const newPrefs = { ...defaultPreferences };
+    setPreferences(newPrefs);
+    saveLocalPreferences(newPrefs);
+  }, []);
+
+  const handleOnboardingComplete = useCallback(() => {
+    const newPrefs = { ...preferences, has_completed_onboarding: true };
+    setPreferences(newPrefs);
+    saveLocalPreferences(newPrefs);
+    setShowOnboarding(false);
+  }, [preferences]);
+
+  const handleOnboardingSkip = useCallback(() => {
+    const newPrefs = { ...preferences, has_completed_onboarding: true };
+    setPreferences(newPrefs);
+    saveLocalPreferences(newPrefs);
+    setShowOnboarding(false);
+  }, [preferences]);
+
+  const handleClearLogs = useCallback(async () => {
+    try {
+      await window.sunnyDesktop?.clearDebugLogs?.();
+      setDebugLogCount(0);
+    } catch (e) {
+      console.error('Failed to clear logs:', e);
+    }
+  }, []);
+
+  const handleExportLogs = useCallback(async () => {
+    try {
+      const result = await window.sunnyDesktop?.exportDebugLogs?.();
+      if (result?.content) {
+        const blob = new Blob([result.content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `sunny-debug-logs-${new Date().toISOString().slice(0, 10)}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (e) {
+      console.error('Failed to export logs:', e);
+    }
+  }, []);
+
+  const handleInitModel = useCallback(async () => {
+    if (!window.sunnyDesktop?.initModel) return;
+    try {
+      const status = await window.sunnyDesktop.initModel((s) => setModelStatus(s));
+      setModelStatus(status);
+    } catch (e) {
+      console.error('Failed to init model:', e);
+    }
+  }, []);
+
+  // Load preferences on mount
+  useEffect(() => {
+    loadPreferences();
+  }, [loadPreferences]);
+
+  // Subscribe to model progress
+  useEffect(() => {
+    if (!window.sunnyDesktop?.onModelProgress) return;
+    const unsub = window.sunnyDesktop.onModelProgress((status: ModelStatus) => {
+      setModelStatus(status);
+    });
+    return unsub;
+  }, []);
+
+  // Main sunnyBrain subscriptions
   useEffect(() => {
     statusUnsubscribeRef.current = sunnyBrain.onSystemStatusChange((status) => {
       setSystemStatus(status);
@@ -111,7 +217,6 @@ function App() {
       try {
         const reminders = await sunnyBrain.getMedicationReminders();
         setMedicationReminders(reminders);
-        setMedicationRemindersLoaded(true);
       } catch (e) {
         console.error("Failed to load medication reminders:", e);
       }
@@ -349,7 +454,7 @@ function App() {
     return { label: memoryGB.toFixed(1) + " GB - Healthy", level: "good" as const };
   }, [memoryGB]);
 
-  const showOfflineFallback = modelStatus === "error" || modelStatus === "not-downloaded" || modelError !== null;
+  const showOfflineFallback = modelStatus?.status === "error" || modelStatus?.status === "not-downloaded" || modelError !== null;
   return (
     <ErrorBoundary>
       {showOfflineFallback && (
@@ -492,10 +597,10 @@ function App() {
                     variant="secondary"
                   />
                   <ActionButton
-                    icon={<Home size={28} />}
+                    icon={<Settings size={28} />}
                     label="Open Settings"
                     description="Adjust voice, speed, and AI model"
-                    onClick={() => sunnyBrain.addMessage("system", "Settings would open here.")}
+                    onClick={() => setShowSettings(true)}
                     variant="secondary"
                   />
                 </div>
@@ -802,6 +907,26 @@ function App() {
             </main>
           </div>
         </>
+      )}
+      {showSettings && (
+        <SettingsModal
+          open={showSettings}
+          onClose={() => setShowSettings(false)}
+          preferences={preferences}
+          onUpdate={handlePreferencesUpdate}
+          onReset={handlePreferencesReset}
+          modelStatus={modelStatus ?? { status: 'not-downloaded', progress: 0, message: 'Model not loaded yet.' }}
+          debugLogCount={debugLogCount}
+          onClearLogs={handleClearLogs}
+          onExportLogs={handleExportLogs}
+          onInitModel={handleInitModel}
+        />
+      )}
+      {showOnboarding && (
+        <OnboardingScreen
+          onComplete={handleOnboardingComplete}
+          onSkip={handleOnboardingSkip}
+        />
       )}
     </ErrorBoundary>
   );

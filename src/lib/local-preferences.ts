@@ -11,6 +11,7 @@ export type SunnyPreferences = {
   brain_model: string;
   clarification_level: ClarificationLevel;
   ollama_endpoint: string;
+  has_completed_onboarding: boolean;
 };
 
 export const defaultPreferences: SunnyPreferences = {
@@ -22,6 +23,7 @@ export const defaultPreferences: SunnyPreferences = {
   brain_model: 'moondream2',
   clarification_level: 'all',
   ollama_endpoint: 'http://localhost:11434',
+  has_completed_onboarding: false,
 };
 
 const STORAGE_KEY = 'sunny_preferences_v1';
