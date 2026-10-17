@@ -44,7 +44,7 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
       - name: Install Linux-only maker
-        if: runner.os === 'Linux'
+        if: runner.os == 'Linux'
         run: npm install --no-save @electron-forge/maker-deb@^8.0.1
       - name: Build & Package
         run: npm run make
