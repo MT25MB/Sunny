@@ -26,28 +26,48 @@
 
 <style>
   :root {
+    /* Material system — translucent, layered, not opaque blocks */
+    --material-base: rgba(255, 255, 255, 0.72);
+    --material-raised: rgba(255, 255, 255, 0.85);
+    --material-heavy: rgba(255, 255, 255, 0.92);
+    --material-glass: rgba(255, 255, 255, 0.55);
     --bg: #faf6ef;
-    --bg-2: #f3ecdf;
-    --surface: #ffffff;
-    --surface-2: #f7f1e6;
-    --text: #1b2230;
+
+    /* Blur radii — bigger surfaces = stronger blur = "thicker" material */
+    --blur-standard: blur(20px);
+    --blur-heavy: blur(40px);
+
+    /* Edge — light catching the material, hairline separation */
+    --edge-dim: rgba(0, 0, 0, 0.08);
+
+    /* Ink — never pure black, always warm */
+    --text: #1d1d1f;
     --text-muted: #5a657a;
     --text-soft: #636c7e;
+
+    /* Accent — sun warmth, semantically earned */
     --brand: #e08a1e;
     --brand-dark: #b96f10;
     --brand-soft: #fdf0dd;
-    --accent: #1f6f5c;
-    --accent-soft: #e2f2ee;
     --border: #e6dcc8;
     --border-strong: #d4c9b0;
     --focus: #1a56db;
-    --radius-sm: 10px;
-    --radius: 18px;
-    --radius-lg: 28px;
-    --shadow-sm: 0 2px 8px rgba(29,36,51,0.06);
-    --shadow: 0 12px 40px rgba(29,36,51,0.10);
-    --shadow-lg: 0 30px 80px rgba(29,36,51,0.14);
-    --space-1: .5rem;
+
+    /* Inverted band (CTA) — ink surface, so ink reverses */
+    --ink-on-dark: #faf6ef;
+    --ink-on-dark-muted: #b9bfcc;
+
+    /* Separation — shadow encodes thickness, not elevation */
+    --shadow-sm: 0 1px 0 rgba(0, 0, 0, 0.04);
+    --shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.08);
+
+    /* Radii — not one size for everything */
+    --radius-sm: 8px;
+    --radius: 16px;
+    --radius-lg: 24px;
+
+    /* Spacing scale */
     --space-2: 1rem;
     --space-3: 1.5rem;
     --space-4: 2rem;
@@ -55,7 +75,70 @@
     --space-6: 4.5rem;
     --space-7: 6rem;
     --max: 1180px;
+    --measure: 58ch;
+
+    /* Springs — the only motion primitive */
+    --spring-default: cubic-bezier(0.32, 0.72, 0, 1);
+    --spring-response: cubic-bezier(0.16, 1, 0.3, 1);
+
+    /* Type scale */
+    --fs-display: clamp(2.75rem, 6.2vw, 4.75rem);
+    --fs-h2: clamp(1.875rem, 3.4vw, 2.625rem);
+    --fs-h3: 1.1875rem;
+    --fs-lead: clamp(1.1875rem, 1.5vw, 1.375rem);
+    --fs-body: 1.0625rem;
+    --fs-meta: 0.8125rem;
   }
+
+  /* Dark mode — full material inversion */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --material-base: rgba(28, 28, 30, 0.72);
+      --material-raised: rgba(44, 44, 46, 0.85);
+      --material-heavy: rgba(58, 58, 60, 0.92);
+      --material-glass: rgba(28, 28, 30, 0.55);
+      --bg: #1d1d1f;
+      --text: #f5f5f7;
+      --text-muted: #98989d;
+      --text-soft: #8e8e93;
+      --brand: #e89a2e;
+      --brand-dark: #f0a83e;
+      --brand-soft: rgba(232, 154, 46, 0.12);
+      --border: #3a3a3c;
+      --border-strong: #48484a;
+      --ink-on-dark: #1d1d1f;
+      --ink-on-dark-muted: #5f636b;
+      --edge-dim: rgba(255, 255, 255, 0.06);
+      --shadow-sm: 0 1px 0 rgba(0, 0, 0, 0.2);
+      --shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+      --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.3);
+      color-scheme: dark;
+    }
+  }
+
+  /* Reduced transparency — solid materials, no blur */
+  @media (prefers-reduced-transparency: reduce) {
+    :root {
+      --material-base: rgba(255, 255, 255, 0.95);
+      --material-raised: rgba(255, 255, 255, 0.98);
+      --material-heavy: #ffffff;
+      --material-glass: rgba(255, 255, 255, 0.9);
+      --blur-standard: blur(0);
+      --blur-heavy: blur(0);
+    }
+  }
+
+  /* High contrast — near-solid backgrounds, defined borders */
+  @media (prefers-contrast: more) {
+    :root {
+      --text-muted: #3a3a3c;
+      --text-soft: #3a3a3c;
+      --border: #8a8a8e;
+      --border-strong: #6e6e73;
+      --edge-dim: rgba(0, 0, 0, 0.3);
+    }
+  }
+
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   @media (prefers-reduced-motion: reduce) {
@@ -67,13 +150,15 @@
     font-family: "Atkinson Hyperlegible", system-ui, sans-serif;
     background: var(--bg);
     color: var(--text);
-    line-height: 1.6;
-    font-size: 1.0625rem;
+    line-height: 1.65;
+    font-size: var(--fs-body);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
-  h1,h2,h3,h4 { font-family: "Fraunces", Georgia, serif; font-weight: 600; letter-spacing: -0.01em; line-height: 1.05; margin: 0; }
-  p { margin: 0; }
+  h1 { font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: var(--fs-display); letter-spacing: -0.03em; line-height: 1.02; margin: 0; text-wrap: balance; }
+  h2 { font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: var(--fs-h2); letter-spacing: -0.02em; line-height: 1.1; margin: 0; text-wrap: balance; }
+  h3, h4 { font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: var(--fs-h3); letter-spacing: -0.01em; line-height: 1.2; margin: 0; }
+  p { margin: 0; max-width: var(--measure); text-wrap: pretty; }
   a { color: inherit; }
   img { max-width: 100%; display: block; }
   .container { width: 100%; max-width: var(--max); margin: 0 auto; padding: 0 1.5rem; }
@@ -87,56 +172,58 @@
   /* Header */
   header.site {
     position: sticky; top: 0; z-index: 50;
-    background: rgba(250,246,239,0.85);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border);
+    background: var(--material-heavy);
+    -webkit-backdrop-filter: var(--blur-heavy);
+    backdrop-filter: var(--blur-heavy);
+    border-bottom: 1px solid var(--edge-dim);
   }
   .site-header-inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 0; }
   .brand { display: flex; align-items: center; gap: .7rem; text-decoration: none; color: var(--text); font-weight: 700; }
   .brand-mark { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; box-shadow: var(--shadow-sm); }
-  .brand-text small { display: block; font-size: .72rem; font-weight: 600; color: var(--text-soft); letter-spacing: .04em; text-transform: uppercase; }
+  .brand-text small { display: block; font-size: var(--fs-meta); font-weight: 600; color: var(--text-soft); letter-spacing: 0; }
   nav.site-nav { display: flex; gap: .25rem; flex-wrap: wrap; }
   nav.site-nav a {
     text-decoration: none; font-weight: 600; font-size: .95rem; padding: .5rem .85rem;
-    border-radius: 999px; color: var(--text-muted); transition: background .2s, color .2s;
+    border-radius: var(--radius-sm); color: var(--text-muted);
+    transition: background 120ms var(--spring-response), color 120ms var(--spring-response), opacity 120ms var(--spring-response);
   }
-  nav.site-nav a:hover { background: var(--surface); color: var(--text); }
+  nav.site-nav a:hover { background: var(--material-base); color: var(--text); }
+  nav.site-nav a:active { opacity: .6; }
   .nav-cta {
-    background: var(--text); color: #fff; padding: .5rem 1.1rem; border-radius: 999px; font-weight: 700; font-size: .9rem;
-    text-decoration: none; transition: transform .2s;
+    background: var(--text); color: var(--bg); padding: .5rem 1.1rem; border-radius: var(--radius-sm);
+    font-weight: 700; font-size: .9rem; text-decoration: none;
+    transition: transform 120ms var(--spring-response), opacity 120ms var(--spring-response);
   }
-  .nav-cta:hover { transform: translateY(-1px); }
+  .nav-cta:hover { opacity: .88; }
+  .nav-cta:active { transform: scale(.98); }
 
   /* Hero */
   .hero {
     padding: var(--space-7) 0 var(--space-6);
-    background:
-      radial-gradient(900px 500px at 80% -10%, rgba(224,138,30,0.18), transparent 60%),
-      radial-gradient(700px 400px at 10% 110%, rgba(31,111,92,0.12), transparent 60%);
     position: relative; overflow: hidden;
   }
   .hero-grid {
     display: grid; grid-template-columns: 1.05fr .95fr; gap: var(--space-5); align-items: center;
   }
-  .hero-eyebrow {
-    display: inline-flex; align-items: center; gap: .5rem;
-    font-size: .8rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
-    color: var(--accent); background: var(--accent-soft); padding: .4rem .9rem; border-radius: 999px;
+  .hero-trust {
+    display: block; font-size: var(--fs-meta); font-weight: 600; color: var(--text-muted);
+    padding-bottom: var(--space-3); margin-bottom: var(--space-3);
+    border-bottom: 1px solid var(--border);
   }
-  .hero h1 { font-size: clamp(2.6rem, 5.5vw, 4.4rem); margin: var(--space-2) 0 var(--space-3); }
-  .hero h1 em { font-style: italic; color: var(--brand-dark); }
-  .hero-lead { font-size: clamp(1.1rem, 1.6vw, 1.3rem); color: var(--text-muted); max-width: 34rem; }
+  .hero h1 { margin-bottom: var(--space-3); }
+  .hero-lead { font-size: var(--fs-lead); color: var(--text-muted); max-width: 34rem; }
   .hero-actions { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: var(--space-4); }
   .btn {
     display: inline-flex; align-items: center; gap: .5rem; font: inherit; font-weight: 700;
-    text-decoration: none; border: 0; border-radius: 14px; padding: .9rem 1.5rem; min-height: 52px;
-    cursor: pointer; transition: transform .15s, box-shadow .2s;
+    text-decoration: none; border: 0; border-radius: var(--radius-sm); padding: .9rem 1.5rem; min-height: 52px;
+    cursor: pointer;
+    transition: transform 120ms var(--spring-response), background 120ms var(--spring-response), opacity 120ms var(--spring-response);
   }
-  .btn:hover { transform: translateY(-2px); }
-  .btn-primary { background: var(--brand); color: #1d1305; box-shadow: 0 8px 24px rgba(224,138,30,.35); }
-  .btn-primary:hover { background: var(--brand-dark); color: #fff; }
+  .btn:active { transform: scale(.98); }
+  .btn-primary { background: var(--brand); color: #1d1305; box-shadow: 0 4px 16px rgba(224,138,30,.24); }
+  .btn-primary:hover { background: var(--brand-dark); color: #1d1305; }
   .btn-ghost { background: transparent; color: var(--text); border: 1.5px solid var(--border-strong); }
-  .btn-ghost:hover { background: var(--surface); }
+  .btn-ghost:hover { background: var(--material-base); }
   .hero-note { margin-top: var(--space-2); font-size: .9rem; color: var(--text-soft); }
   .hero-art {
     position: relative; aspect-ratio: 4/3; border-radius: var(--radius-lg);
@@ -147,21 +234,43 @@
     content: ""; position: absolute; inset: 0;
     background: linear-gradient(180deg, transparent 60%, rgba(29,36,51,.18));
   }
-  .hero-badge {
-    position: absolute; bottom: 1.25rem; left: 1.25rem; z-index: 2;
-    background: rgba(255,255,255,.92); backdrop-filter: blur(8px);
-    padding: .6rem .9rem; border-radius: 12px; box-shadow: var(--shadow-sm);
-    font-size: .85rem; font-weight: 700; color: var(--text);
+
+  /* One orchestrated hero entrance — pure CSS, no JS */
+  .hero-trust, .hero h1, .hero-lead, .hero-actions, .hero-note, .hero-art {
+    animation: hero-enter .5s var(--spring-response) forwards both;
+  }
+  .hero-trust   { animation-delay: 0ms; }
+  .hero h1      { animation-delay: 80ms; }
+  .hero-lead    { animation-delay: 160ms; }
+  .hero-actions { animation-delay: 240ms; }
+  .hero-note    { animation-delay: 320ms; }
+  .hero-art     { animation-delay: 120ms; animation-duration: .7s; }
+  @keyframes hero-enter {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-trust, .hero h1, .hero-lead, .hero-actions, .hero-note, .hero-art {
+      animation: none; opacity: 1; transform: none;
+    }
   }
 
   /* Section base */
   section { padding: var(--space-7) 0; }
+  .section-flush { padding-top: 0; }
+  .section-sunk {
+    background: var(--material-base);
+    -webkit-backdrop-filter: var(--blur-standard);
+    backdrop-filter: var(--blur-standard);
+    border-top: 1px solid var(--edge-dim);
+    border-bottom: 1px solid var(--edge-dim);
+  }
   .section-head { max-width: 40rem; margin-bottom: var(--space-5); }
-  .section-head .eyebrow { font-size: .78rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--brand-dark); }
-  .section-head h2 { font-size: clamp(2rem, 4vw, 3rem); margin: .5rem 0 1rem; }
+  .section-head h2 { margin-bottom: 1rem; }
   .section-head p { color: var(--text-muted); font-size: 1.15rem; }
+  .principles-head { margin-bottom: var(--space-4); }
 
-  /* Bento features */
+  /* Features — asymmetric grid, material cards */
   .bento {
     display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem;
     grid-auto-rows: minmax(180px, auto);
@@ -170,78 +279,106 @@
   .bento .wide { grid-column: span 3; }
   .bento .tall { grid-row: span 2; }
   .tile {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--material-raised);
+    -webkit-backdrop-filter: var(--blur-standard);
+    backdrop-filter: var(--blur-standard);
+    border: 1px solid var(--edge-dim);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
     padding: 1.6rem; display: flex; flex-direction: column; gap: .6rem;
-    transition: transform .25s, box-shadow .25s; position: relative; overflow: hidden;
+    transition: transform 120ms var(--spring-response), box-shadow 120ms var(--spring-response);
   }
-  .tile:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
-  .tile .tile-icon { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: 1.4rem; background: var(--brand-soft); }
-  .tile h3 { font-size: 1.25rem; font-family: "Fraunces", serif; }
+  .tile:active { transform: scale(.99); }
+  .tile .tile-icon {
+    width: 44px; height: 44px; border-radius: var(--radius-sm); display: grid; place-items: center;
+    background: var(--brand-soft); color: var(--brand-dark); flex-shrink: 0;
+  }
+  .tile .tile-icon svg { width: 22px; height: 22px; }
   .tile p { color: var(--text-muted); font-size: .95rem; }
-  .tile.dark { background: var(--text); color: #fff; }
-  .tile.dark p { color: #c9d1e0; }
-  .tile.dark .tile-icon { background: rgba(255,255,255,.12); }
-  .tile.accent { background: var(--accent); color: #fff; }
-  .tile.accent p { color: #d6efe8; }
-  .tile.accent .tile-icon { background: rgba(255,255,255,.18); }
   .tile .tile-art { margin-top: auto; border-radius: var(--radius-sm); overflow: hidden; }
   .tile .tile-art img { width: 100%; height: 120px; object-fit: cover; }
 
-  /* Principles strip */
-  .principles { background: var(--text); color: #fff; border-radius: var(--radius-lg); padding: var(--space-5); }
-  .principles-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }
-  .principle { border-left: 3px solid var(--brand); padding-left: 1rem; }
-  .principle .num { font-family: "Fraunces", serif; font-size: 2.6rem; color: var(--brand); line-height: 1; }
-  .principle h3 { font-size: 1.15rem; margin: .4rem 0 .3rem; color: #fff; }
-  .principle p { color: #b8c0d0; font-size: .95rem; }
+  /* Accessibility band — sunk material, hairline rules */
+  .principles {
+    background: var(--material-base);
+    -webkit-backdrop-filter: var(--blur-standard);
+    backdrop-filter: var(--blur-standard);
+    border: 1px solid var(--edge-dim);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+  }
+  .principles-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-4) var(--space-5);
+    border-top: 1px solid var(--edge-dim);
+    padding-top: var(--space-4);
+  }
+  .principle { border-top: 2px solid var(--brand); padding-top: 1rem; }
+  .principle .num { display: none; }
+  .principle h3 { margin-bottom: .3rem; }
+  .principle p { color: var(--text-muted); font-size: .95rem; }
 
   /* How it works */
   .timeline { position: relative; max-width: 760px; margin: 0 auto; }
-  .timeline::before { content: ""; position: absolute; left: 26px; top: 0; bottom: 0; width: 2px; background: var(--border-strong); }
+  .timeline::before { content: ""; position: absolute; left: 26px; top: 0; bottom: 0; width: 2px; background: var(--border); }
   .t-step { display: flex; gap: 1.5rem; padding: 1.5rem 0; position: relative; }
   .t-num {
     flex-shrink: 0; width: 54px; height: 54px; border-radius: 50%;
     background: var(--brand); color: #1d1305; font-family: "Fraunces", serif; font-size: 1.4rem; font-weight: 700;
     display: grid; place-items: center; position: relative; z-index: 1; box-shadow: 0 0 0 6px var(--bg);
   }
-  .t-body h3 { font-size: 1.3rem; margin-bottom: .3rem; }
+  .t-body h3 { margin-bottom: .3rem; }
   .t-body p { color: var(--text-muted); }
 
-  /* FAQ */
+  /* FAQ — hairline rows, native disclosure */
   .faq-wrap { max-width: 760px; margin: 0 auto; }
-  details.faq { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.4rem; margin-bottom: .8rem; transition: box-shadow .2s; }
-  details.faq[open] { box-shadow: var(--shadow-sm); }
-  details.faq summary { font-weight: 700; font-size: 1.05rem; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+  details.faq {
+    border-bottom: 1px solid var(--edge-dim);
+    padding: 1.1rem 0;
+  }
+  details.faq:first-child { border-top: 1px solid var(--edge-dim); }
+  details.faq summary {
+    font-weight: 700; font-size: 1.05rem; cursor: pointer; list-style: none;
+    display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+    transition: opacity 120ms var(--spring-response);
+  }
+  details.faq summary:active { opacity: .6; }
   details.faq summary::-webkit-details-marker { display: none; }
-  details.faq summary::after { content: "+"; font-size: 1.4rem; color: var(--brand-dark); }
-  details.faq[open] summary::after { content: "–"; }
+  details.faq summary::marker { content: ""; }
+  details.faq summary svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--brand-dark); transition: transform 200ms var(--spring-default); }
+  details.faq[open] summary svg { transform: rotate(45deg); }
   details.faq p { margin-top: .8rem; color: var(--text-muted); }
 
-  /* CTA band */
+  /* CTA band — the single inversion */
   .cta-band {
-    background: linear-gradient(135deg, var(--text) 0%, #2a3346 100%);
-    color: #fff; border-radius: var(--radius-lg); padding: var(--space-6) var(--space-4);
-    text-align: center; position: relative; overflow: hidden;
+    background: var(--text);
+    color: var(--ink-on-dark);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6) var(--space-4);
+    text-align: center;
   }
-  .cta-band::before {
-    content: ""; position: absolute; inset: 0;
-    background: radial-gradient(600px 300px at 50% 0%, rgba(224,138,30,.25), transparent 70%);
-  }
-  .cta-band > * { position: relative; }
-  .cta-band h2 { font-size: clamp(2rem, 4vw, 2.8rem); }
-  .cta-band p { color: #c9d1e0; max-width: 38rem; margin: 1rem auto 2rem; font-size: 1.1rem; }
+  .cta-band h2 { color: var(--ink-on-dark); }
+  .cta-band p { color: var(--ink-on-dark-muted); max-width: 38rem; margin: 1rem auto 2rem; font-size: 1.1rem; }
   .cta-actions { display: flex; gap: .75rem; justify-content: center; flex-wrap: wrap; }
+  .cta-band .btn-ghost {
+    background: transparent; color: var(--ink-on-dark); border-color: var(--ink-on-dark-muted);
+  }
+  .cta-band .btn-ghost:hover { background: var(--material-glass); }
 
   /* Footer */
-  footer.site { background: var(--surface); border-top: 1px solid var(--border); padding: var(--space-6) 0 var(--space-4); margin-top: var(--space-6); }
+  footer.site { border-top: 1px solid var(--border); padding: var(--space-6) 0 var(--space-4); margin-top: var(--space-6); }
   .footer-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: var(--space-4); }
   .footer-brand { display: flex; align-items: center; gap: .8rem; }
   .footer-brand img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
   .footer-brand strong { font-family: "Fraunces", serif; font-size: 1.2rem; display: block; }
   .footer-brand small { color: var(--text-soft); font-size: .85rem; }
-  .footer-col h4 { font-size: .8rem; text-transform: uppercase; letter-spacing: .1em; color: var(--text-soft); margin-bottom: .8rem; font-family: "Atkinson Hyperlegible", sans-serif; font-weight: 700; }
-  .footer-col a { display: block; color: var(--text-muted); text-decoration: none; padding: .35rem 0; font-size: .95rem; }
+  .footer-col h4 { font-size: var(--fs-meta); font-weight: 700; color: var(--text-soft); margin-bottom: .8rem; font-family: "Atkinson Hyperlegible", sans-serif; }
+  .footer-col a {
+    display: block; color: var(--text-muted); text-decoration: none; padding: .35rem 0; font-size: .95rem;
+    transition: color 120ms var(--spring-response);
+  }
   .footer-col a:hover { color: var(--text); }
+  .footer-col a:active { opacity: .6; }
   .footer-bottom { margin-top: var(--space-5); padding-top: var(--space-3); border-top: 1px solid var(--border); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; color: var(--text-soft); font-size: .85rem; }
 
   /* Responsive */
@@ -250,21 +387,27 @@
     .hero-art { aspect-ratio: 16/9; max-width: 520px; margin: 0 auto; }
     .bento { grid-template-columns: repeat(2, 1fr); }
     .bento .wide, .bento > * { grid-column: span 1; }
-    .principles-grid { grid-template-columns: 1fr; }
+    .principles-grid { grid-template-columns: repeat(2, 1fr); }
     .footer-grid { grid-template-columns: 1fr 1fr; }
   }
   @media (max-width: 600px) {
     .bento { grid-template-columns: 1fr; }
+    .principles-grid { grid-template-columns: 1fr; }
     .footer-grid { grid-template-columns: 1fr; }
     .site-header-inner { flex-direction: column; align-items: stretch; }
     nav.site-nav { justify-content: center; }
     .brand { justify-content: center; }
   }
+  @media (max-width: 420px) {
+    :root { --space-7: 3.5rem; --space-6: 2.5rem; }
+    .hero-actions .btn, .cta-actions .btn { width: 100%; justify-content: center; }
+  }
 
-  /* Animations */
-  .reveal { opacity: 0; transform: translateY(20px); transition: opacity .7s ease, transform .7s ease; }
-  .reveal.in { opacity: 1; transform: none; }
-  @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } }
+  /* Animations — hero entrance only; everything else responds to the user */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -294,8 +437,8 @@
     <section class="hero" id="top">
       <div class="container hero-grid">
         <div>
-          <span class="hero-eyebrow">Free & open source · No accounts · No tracking</span>
-          <h1>Technology help that feels like a <em>sunny day</em></h1>
+          <span class="hero-trust">Free and open source · No accounts · No tracking</span>
+          <h1>Technology help that feels like a sunny day</h1>
           <p class="hero-lead">Sunny is a gentle AI desktop companion built for older adults. Speak naturally or type a question, and Sunny helps with your computer, medications, meals, and day — out loud, in plain language.</p>
           <div class="hero-actions">
             <a class="btn btn-primary" href="https://github.com/MT25MB/Sunny/releases/latest">Download Sunny — Free</a>
@@ -303,9 +446,8 @@
           </div>
           <p class="hero-note">Available for Windows, macOS, and Linux. Works on screens as small as a phone.</p>
         </div>
-        <div class="hero-art reveal">
+        <div class="hero-art">
           <img src="public/assets/sunny-hero.jpg" alt="Sunny, a friendly AI desktop companion helping older adults" width="1376" height="768" loading="eager" decoding="async" />
-          <div class="hero-badge">☀️ Your friendly computer helper</div>
         </div>
       </div>
     </section>
@@ -313,14 +455,19 @@
     <!-- FEATURES -->
     <section id="features">
       <div class="container">
-        <div class="section-head reveal">
-          <span class="eyebrow">What Sunny can do</span>
+        <div class="section-head">
           <h2>Everything Sunny can do for you</h2>
           <p>Simple tools for daily life, designed one button at a time.</p>
         </div>
         <div class="bento">
-          <article class="tile wide tall reveal">
-            <div class="tile-icon">🎤</div>
+          <article class="tile wide tall">
+            <div class="tile-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="2" width="6" height="12" rx="3" />
+                <path d="M5 11a7 7 0 0 0 14 0" />
+                <line x1="12" y1="18" x2="12" y2="22" />
+              </svg>
+            </div>
             <h3>Hands-free voice input</h3>
             <p>Tap the microphone and speak. Sunny turns your words into text, streams them live, and sends your question when you pause.</p>
             <div class="tile-art" aria-hidden="true">
@@ -345,38 +492,48 @@
               </svg>
             </div>
           </article>
-          <article class="tile accent reveal">
-            <div class="tile-icon">🍲</div>
-            <h3>Recipes & cooking mode</h3>
+          <article class="tile">
+            <div class="tile-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 11h18a9 9 0 0 1-18 0z" />
+                <path d="M2 21h20" />
+                <path d="M9 7c0-1.5 1-2 1-3M13 7c0-1.5 1-2 1-3" />
+              </svg>
+            </div>
+            <h3>Recipes &amp; cooking mode</h3>
             <p>Ask for any dish. Sunny finds a recipe, reads ingredients, and walks through each step out loud.</p>
           </article>
-          <article class="tile reveal">
-            <div class="tile-icon">💊</div>
+          <article class="tile">
+            <div class="tile-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8.5 8.5 15.5 15.5" />
+                <path d="M10.5 6 6 10.5a4.95 4.95 0 0 0 7 7L17.5 13z" />
+                <path d="M14 10 18 6a4.95 4.95 0 0 0-7-7l-4 4" />
+              </svg>
+            </div>
             <h3>Medication reminders</h3>
             <p>Set a pill name and time. Sunny speaks up when it's time, with a big "I Took It" button.</p>
           </article>
-          <article class="tile dark wide reveal">
-            <div class="tile-icon">🖥️</div>
-            <h3>Computer help & health</h3>
+          <article class="tile wide">
+            <div class="tile-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" />
+                <line x1="8" y1="21" x2="16" y2="21" />
+                <line x1="12" y1="17" x2="12" y2="21" />
+                <path d="M5 12h3l1.5-3 2.5 6 1.5-3H19" />
+              </svg>
+            </div>
+            <h3>Computer help &amp; health</h3>
             <p>"My internet is slow" or "Is my battery okay?" Sunny checks Wi-Fi, battery, memory, and updates in plain English.</p>
           </article>
-          <article class="tile reveal">
-            <div class="tile-icon">🔊</div>
-            <h3>Gentle audio alerts</h3>
-            <p>A soft chime and clear spoken reminders — never startling.</p>
-          </article>
-          <article class="tile reveal">
-            <div class="tile-icon">🔤</div>
-            <h3>Instant text resizing</h3>
-            <p>One tap makes every word bigger, up to 175%.</p>
-          </article>
-          <article class="tile reveal">
-            <div class="tile-icon">🛡️</div>
-            <h3>Safe by design</h3>
-            <p>No terminal scripts, no passwords. Every sensitive action asks permission first.</p>
-          </article>
-          <article class="tile accent reveal">
-            <div class="tile-icon">📰</div>
+          <article class="tile">
+            <div class="tile-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
+                <circle cx="12" cy="12" r="3" />
+                <path d="M5.6 5.6 8.4 8.4M15.6 15.6l2.8 2.8M18.4 5.6 15.6 8.4M8.4 15.6l-2.8 2.8" />
+              </svg>
+            </div>
             <h3>Morning digest</h3>
             <p>Weather and headlines, read aloud in a calm voice.</p>
           </article>
@@ -385,42 +542,35 @@
     </section>
 
     <!-- PRINCIPLES -->
-    <section id="principles" style="padding-top:0">
+    <section id="principles" class="section-flush">
       <div class="container">
-        <div class="principles reveal">
-          <div class="section-head" style="margin-bottom:var(--space-4)">
-            <span class="eyebrow" style="color:var(--brand)">Accessibility first</span>
-            <h2 style="color:#fff">Built for every pair of eyes, ears, and hands</h2>
-            <p style="color:#b8c0d0">Accessibility isn't an afterthought — it's the foundation.</p>
+        <div class="principles">
+          <div class="section-head principles-head">
+            <h2>Built for every pair of eyes, ears, and hands</h2>
+            <p>Accessibility isn't an afterthought — it's the foundation.</p>
           </div>
           <div class="principles-grid">
             <div class="principle">
-              <div class="num">01</div>
               <h3>Large, clear text</h3>
               <p>Readable fonts and high contrast, one-tap resizing up to 175%.</p>
             </div>
             <div class="principle">
-              <div class="num">02</div>
               <h3>Big touch targets</h3>
               <p>Every button at least 48×48 px, labelled for screen readers.</p>
             </div>
             <div class="principle">
-              <div class="num">03</div>
               <h3>Speaks out loud</h3>
               <p>Full text-to-speech plus an easy mute switch.</p>
             </div>
             <div class="principle">
-              <div class="num">04</div>
               <h3>Reduced motion</h3>
               <p>Honours your system's reduce-motion setting.</p>
             </div>
             <div class="principle">
-              <div class="num">05</div>
               <h3>Keyboard friendly</h3>
               <p>Complete keyboard nav with a visible focus ring.</p>
             </div>
             <div class="principle">
-              <div class="num">06</div>
               <h3>Privacy respected</h3>
               <p>No accounts, ads, or tracking. Data stays on your computer.</p>
             </div>
@@ -432,27 +582,26 @@
     <!-- HOW IT WORKS -->
     <section id="how">
       <div class="container">
-        <div class="section-head reveal">
-          <span class="eyebrow">How it works</span>
+        <div class="section-head">
           <h2>Three steps, and you're never stuck again</h2>
           <p>Grab Sunny, speak or type, and get patient help.</p>
         </div>
         <div class="timeline">
-          <div class="t-step reveal">
+          <div class="t-step">
             <div class="t-num">1</div>
             <div class="t-body">
               <h3>Download and open</h3>
               <p>Grab Sunny from GitHub Releases and double-click. Nothing to configure, no sign-up.</p>
             </div>
           </div>
-          <div class="t-step reveal">
+          <div class="t-step">
             <div class="t-num">2</div>
             <div class="t-body">
               <h3>Speak or type</h3>
               <p>Tap the microphone and talk, or type your question in the big friendly box. Both work the same way.</p>
             </div>
           </div>
-          <div class="t-step reveal">
+          <div class="t-step">
             <div class="t-num">3</div>
             <div class="t-body">
               <h3>Sunny helps</h3>
@@ -464,27 +613,26 @@
     </section>
 
     <!-- FAQ -->
-    <section id="faq" style="background:var(--bg-2)">
+    <section id="faq" class="section-sunk">
       <div class="container">
-        <div class="section-head reveal">
-          <span class="eyebrow">Questions</span>
+        <div class="section-head">
           <h2>Straight answers, in plain language</h2>
         </div>
         <div class="faq-wrap">
-          <details class="faq reveal">
-            <summary>Does Sunny cost anything?</summary>
+          <details class="faq">
+            <summary>Does Sunny cost anything?<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg></summary>
             <p>No. Sunny is completely free and open source. No subscriptions, ads, or hidden fees.</p>
           </details>
-          <details class="faq reveal">
-            <summary>Do I need an internet connection?</summary>
+          <details class="faq">
+            <summary>Do I need an internet connection?<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg></summary>
             <p>An internet connection helps Sunny fetch recipes, weather, and news. Basic computer help works without one.</p>
           </details>
-          <details class="faq reveal">
-            <summary>Can Sunny be tricked into doing something dangerous?</summary>
+          <details class="faq">
+            <summary>Can Sunny be tricked into doing something dangerous?<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg></summary>
             <p>No. Sunny refuses terminal commands, passwords, network scanning, or hacking. Every sensitive action asks permission first and defaults to "No".</p>
           </details>
-          <details class="faq reveal">
-            <summary>Which computers does Sunny run on?</summary>
+          <details class="faq">
+            <summary>Which computers does Sunny run on?<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg></summary>
             <p>Windows, macOS, and Linux. Not sure? Start with the Windows download — it's the easiest.</p>
           </details>
         </div>
@@ -494,12 +642,12 @@
     <!-- CTA -->
     <section id="download">
       <div class="container">
-        <div class="cta-band reveal">
+        <div class="cta-band">
           <h2>Bring a little sunshine to your computer</h2>
           <p>Download Sunny free from GitHub Releases and get a patient helper who never rushes you, never shouts, and is always happy to explain again.</p>
           <div class="cta-actions">
             <a class="btn btn-primary" href="https://github.com/MT25MB/Sunny/releases/latest">Download for free</a>
-            <a class="btn btn-ghost" href="https://github.com/MT25MB/Sunny" style="background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.25)">Read the docs</a>
+            <a class="btn btn-ghost" href="https://github.com/MT25MB/Sunny">Read the docs</a>
           </div>
         </div>
       </div>
@@ -539,17 +687,5 @@
     </div>
   </footer>
 
-  <script>
-    // Gentle scroll reveal
-    (function () {
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-      var els = document.querySelectorAll('.reveal');
-      if (!('IntersectionObserver' in window)) { els.forEach(function(e){e.classList.add('in');}); return; }
-      var io = new IntersectionObserver(function (entries) {
-        entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
-      }, { threshold: 0.12 });
-      els.forEach(function (e) { io.observe(e); });
-    })();
-  </script>
-</body>
+  </body>
 </html>
