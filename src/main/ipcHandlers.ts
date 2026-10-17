@@ -24,15 +24,37 @@ const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 
 /**
+ * The complete set of commands `executeCommand` is permitted to run.
+ *
+ * Every entry is a hardcoded literal that probes one piece of local system
+ * state (battery, charging, network interface). The list is an allowlist rather
+ * than a convention so that a future call site which interpolates user or model
+ * input fails closed instead of silently becoming a command-injection vector.
+ */
+const ALLOWED_COMMANDS: ReadonlySet<string> = new Set([
+  'pmset -g batt',
+  'powershell -NoProfile -Command "Get-CimInstance Win32_Battery | Select-Object -ExpandProperty EstimatedChargeRemaining"',
+  'powershell -NoProfile -Command "Get-CimInstance Win32_Battery | Select-Object -ExpandProperty BatteryStatus"',
+  'scutil --nwi',
+  'iwconfig 2>/dev/null | grep -A1 "IEEE 802.11"',
+]);
+
+/**
  * Helper function to execute a platform command with error handling.
  *
- * `command` must always be a hardcoded caller-supplied literal. It is run with
- * `shell: true` because the platform probes below are shell one-liners
- * (PowerShell on Windows, `pmset`/`scutil` on macOS). Never pass user or model
- * input into this function — do that and you reintroduce command injection.
+ * `command` MUST be one of ALLOWED_COMMANDS. It runs with `shell: true`
+ * because the probes are shell one-liners (PowerShell on Windows, `pmset` and
+ * `scutil` on macOS). Never pass user or model input here — do that and you
+ * reintroduce command injection.
  */
-function executeCommand(command, timeout = 5000) {
-  return new Promise((resolve, reject) => {
+function executeCommand(command: string, timeout = 5000) {
+  if (!ALLOWED_COMMANDS.has(command)) {
+    return Promise.reject(
+      new Error('executeCommand: command is not in ALLOWED_COMMANDS')
+    );
+  }
+
+  return new Promise<string>((resolve, reject) => {
     const startTime = Date.now();
     const proc = spawn(command, { shell: true });
 

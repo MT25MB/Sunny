@@ -1,0 +1,61 @@
+/* ==========================================================================
+   Sunny — self-hosted webfonts
+
+   Why these are vendored rather than loaded from Google Fonts:
+
+   Requesting a webfont from fonts.googleapis.com sends the visitor's IP
+   address to Google, a third country without an EU adequacy decision. German
+   courts have held that this is an unauthorised disclosure of personal data
+   requiring consent (LG Muenchen I, 3 O 17493/20, 20 Jan 2022; see also LG
+   Augsburg and AG Ludwigsburg). The remedy that case law points to is
+   self-hosting, not a consent dialog.
+
+   Self-hosting also removes a third-party runtime dependency and lets the
+   pages work with no network at all.
+
+   Only the Latin subset is vendored. Latin-ext and Vietnamese are not loaded
+   because all site copy is English; text needing those ranges falls back to
+   the system UI font rather than rendering .notdef boxes.
+   ========================================================================== */
+
+/* ---- Atkinson Hyperlegible — body text ---------------------------------
+   Designed for low-vision legibility. This is deliberate and should not be
+   swapped for a more fashionable UI face: legibility is this product's
+   entire premise. */
+
+@font-face {
+  font-family: 'Atkinson Hyperlegible';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/atkinson-hyperlegible-latin-400.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Atkinson Hyperlegible';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../fonts/atkinson-hyperlegible-latin-700.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ---- Fraunces — headings ------------------------------------------------
+   Variable font: one file covers the 400-700 weight range plus the optical
+   size axis, so the weight range is declared as a range. */
+
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('../fonts/fraunces-latin-var.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}

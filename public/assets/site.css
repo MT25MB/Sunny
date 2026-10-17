@@ -1,0 +1,342 @@
+/* ==========================================================================
+   Sunny — shared styles for the static legal pages
+   (privacy-policy.html, terms-of-service.html)
+
+   Single source of truth for tokens and page furniture. Both pages previously duplicated this inline; the duplication was removed in
+   the compliance pass. Fonts come from the self-hosted fonts.css, so
+   Atkinson Hyperlegible below is genuinely loaded rather than silently falling
+   back to the system UI font.
+   ========================================================================== */
+
+:root {
+  --paper: #fbf8f1;
+  --surface: #ffffff;
+  --ink: #1a1f2b;
+  --ink-soft: #555f70;
+  --ink-faint: #636c7e;
+  --rule: #e3daca;
+  --rule-soft: #efe8db;
+  --sun: #c8801a;
+  --sun-ink: #8a5a0f;
+  --focus: #1a56db;
+  --radius-sm: 8px;
+  --radius: 14px;
+  --measure: 68ch;
+  --font-body: "Atkinson Hyperlegible", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.7;
+  font-size: 1.0625rem;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Visible focus on everything, never removed. */
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.container {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+/* ---------- Skip link ---------- */
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--ink);
+  color: #fff;
+  padding: 0.75rem 1.25rem;
+  z-index: 100;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+}
+
+.skip-link:focus {
+  left: 0.5rem;
+  top: 0.5rem;
+}
+
+/* ---------- Header ---------- */
+
+header.site {
+  background: var(--surface);
+  border-bottom: 1px solid var(--rule);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.site-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0;
+  flex-wrap: wrap;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 800;
+  font-size: 1.25rem;
+  color: var(--ink);
+  text-decoration: none;
+  min-height: 44px;
+}
+
+.brand-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--sun) 0%, #f4b860 100%);
+  display: grid;
+  place-items: center;
+  font-size: 1.3rem;
+  color: #1d1305;
+  flex-shrink: 0;
+}
+
+nav.site-nav {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+nav.site-nav a {
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 600;
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--radius-sm);
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+nav.site-nav a:hover {
+  background: var(--rule-soft);
+}
+
+/* ---------- Content ---------- */
+
+main {
+  padding: 2.5rem 0;
+}
+
+main > h1 {
+  font-size: clamp(1.75rem, 4vw, 2.375rem);
+  margin: 0 0 0.5rem;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+main h2 {
+  font-size: clamp(1.25rem, 3vw, 1.5rem);
+  margin: 2.25rem 0 0.6rem;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+main h3 {
+  font-size: 1.0625rem;
+  margin: 1.5rem 0 0.4rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+main p,
+main li {
+  color: var(--ink-soft);
+  max-width: var(--measure);
+  text-wrap: pretty;
+}
+
+main p {
+  margin: 0 0 0.9rem;
+}
+
+main ul {
+  margin: 0 0 0.9rem;
+  padding-left: 1.35rem;
+}
+
+main li {
+  margin-bottom: 0.4rem;
+}
+
+main strong {
+  color: var(--ink);
+}
+
+main a {
+  color: var(--sun-ink);
+  font-weight: 600;
+}
+
+.effective-date {
+  font-style: italic;
+  color: var(--ink-faint);
+  font-size: 0.9375rem;
+  margin: 0 0 2rem;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--sun-ink);
+  text-decoration: none;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  min-height: 44px;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Disclosure table (privacy policy section 4) ---------- */
+
+.disclosure-wrap {
+  overflow-x: auto;
+  margin: 0 0 1.25rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+table.disclosure {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 34rem;
+  font-size: 0.9375rem;
+}
+
+table.disclosure caption {
+  caption-side: top;
+  text-align: left;
+  padding: 0.9rem 1rem 0.6rem;
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+table.disclosure th,
+table.disclosure td {
+  text-align: left;
+  padding: 0.7rem 1rem;
+  border-top: 1px solid var(--rule-soft);
+  vertical-align: top;
+}
+
+table.disclosure thead th {
+  border-top: none;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+table.disclosure td {
+  color: var(--ink-soft);
+}
+
+table.disclosure td:first-child {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+table.disclosure tbody tr:nth-child(even) {
+  background: #fdfbf6;
+}
+
+/* ---------- Callout ---------- */
+
+.callout {
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--sun);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  padding: 0.9rem 1.1rem;
+  margin: 0 0 1.1rem;
+  max-width: var(--measure);
+}
+
+.callout p {
+  margin: 0;
+}
+
+/* ---------- Footer ---------- */
+
+footer.site {
+  background: var(--surface);
+  border-top: 1px solid var(--rule);
+  padding: 2.25rem 0;
+  margin-top: 2.5rem;
+}
+
+.footer-grid {
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.footer-links {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.footer-links a {
+  color: var(--ink);
+  text-decoration: underline;
+  font-weight: 600;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.footer-note {
+  color: var(--ink-faint);
+  font-size: 0.9375rem;
+  margin: 1.25rem 0 0;
+  max-width: var(--measure);
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 40rem) {
+  .site-header-inner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  nav.site-nav {
+    justify-content: center;
+  }
+  .brand {
+    justify-content: center;
+  }
+}

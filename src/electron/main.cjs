@@ -977,10 +977,30 @@ app.whenReady().then(() => {
     const csp = [
       "default-src 'self'",
       "script-src 'self'",
+      // KNOWN COMPLIANCE GAP — fonts.googleapis.com and fonts.gstatic.com are still
+      // permitted here. Loading them discloses the user's IP to a third country
+      // with no EU adequacy decision, which German case law treats as
+      // consent-requiring (LG Muenchen I, 3 O 17493/20).
+      //
+      // They are still needed because src/index.css line 1 imports DM Sans,
+      // DM Mono and Manrope from the Google CDN, and that stylesheet is bundled
+      // into the shipped app. Restricting font-src to 'self' without first
+      // vendoring those families silently strips the app's typography in
+      // production, and font metrics drive the whole React layout.
+      //
+      // TODO: vendor DM Sans, DM Mono and Manrope into the app build, remove
+      // the @import from src/index.css, then tighten both directives to
+      // 'self'. Requires a full `npm run make` plus visual verification of the
+      // packaged app, which cannot be done from a source checkout alone.
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com",
       "img-src 'self' data: https:",
-      "connect-src 'self' https://www.themealdb.com https://api.open-meteo.com https://api.rss2json.com https://ip-api.com https://html.duckduckgo.com",
+      // Loopback is allowed because `ollama_endpoint` is user-configurable in
+      // Settings (default http://localhost:11434). Local inference is the
+      // product's headline feature and 'self' does not cover loopback.
+      // Safe here: the renderer is sandboxed with script-src 'self', so only
+      // bundled code can issue these requests.
+      "connect-src 'self' https://www.themealdb.com https://api.open-meteo.com https://api.rss2json.com https://ip-api.com https://html.duckduckgo.com https://api.openai.com https://api.anthropic.com https://api.groq.com http://localhost:* http://127.0.0.1:*",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'"

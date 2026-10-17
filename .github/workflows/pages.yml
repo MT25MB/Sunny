@@ -22,7 +22,7 @@ jobs:
       - name: Prepare site
         run: |
           mkdir -p site
-          cp index.html privacy-policy.html terms-of-service.html site/
+          cp index.html privacy-policy.html terms-of-service.html impressum.html 404.html site/
           cp -r public site/public
       - uses: actions/configure-pages@v4
       - uses: actions/upload-pages-artifact@v4
