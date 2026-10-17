@@ -1,4 +1,4 @@
-﻿/// <reference types="vite/client" />
+/// <reference types="vite/client" />
 
 /**
  * Ambient types for Vite/build-time globals and the legacy `sunnyDesktop`

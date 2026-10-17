@@ -36,10 +36,11 @@ export default {
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
+      platforms: ['win32'],
       config: {
         name: 'Sunny',
         setupExe: 'Sunny-Setup.exe',
-        authors: 'Sunny', // <-- Required by Windows NuGet package builder
+        authors: 'Sunny',
       },
     },
     {
@@ -48,6 +49,7 @@ export default {
     },
     {
       name: '@electron-forge/maker-dmg',
+      platforms: ['darwin'],
       config: {
         format: 'ULFO',
         name: 'Sunny',
@@ -55,6 +57,7 @@ export default {
     },
     {
       name: '@electron-forge/maker-deb',
+      platforms: ['linux'],
       config: {
         options: {
           name: 'sunny',

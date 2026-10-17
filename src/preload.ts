@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Electron Preload Script (TypeScript)
  *
  * Runs in a privileged context (Node/Electron access) but is isolated from the

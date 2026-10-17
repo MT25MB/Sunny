@@ -1,4 +1,4 @@
-﻿import type { ElectronAPI, SpeakNotificationParams, SystemStatus } from '@/types/electron';
+import type { ElectronAPI, SpeakNotificationParams, SystemStatus } from '@/types/electron';
 import type { Recipe, MedicationReminder, DailyDigest, 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   CookingStep } from '@/types/electron';

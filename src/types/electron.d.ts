@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Type contract for the Sunny IPC bridge.
  *
  * This file is the single source of truth for `window.electronAPI`. The main
