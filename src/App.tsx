@@ -454,7 +454,11 @@ function App() {
     return { label: memoryGB.toFixed(1) + " GB - Healthy", level: "good" as const };
   }, [memoryGB]);
 
-  const showOfflineFallback = modelStatus?.status === "error" || modelStatus?.status === "not-downloaded" || modelError !== null;
+  // The AI model is only needed for screen understanding; every other feature
+  // (health, recipes, reminders, digest) works without it. Blocking the whole
+  // app behind the fallback would hide working features from the user, so the
+  // fallback is shown as a notice and the UI stays usable.
+  const showOfflineFallback = modelStatus?.status === "error" || modelError !== null;
   return (
     <ErrorBoundary>
       {showOfflineFallback && (
@@ -466,7 +470,7 @@ function App() {
           reason={modelError || "AI model is not available"}
         />
       )}
-      {!showOfflineFallback && (
+      {(
         <>
           <div className={`app-shell ${highContrast ? 'high-contrast' : ''}`}>
             <header className="app-header" role="banner">
@@ -983,7 +987,13 @@ interface ActionButtonProps {
 function ActionButton({ icon, label, description, onClick, disabled, loading, primary = false, variant = "primary" }: ActionButtonProps) {
   return (
     <button
-      className={"action-btn " + variant + " " + (primary ? "primary" : "") + " " + (loading ? "loading" : "")}
+      className={Array.from(
+        new Set(
+          ["action-btn", variant, primary ? "primary" : null, loading ? "loading" : null].filter(
+            Boolean
+          ) as string[]
+        )
+      ).join(" ")}
       onClick={onClick}
       disabled={disabled || loading}
       aria-busy={loading}
@@ -1019,7 +1029,7 @@ function ChatMessageItem({ message }: { message: ChatMessage }) {
 function formatStatusForSpeech(status: SystemStatus): string {
   const parts: string[] = [];
   const battery = status.battery?.batteryPercent;
-  if (battery !== null) {
+  if (typeof battery === "number") {
     parts.push("Battery at " + battery + " percent" + (status.battery?.isCharging ? " and charging" : "."));
   }
   if (status.wifi?.connected) {

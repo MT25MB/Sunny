@@ -10,6 +10,7 @@
     "build": "vite build",
     "electron": "electron .",
     "lint": "eslint .",
+    "test": "node --test tests/security-regression.test.cjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "package": "electron-forge package",

@@ -397,12 +397,14 @@ class SunnyBrain {
       window.speechSynthesis.cancel();
 
       // A slower rate, normal pitch, and full volume suit older listeners.
-      const utterance = new SpeechSynthesisUtterance(message);
-      utterance.rate = 0.9;
-      utterance.pitch = 1.0;
-      utterance.volume = 1.0;
-
+      // Each repeat needs its own utterance instance: the Web Speech API
+      // treats an already-spoken utterance as consumed, so re-queuing the
+      // same object silently drops the repeats.
       for (let i = 0; i < repeat; i += 1) {
+        const utterance = new SpeechSynthesisUtterance(message);
+        utterance.rate = 0.9;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
         window.speechSynthesis.speak(utterance);
       }
     } catch (error) {

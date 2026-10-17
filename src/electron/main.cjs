@@ -281,6 +281,29 @@ function createWindow() {
   });
 
   mainWindow.setMenuBarVisibility(false);
+
+  // External links (footer GitHub links, news headlines) open in the user's
+  // browser. Nothing inside the app window may open a second window, and no
+  // in-page navigation may replace the app UI.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
+      shell.openExternal(url).catch(() => {});
+    }
+    return { action: 'deny' };
+  });
+
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const current = mainWindow.webContents.getURL();
+    if (url === current) return;
+    // In dev the renderer may reload the Vite origin; everything else is denied.
+    if (isDev && url.startsWith(rendererUrl)) return;
+    event.preventDefault();
+  });
+
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    console.error(`[Renderer] Failed to load ${validatedURL}: ${errorDescription} (${errorCode})`);
+  });
+
   if (isDev) mainWindow.loadURL(rendererUrl);
   else mainWindow.loadURL(pathToFileURL(path.join(__dirname, '../../dist/app.html')).toString());
 }
@@ -526,8 +549,75 @@ function buildRecommendations(status) {
   return out;
 }
 
+/**
+ * Reads battery state using platform-native sources only.
+ * No shell is involved: `execFile` runs a fixed binary with a fixed argument
+ * list, so nothing from user or model input is ever interpolated.
+ * Returns the "unknown" shape on desktops without a battery or when a probe
+ * fails, which is the same shape the renderer already handles.
+ */
+async function readBatteryStatus() {
+  const unknown = { batteryPercent: null, isCharging: false, health: 'unknown' };
+  const { execFile } = require('node:child_process');
+  const { promisify } = require('node:util');
+  const run = promisify(execFile);
+
+  /** @type {{ batteryPercent: number, isCharging: boolean, health: string } | null} */
+  let status = null;
+
+  try {
+    if (process.platform === 'darwin') {
+      const { stdout } = await run('pmset', ['-g', 'batt'], { timeout: 4000 });
+      const pctMatch = stdout.match(/(\d+)%/);
+      if (pctMatch) {
+        status = {
+          batteryPercent: Number(pctMatch[1]),
+          isCharging: /AC Power/i.test(stdout),
+          health: 'good',
+        };
+      }
+    } else if (process.platform === 'win32') {
+      const { stdout } = await run(
+        'powershell.exe',
+        ['-NoProfile', '-NonInteractive', '-Command', '(Get-CimInstance Win32_Battery).EstimatedChargeRemaining'],
+        { timeout: 6000, windowsHide: true }
+      );
+      const pct = Number.parseInt(stdout.trim(), 10);
+      if (Number.isFinite(pct)) {
+        status = { batteryPercent: pct, isCharging: false, health: 'good' };
+      }
+    } else if (process.platform === 'linux') {
+      // /sys/class/power_supply exposes battery state as plain files — no exec needed.
+      const baseDir = '/sys/class/power_supply';
+      const devices = fs.readdirSync(baseDir).filter((d) => d.startsWith('BAT'));
+      if (devices.length > 0) {
+        const device = path.join(baseDir, devices[0]);
+        const capacity = Number.parseInt(fs.readFileSync(path.join(device, 'capacity'), 'utf8').trim(), 10);
+        if (Number.isFinite(capacity)) {
+          let charging = false;
+          try {
+            const statusText = fs.readFileSync(path.join(device, 'status'), 'utf8').trim();
+            charging = statusText === 'Charging' || statusText === 'Full';
+          } catch {
+            charging = false;
+          }
+          status = {
+            batteryPercent: capacity,
+            isCharging: charging,
+            health: capacity < 20 ? 'low' : 'good',
+          };
+        }
+      }
+    }
+  } catch {
+    return unknown;
+  }
+
+  return status || unknown;
+}
+
 async function buildSystemStatus() {
-  const battery = { batteryPercent: null, isCharging: false, health: 'unknown' };
+  const battery = await readBatteryStatus();
   const wifi = readNetworkStatus();
   const internet = await readInternetStatus();
   const system = {

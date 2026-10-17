@@ -4,6 +4,11 @@ const fs = require('node:fs');
 
 let transformersLib = null;
 let pipeline = null;
+let visionModel = null;
+let visionProcessor = null;
+let visionTokenizer = null;
+let visionPromise = null;
+let RawImageCtor = null;
 let modelStatus = 'not-downloaded';
 let modelProgress = 0;
 let statusMessage = 'Model not loaded yet.';
@@ -13,6 +18,12 @@ let initPromise = null;
 const MODEL_ID = 'onnx-community/moondream2.text_model-ONNX';
 const MODEL_DTYPE = 'q4';
 const APPROX_DOWNLOAD_MB = 1200;
+
+// Moondream2 vision needs the full multimodal export. The text-generation
+// pipeline above cannot accept an image at all: transformers.js routes images
+// through AutoProcessor + the Moondream model class, and a text-generation
+// pipeline silently discards them. This repo is the multimodal ONNX export.
+const VISION_MODEL_ID = 'Xenova/moondream2';
 
 function getModelDir() {
   return path.join(app.getPath('userData'), 'models');
@@ -116,16 +127,93 @@ function getModelStatus() {
   return { status: modelStatus, progress: modelProgress, message: statusMessage };
 }
 
-async function runInference(prompt, imageBase64) {
-  if (!pipeline) {
-    await initModel();
+/**
+ * Loads the multimodal Moondream2 stack used for screen understanding.
+ * Single-flight: concurrent callers share one in-flight load.
+ */
+async function initVisionModel() {
+  if (visionModel && visionProcessor && visionTokenizer) {
+    return { model: visionModel, processor: visionProcessor, tokenizer: visionTokenizer };
   }
-  try {
-    const fullPrompt = imageBase64
-      ? `<image>\n\n${prompt}`
-      : prompt;
+  if (visionPromise) return visionPromise;
 
-    const output = await pipeline(fullPrompt, {
+  visionPromise = (async () => {
+    const lib = await loadTransformers();
+    const { AutoProcessor, AutoTokenizer, Moondream1ForConditionalGeneration, RawImage } = lib;
+
+    const [processor, tokenizer, model] = await Promise.all([
+      AutoProcessor.from_pretrained(VISION_MODEL_ID),
+      AutoTokenizer.from_pretrained(VISION_MODEL_ID),
+      Moondream1ForConditionalGeneration.from_pretrained(VISION_MODEL_ID, {
+        dtype: {
+          embed_tokens: 'fp16',
+          vision_encoder: 'q8',
+          decoder_model_merged: 'q4',
+        },
+      }),
+    ]);
+
+    visionProcessor = processor;
+    visionTokenizer = tokenizer;
+    visionModel = model;
+    RawImageCtor = RawImage;
+    return { model, processor, tokenizer };
+  })().catch((err) => {
+    visionPromise = null;
+    throw err;
+  });
+
+  return visionPromise;
+}
+
+/** Decodes a base64 PNG/JPEG payload (no data-URL prefix) into a RawImage. */
+async function decodeImage(imageBase64) {
+  const RawImage = RawImageCtor;
+  if (!RawImage) throw new Error('Image decoding is unavailable.');
+  const buffer = Buffer.from(imageBase64, 'base64');
+  const blob = new Blob([buffer]);
+  return RawImage.read(blob);
+}
+
+/**
+ * Runs a prompt, optionally against a screen capture.
+ *
+ * With an image this uses the multimodal Moondream stack and actually feeds the
+ * pixels to the vision encoder. Without one it uses the text-generation
+ * pipeline, which is cheaper and is what decide-action wants.
+ */
+async function runInference(prompt, imageBase64) {
+  try {
+    if (imageBase64) {
+      const { model, processor, tokenizer } = await initVisionModel();
+      const image = await decodeImage(imageBase64);
+
+      // Moondream expects the image marker plus an explicit Q/A scaffold.
+      const text = `<image>\n\nQuestion: ${prompt}\n\nAnswer:`;
+      const textInputs = tokenizer(text);
+      const visionInputs = await processor(image);
+
+      const output = await model.generate({
+        ...textInputs,
+        ...visionInputs,
+        do_sample: false,
+        max_new_tokens: 200,
+      });
+
+      const decoded = tokenizer.batch_decode(output, { skip_special_tokens: true });
+      const text2 = Array.isArray(decoded) ? decoded[0] : decoded;
+      // Strip the echoed prompt so callers only get the answer.
+      const answer = typeof text2 === 'string'
+        ? text2.split('Answer:').pop().trim()
+        : '';
+      return { response: answer };
+    }
+
+    if (!pipeline) {
+      await initModel();
+    }
+
+    const output = await pipeline(prompt, {
       max_new_tokens: 200,
       temperature: 0.3,
       do_sample: false,
