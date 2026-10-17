@@ -1,0 +1,15 @@
+fix: delete the orphaned agent pipeline (Phase 4)
+
+Deleted 2,353 lines of dead code:
+- src/lib/agent-brain.ts
+- src/lib/agent-loop.ts
+- src/lib/agent-protocol.ts
+- src/lib/desktop-actions.ts
+- src/main/security/interceptor.ts (the drifted TS copy)
+- src/preload.ts (stale mirror never typechecked, lacked deepSanitize+allowlist)
+
+Mitigation:
+- Shipped policy is now src/main/security/interceptor.cjs only
+- Forge already ignores src/lib/ so packaging unaffected
+- Regression tests cover the security-critical interceptor logic
+- Typecheck now only covers shipped source (no change needed)
