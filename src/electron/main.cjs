@@ -1,4 +1,4 @@
-const { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, nativeImage, safeStorage, session, shell, dialog } = require('electron');
+const { app, BrowserWindow, Menu, Tray, desktopCapturer, globalShortcut, ipcMain, nativeImage, safeStorage, session, shell, dialog } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -322,9 +322,104 @@ let mainWindow;
 let automationModule;
 let automationCancelled = false;
 let statusEmitterTimer = null;
+let trayIcon = null;
+let isQuitting = false;
 
 const isDev = !app.isPackaged;
 const rendererUrl = process.env.SUNNY_RENDERER_URL || 'http://localhost:5173';
+
+/** Shrinks the 816px source mascot down to a tray-friendly size. */
+function getTrayImage() {
+  const source = path.join(__dirname, '../../public/assets/mascot.png');
+  const img = nativeImage.createFromPath(source);
+  if (img.isEmpty()) return img;
+  const size = 20;
+  return img.resize({ width: size, height: size, quality: 'best' });
+}
+
+/**
+ * System tray. The window is frameless, so the tray is the only way back in
+ * once the user closes it — without this the app would look like it quit.
+ */
+function createTray() {
+  if (trayIcon) return trayIcon;
+  try {
+    trayIcon = new Tray(getTrayImage());
+    trayIcon.setToolTip('Sunny — Your Desktop Companion');
+  } catch (err) {
+    // A tray can legitimately fail (no system tray on some Linux sessions).
+    // Never let that take down the app.
+    console.error('[Tray] Could not create tray icon:', err);
+    return null;
+  }
+
+  const toggleItem = {
+    label: 'Show Sunny',
+    click: () => showMainWindow(),
+  };
+
+  trayIcon.setContextMenu(Menu.buildFromTemplate([
+    toggleItem,
+    {
+      label: 'Hide to tray',
+      click: () => mainWindow && mainWindow.hide(),
+    },
+    { type: 'separator' },
+    {
+      label: 'Always on top',
+      type: 'checkbox',
+      checked: !!(mainWindow && mainWindow.isAlwaysOnTop()),
+      click: (item) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.setAlwaysOnTop(item.checked);
+          mainWindow.webContents.send('sunny:always-on-top-changed', item.checked);
+        }
+      },
+    },
+    {
+      label: 'Start when I sign in',
+      type: 'checkbox',
+      checked: app.getLoginItemSettings().openAtLogin,
+      click: (item) => {
+        // `openAsHidden` is macOS-only in Electron's Settings type. Without it
+        // Windows would show a window on login, which defeats the point of
+        // start-with-login for an app that lives in the tray.
+        const settings = { openAtLogin: item.checked };
+        if (process.platform === 'darwin') settings.openAsHidden = true;
+        app.setLoginItemSettings(settings);
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit Sunny',
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  ]));
+
+  // Left-click toggles visibility; on Windows a click also opens the menu.
+  trayIcon.on('click', () => {
+    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
+      mainWindow.hide();
+    } else {
+      showMainWindow();
+    }
+  });
+
+  return trayIcon;
+}
+
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow();
+    return;
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -334,7 +429,9 @@ function createWindow() {
     minHeight: 620,
     frame: false,
     transparent: false,
-    alwaysOnTop: true,
+    // Default off: the window used to float above everything, which is
+    // rarely what anyone wants. Re-enable from the tray menu or the pin button.
+    alwaysOnTop: false,
     resizable: true,
     backgroundColor: '#11161b',
     webPreferences: {
@@ -382,6 +479,15 @@ function createWindow() {
       statusEmitterTimer = setInterval(emitSystemStatus, STATUS_POLL_INTERVAL_MS);
       if (typeof statusEmitterTimer.unref === 'function') statusEmitterTimer.unref();
     }
+  });
+
+  // Closing hides to the tray instead of quitting. Without this the app would
+  // disappear with no visible way back for anyone who cannot find the tray.
+  // Quitting still happens via the tray menu or `isQuitting`.
+  mainWindow.on('close', (event) => {
+    if (isQuitting) return;
+    event.preventDefault();
+    mainWindow.hide();
   });
 
   if (isDev) mainWindow.loadURL(rendererUrl);
@@ -1173,6 +1279,10 @@ app.whenReady().then(() => {
   // Load persisted medication reminders
   loadMedicationReminders();
 
+  // The window is frameless, so the tray is the only guaranteed way back in
+  // after the user closes it.
+  createTray();
+
   // Content Security Policy — delegated to csp.cjs so it is pure and unit-testable.
   // The callback is ALWAYS called inside a try/catch; a handler that never
   // calls back stalls the network stack indefinitely.
@@ -1274,6 +1384,42 @@ app.whenReady().then(() => {
     if (action === 'hide') mainWindow.hide();
     if (action === 'show') mainWindow.show();
     if (action === 'close') mainWindow.close();
+  });
+
+  // --- Window controls (frameless window, so the renderer owns the chrome) --
+  ipcMain.handle('sunny:minimize-to-tray', (event) => {
+    assertTrustedSender(event);
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.hide();
+    return true;
+  });
+
+  ipcMain.handle('sunny:toggle-window', (event) => {
+    assertTrustedSender(event);
+    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
+      mainWindow.hide();
+      return false;
+    }
+    showMainWindow();
+    return true;
+  });
+
+  ipcMain.handle('sunny:quit-app', (event) => {
+    assertTrustedSender(event);
+    isQuitting = true;
+    app.quit();
+    return true;
+  });
+
+  ipcMain.handle('sunny:set-always-on-top', (event, value) => {
+    assertTrustedSender(event);
+    const enabled = value === true;
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setAlwaysOnTop(enabled);
+    return enabled;
+  });
+
+  ipcMain.handle('sunny:get-always-on-top', (event) => {
+    assertTrustedSender(event);
+    return !!(mainWindow && !mainWindow.isDestroyed() && mainWindow.isAlwaysOnTop());
   });
 
   // --- Model lifecycle ---------------------------------------------------
@@ -1497,11 +1643,23 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  // With close-to-tray the window is hidden, not closed, so this only fires on
+  // a real shutdown. Keep the app alive on macOS and when a tray exists.
   stopStatusBroadcast();
   globalShortcut.unregisterAll();
-  if (process.platform !== 'darwin') app.quit();
+  if (process.platform !== 'darwin' && !trayIcon) app.quit();
 });
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});
+
+app.on('before-quit', () => {
+  isQuitting = true;
+  stopStatusBroadcast();
+  globalShortcut.unregisterAll();
+  if (trayIcon) {
+    trayIcon.destroy();
+    trayIcon = null;
+  }
 });

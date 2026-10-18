@@ -19,6 +19,20 @@ const FOREIGN_ONNX_IGNORE = [
     .map((arch) => new RegExp(`${ONNX_NAPI_DIR}/${process.platform}/${arch}/`)),
 ];
 
+// GPU execution providers. inference.cjs never sets `executionProviders`, so
+// onnxruntime-node only ever dlopens the CPU backend. These shared objects are
+// never opened, and between them they are larger than the entire app:
+//
+//   libonnxruntime_providers_cuda.so     260 MB
+//   libonnxruntime_providers_tensorrt.so 1.1 MB
+//
+// Excluding them is the single largest size win available. If GPU inference is
+// ever enabled, delete this list and set executionProviders in inference.cjs.
+const UNUSED_GPU_PROVIDERS = [
+  'libonnxruntime_providers_cuda',
+  'libonnxruntime_providers_tensorrt',
+].map((name) => new RegExp(`${ONNX_NAPI_DIR}/[^/]+/[^/]+/${name}\\.`));
+
 // Packages that must exist on disk as real files rather than ASAR entries,
 // because the OS dynamic loader has to open them by path.
 //
@@ -81,6 +95,17 @@ export default {
       // points env.cacheDir at userData instead.
       /^\/node_modules\/@huggingface\/transformers\/\.cache/,
       ...FOREIGN_ONNX_IGNORE,
+      ...UNUSED_GPU_PROVIDERS,
+      // Landing-page-only images. index.html on GitHub Pages uses these, but
+      // nothing in the Electron renderer imports them, and Vite copies all of
+      // public/ into dist/ regardless. ~700 KB.
+      //
+      // Do NOT exclude dist/assets/fonts/ or fonts.css: index.css declares
+      // @font-face rules pointing at /assets/fonts/*.woff2, so removing them
+      // silently drops every glyph in the app.
+      /^\/dist\/assets\/sunny-hero\.jpg$/,
+      /^\/dist\/assets\/sunny-mascot-/,
+      /^\/dist\/assets\/site\.css$/,
     ],
   },
   makers: [

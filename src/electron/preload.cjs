@@ -287,6 +287,26 @@ const electronAPI = {
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 
 // ============================================================================
+// Window controls — the window is frameless, so the renderer draws the chrome
+// and routes clicks through here.
+// ============================================================================
+
+const windowControls = {
+  minimizeToTray: () => ipcRenderer.invoke('sunny:minimize-to-tray'),
+  toggleWindow: () => ipcRenderer.invoke('sunny:toggle-window'),
+  quitApp: () => ipcRenderer.invoke('sunny:quit-app'),
+  setAlwaysOnTop: (value) => ipcRenderer.invoke('sunny:set-always-on-top', value),
+  getAlwaysOnTop: () => ipcRenderer.invoke('sunny:get-always-on-top'),
+  onAlwaysOnTopChanged: (callback) => {
+    const handler = (_event, value) => callback(value);
+    ipcRenderer.on('sunny:always-on-top-changed', handler);
+    return () => ipcRenderer.removeListener('sunny:always-on-top-changed', handler);
+  },
+};
+
+contextBridge.exposeInMainWorld('windowControls', windowControls);
+
+// ============================================================================
 // Legacy desktop-automation surface (unchanged, kept for existing callers)
 // ============================================================================
 

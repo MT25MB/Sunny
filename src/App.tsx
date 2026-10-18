@@ -27,6 +27,9 @@ import {
   Plus,
   Settings,
   RotateCcw,
+  Pin,
+  Minus,
+  X,
 } from "lucide-react";
 import { sunnyBrain, type ChatMessage } from "@/renderer/services/sunnyBrain";
 import type { SystemStatus, Recipe, DailyDigest } from "@/types/electron";
@@ -167,10 +170,6 @@ function App() {
 
   const handleToggleWindow = useCallback(() => {
     void window.windowControls?.toggleWindow();
-  }, []);
-
-  const handleQuitApp = useCallback(() => {
-    void window.windowControls?.quitApp();
   }, []);
 
   const handleToggleAlwaysOnTop = useCallback(() => {
@@ -543,6 +542,34 @@ function App() {
                   aria-pressed={showChat}
                 >
                   <MessageSquare size={24} />
+                </button>
+                <span className="header-separator" aria-hidden="true" />
+                {/* Window chrome. `no-drag` on the buttons so clicks register
+                    instead of dragging the frameless window. */}
+                <button
+                  className={`icon-btn window-btn${alwaysOnTop ? " active" : ""}`}
+                  onClick={handleToggleAlwaysOnTop}
+                  aria-label={alwaysOnTop ? "Stop keeping Sunny on top" : "Keep Sunny on top"}
+                  aria-pressed={alwaysOnTop}
+                  title={alwaysOnTop ? "Stop keeping on top" : "Keep on top"}
+                >
+                  <Pin size={20} />
+                </button>
+                <button
+                  className="icon-btn window-btn"
+                  onClick={handleMinimizeToTray}
+                  aria-label="Hide Sunny to the system tray"
+                  title="Hide to system tray"
+                >
+                  <Minus size={20} />
+                </button>
+                <button
+                  className="icon-btn window-btn window-btn-close"
+                  onClick={handleToggleWindow}
+                  aria-label="Hide Sunny"
+                  title="Hide to system tray"
+                >
+                  <X size={20} />
                 </button>
               </div>
             </header>

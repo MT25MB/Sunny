@@ -19,6 +19,17 @@ export default function Footer() {
             <li><a href="https://mt25mb.github.io/Sunny/terms-of-service.html" target="_blank" rel="noopener noreferrer">Terms of Service</a></li>
             <li><a href="https://github.com/MT25MB/Sunny" target="_blank" rel="noopener noreferrer">GitHub Repository</a></li>
             <li><a href="https://github.com/MT25MB/Sunny/releases" target="_blank" rel="noopener noreferrer">Releases</a></li>
+            {/* The window is frameless and its close button hides to the tray,
+                so quitting needs an explicit in-window control. */}
+            <li>
+              <button
+                type="button"
+                className="footer-quit"
+                onClick={() => void window.windowControls?.quitApp()}
+              >
+                Quit Sunny
+              </button>
+            </li>
           </ul>
         </nav>
         <div className="footer-note">

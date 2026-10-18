@@ -622,6 +622,17 @@ textarea::placeholder { color: #65747b; }
   background: #131a1f;
   flex-wrap: wrap;
   gap: 1rem;
+  /* The window is frameless, so the header doubles as the title bar. */
+  -webkit-app-region: drag;
+}
+
+/* Interactive elements inside a drag region must opt back out or clicks
+   drag the window instead of activating the control. */
+.app-header button,
+.app-header a,
+.app-header input,
+.app-header .header-separator {
+  -webkit-app-region: no-drag;
 }
 
 .app-logo {
@@ -647,7 +658,31 @@ textarea::placeholder { color: #65747b; }
 
 .header-right {
   display: flex;
+  align-items: center;
   gap: 0.5rem;
+}
+
+.header-separator {
+  width: 1px;
+  height: 28px;
+  margin: 0 0.25rem;
+  background: #2a353b;
+}
+
+/* Window chrome buttons. Smaller than the feature buttons and quieter, so
+   they read as chrome rather than as things you press. */
+.window-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  color: #7d8f96;
+}
+
+.window-btn-close:hover,
+.window-btn-close:focus-visible {
+  color: #f0f4f2;
+  border-color: #c25a4e;
+  background: rgba(194, 90, 78, 0.22);
 }
 
 .icon-btn {
@@ -1118,6 +1153,19 @@ textarea::placeholder { color: #65747b; }
 }
 .footer-nav a { color: #93a4aa; text-decoration: none; }
 .footer-nav a:hover, .footer-nav a:focus-visible { color: #f1b568; text-decoration: underline; }
+
+/* Quit control. Styled to match the links so it does not read as a primary
+   action, but still focusable and labelled like one. */
+.footer-quit {
+  padding: 0;
+  color: #93a4aa;
+  background: none;
+  border: 0;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.footer-quit:hover, .footer-quit:focus-visible { color: #e09a90; }
 .footer-note { width: 100%; margin: 0; font-size: 0.7rem; color: #5d6b72; }
 
 /* Error boundary (src/components/ErrorBoundary.tsx) */

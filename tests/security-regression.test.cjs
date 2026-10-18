@@ -635,3 +635,106 @@ test('main process has global error guard', () => {
     'error guard must signal via existing model-progress channel'
   );
 });
+
+test('frameless window has a tray and window controls', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const src = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'electron', 'main.cjs'),
+    'utf8'
+  );
+
+  // The window is frameless, so the tray is the only guaranteed way back in.
+  assert.ok(/new Tray\(/.test(src), 'a Tray must be created');
+  assert.ok(/trayIcon\.setToolTip\(/.test(src), 'tray icon must have a tooltip');
+  assert.ok(/createTray\(\);/.test(src), 'tray must be created on startup');
+
+  // Closing must hide rather than quit, or the app looks like it crashed.
+  assert.ok(
+    /mainWindow\.on\(['"]close['"][\s\S]{0,300}event\.preventDefault\(\)/.test(src),
+    'close must be intercepted and hidden to the tray'
+  );
+  // An explicit quit path must still exist for the tray menu.
+  assert.ok(/isQuitting/.test(src), 'an explicit quit path must bypass close-to-tray');
+  assert.ok(/app\.quit\(\)/.test(src), 'Quit must be reachable');
+
+  // Each control needs a main-process handler.
+  for (const channel of [
+    'sunny:minimize-to-tray',
+    'sunny:toggle-window',
+    'sunny:quit-app',
+    'sunny:set-always-on-top',
+    'sunny:get-always-on-top',
+  ]) {
+    assert.ok(src.includes(channel), `${channel} must be handled in the main process`);
+  }
+
+  // alwaysOnTop used to be hard-coded on, which made the window float above
+  // everything. It must now default off and be user-controllable.
+  const createWindowStart = src.indexOf('function createWindow()');
+  assert.ok(createWindowStart !== -1, 'createWindow must exist');
+  const createWindow = src.slice(createWindowStart, createWindowStart + 2000);
+  assert.ok(
+    /alwaysOnTop:\s*false/.test(createWindow),
+    'alwaysOnTop must default to false'
+  );
+});
+
+test('renderer exposes window chrome and a draggable title bar', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'App.tsx'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.css'), 'utf8');
+  const preload = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'electron', 'preload.cjs'),
+    'utf8'
+  );
+
+  // Frameless windows cannot be moved without an explicit drag region.
+  assert.ok(/-webkit-app-region:\s*drag/.test(css), 'the header must be a drag region');
+  // Buttons inside a drag region are inert unless they opt back out.
+  assert.ok(
+    /-webkit-app-region:\s*no-drag/.test(css),
+    'header controls must opt out of the drag region'
+  );
+
+  for (const fn of ['minimizeToTray', 'toggleWindow', 'quitApp', 'setAlwaysOnTop']) {
+    assert.ok(preload.includes(fn), `${fn} must be exposed on windowControls`);
+  }
+
+  // The renderer must render the controls, not just declare handlers.
+  assert.ok(/handleMinimizeToTray/.test(appSrc), 'minimize-to-tray button must be wired');
+  assert.ok(/window-btn-close/.test(appSrc), 'a close button must be rendered');
+  assert.ok(/handleToggleAlwaysOnTop/.test(appSrc), 'always-on-top must be toggleable');
+});
+
+test('renderer source contains no mojibake', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const root = path.join(__dirname, '..', 'src');
+
+  // A degree sign or em dash was repeatedly UTF-8-encoded in the source,
+  // rendering as "Ã‚Â°" in the UI. Catch it at the source instead.
+  const offenders = [];
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+        continue;
+      }
+      if (!/\.(tsx?|css|html|cjs)$/.test(entry.name)) continue;
+      const text = fs.readFileSync(full, 'utf8');
+      if (/[\u00c2\u00c3\u00e2\u0080\u0082\u0083]/.test(text)) {
+        offenders.push(path.relative(path.join(__dirname, '..'), full));
+      }
+    }
+  };
+  walk(root);
+
+  assert.deepStrictEqual(
+    offenders,
+    [],
+    `mojibake (repeated UTF-8 encoding) found in: ${offenders.join(', ')}`
+  );
+});

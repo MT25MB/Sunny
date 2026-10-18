@@ -254,10 +254,31 @@ export interface ElectronAPI {
   readonly isDev: boolean;
 }
 
+/**
+ * Window chrome controls. The window is frameless (`frame: false`), so the
+ * renderer draws the title bar and routes clicks through these.
+ */
+export interface WindowControls {
+  /** Hide the window to the system tray. */
+  minimizeToTray(): Promise<boolean>;
+  /** Toggle visibility. Resolves to the new visible state. */
+  toggleWindow(): Promise<boolean>;
+  /** Fully quit the app (bypasses close-to-tray). */
+  quitApp(): Promise<boolean>;
+  /** Pin the window above all others. */
+  setAlwaysOnTop(value: boolean): Promise<boolean>;
+  /** Current always-on-top state. */
+  getAlwaysOnTop(): Promise<boolean>;
+  /** Subscribe to always-on-top changes made from the tray menu. */
+  onAlwaysOnTopChanged(callback: (value: boolean) => void): () => void;
+}
+
 declare global {
   interface Window {
     /** Sunny's IPC bridge. Present when running inside Electron. */
     electronAPI: ElectronAPI;
+    /** Window chrome controls. Present when running inside Electron. */
+    windowControls?: WindowControls;
   }
 }
 
