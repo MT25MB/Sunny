@@ -1,0 +1,56 @@
+name: Capture Screenshots
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci --legacy-peer-deps
+
+      - name: Build renderer
+        run: npm run build
+
+      - name: Package Linux
+        run: npm run package:linux
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Launch Sunny & capture screenshots
+        env:
+          CAPTURE_SCREENSHOTS: 'true'
+        run: |
+          cd out/Sunny-linux-x64
+          ./sunny-desktop &
+          APP_PID=$!
+          # Wait for app to be ready (model load + window)
+          sleep 10
+          node ../../scripts/capture-screenshots.js
+          kill $APP_PID
+
+      - name: Commit screenshots
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update screenshots [skip ci]"
+          file_pattern: public/assets/screenshots/*.png
+          commit_options: '--no-verify'

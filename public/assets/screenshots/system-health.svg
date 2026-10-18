@@ -1,0 +1,40 @@
+<svg width="1200" height="700" xmlns="http://www.w3.org/2000/svg">
+  <rect width="100%" height="100%" fill="#1d262c"/>
+  <text x="50%" y="60" font-family="system-ui" font-size="32" fill="#fbbf24" text-anchor="middle">System Health</text>
+  <text x="50%" y="95" font-family="system-ui" font-size="18" fill="#718187" text-anchor="middle">Placeholder — replaced by CI on release</text>
+  <g transform="translate(100, 130)">
+    <rect x="0" y="0" width="280" height="160" rx="12" fill="#263239" stroke="#3a474d" stroke-width="2"/>
+    <text x="140" y="40" font-family="system-ui" font-size="18" fill="#c7d0d0" text-anchor="middle">Battery</text>
+    <text x="140" y="80" font-family="system-ui" font-size="36" fill="#4ade80" text-anchor="middle">87%</text>
+    <text x="140" y="115" font-family="system-ui" font-size="14" fill="#718187" text-anchor="middle">Charging — Healthy</text>
+    <circle cx="140" cy="145" r="12" fill="#4ade80"/>
+  </g>
+  <g transform="translate(420, 130)">
+    <rect x="0" y="0" width="280" height="160" rx="12" fill="#263239" stroke="#3a474d" stroke-width="2"/>
+    <text x="140" y="40" font-family="system-ui" font-size="18" fill="#c7d0d0" text-anchor="middle">Wi-Fi</text>
+    <text x="140" y="80" font-family="system-ui" font-size="20" fill="#4ade80" text-anchor="middle">Connected</text>
+    <text x="140" y="115" font-family="system-ui" font-size="14" fill="#718187" text-anchor="middle">HomeNetwork-5G</text>
+    <circle cx="140" cy="145" r="12" fill="#4ade80"/>
+  </g>
+  <g transform="translate(740, 130)">
+    <rect x="0" y="0" width="280" height="160" rx="12" fill="#263239" stroke="#3a474d" stroke-width="2"/>
+    <text x="140" y="40" font-family="system-ui" font-size="18" fill="#c7d0d0" text-anchor="middle">Internet</text>
+    <text x="140" y="80" font-family="system-ui" font-size="20" fill="#4ade80" text-anchor="middle">Online</text>
+    <text x="140" y="115" font-family="system-ui" font-size="14" fill="#718187" text-anchor="middle">12 ms latency</text>
+    <circle cx="140" cy="145" r="12" fill="#4ade80"/>
+  </g>
+  <g transform="translate(100, 330)">
+    <rect x="0" y="0" width="280" height="160" rx="12" fill="#263239" stroke="#3a474d" stroke-width="2"/>
+    <text x="140" y="40" font-family="system-ui" font-size="18" fill="#c7d0d0" text-anchor="middle">CPU</text>
+    <text x="140" y="80" font-family="system-ui" font-size="36" fill="#fbbf24" text-anchor="middle">23%</text>
+    <text x="140" y="115" font-family="system-ui" font-size="14" fill="#718187" text-anchor="middle">Normal</text>
+    <circle cx="140" cy="145" r="12" fill="#fbbf24"/>
+  </g>
+  <g transform="translate(420, 330)">
+    <rect x="0" y="0" width="280" height="160" rx="12" fill="#263239" stroke="#3a474d" stroke-width="2"/>
+    <text x="140" y="40" font-family="system-ui" font-size="18" fill="#c7d0d0" text-anchor="middle">Memory</text>
+    <text x="140" y="80" font-family="system-ui" font-size="36" fill="#4ade80" text-anchor="middle">8.4 GB</text>
+    <text x="140" y="115" font-family="system-ui" font-size="14" fill="#718187" text-anchor="middle">Available — Healthy</text>
+    <circle cx="140" cy="145" r="12" fill="#4ade80"/>
+  </g>
+</svg>

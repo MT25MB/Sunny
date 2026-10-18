@@ -422,6 +422,11 @@ function showMainWindow() {
 }
 
 function createWindow() {
+  // Enable remote debugging port for Playwright screenshot capture in CI
+  if (process.env.CAPTURE_SCREENSHOTS === 'true') {
+    app.commandLine.appendSwitch('remote-debugging-port', '9222');
+  }
+
   mainWindow = new BrowserWindow({
     width: 520,
     height: 760,
