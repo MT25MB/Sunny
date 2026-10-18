@@ -26,6 +26,7 @@ import {
   Search,
   Plus,
   Settings,
+  RotateCcw,
 } from "lucide-react";
 import { sunnyBrain, type ChatMessage } from "@/renderer/services/sunnyBrain";
 import type { SystemStatus, Recipe, DailyDigest } from "@/types/electron";
@@ -68,6 +69,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [preferences, setPreferences] = useState<SunnyPreferences>(defaultPreferences);
+  const [alwaysOnTop, setAlwaysOnTop] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -153,6 +155,34 @@ function App() {
     } catch (e) {
       console.error('Failed to export logs:', e);
     }
+  }, []);
+
+  // --- Window chrome ------------------------------------------------------
+  // The window is frameless, so these route the custom title bar's buttons.
+  // Each is guarded because the renderer also runs in a plain browser during
+  // UI work, where windowControls does not exist.
+  const handleMinimizeToTray = useCallback(() => {
+    void window.windowControls?.minimizeToTray();
+  }, []);
+
+  const handleToggleWindow = useCallback(() => {
+    void window.windowControls?.toggleWindow();
+  }, []);
+
+  const handleQuitApp = useCallback(() => {
+    void window.windowControls?.quitApp();
+  }, []);
+
+  const handleToggleAlwaysOnTop = useCallback(() => {
+    void window.windowControls?.setAlwaysOnTop(!alwaysOnTop).then(setAlwaysOnTop);
+  }, [alwaysOnTop]);
+
+  // Reflect always-on-top changes made from the tray menu.
+  useEffect(() => {
+    const controls = window.windowControls;
+    if (!controls?.onAlwaysOnTopChanged) return;
+    void controls.getAlwaysOnTop().then(setAlwaysOnTop).catch(() => {});
+    return controls.onAlwaysOnTopChanged(setAlwaysOnTop);
   }, []);
 
   const handleInitModel = useCallback(async () => {
@@ -586,7 +616,7 @@ function App() {
                 </div>
 
                 <div className="last-updated" aria-live="polite">
-                  Last updated: {systemStatus ? new Date(systemStatus.timestamp).toLocaleTimeString() : "ÃÂÃÂÃÂÃÂ"}
+                  Last updated: {systemStatus ? new Date(systemStatus.timestamp).toLocaleTimeString() : "—"}
                 </div>
               </section>
               <section className="actions-section" aria-labelledby="actions-title">
@@ -739,6 +769,16 @@ function App() {
                       >
                         <Volume2 size={20} /> Read Step Aloud
                       </button>
+                      <button
+                        className="tts-btn tts-btn-secondary"
+                        onClick={() => {
+                          const text = `Step ${cookingMode.currentStep + 1}: ${cookingMode.recipe.instructions[cookingMode.currentStep]}`;
+                          sunnyBrain.speakNotification(text, "normal", 1);
+                        }}
+                        aria-label="Repeat current step"
+                      >
+                        <RotateCcw size={20} /> Repeat Step
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -855,7 +895,7 @@ function App() {
                       <div className="digest-weather">
                         <h3><Sun size={18} /> Weather</h3>
                         <p className="weather-main">
-                          <span className="temp">{dailyDigest.weather.temperature}ÃÂÃÂÃÂÃÂ°C</span>
+                          <span className="temp">{dailyDigest.weather.temperature}°C</span>
                           <span className="condition">{dailyDigest.weather.condition}</span>
                         </p>
                         <p className="weather-location">{dailyDigest.weather.location}</p>

@@ -31,6 +31,52 @@ const MAX_REPEAT = 3;
 const MAX_MESSAGE_CHARS = 500;
 const SPEECH_PRIORITIES: readonly SpeechPriority[] = ['low', 'normal', 'high', 'urgent'];
 
+/** Small gap (ms) between chunked utterances for natural pacing. */
+const CHUNK_GAP_MS = 150;
+
+/**
+ * Split a long message into speech-friendly chunks ≤ maxChars.
+ * Splits on sentence boundaries (., !, ?) → clause boundaries (, ; :) → hard cut.
+ */
+function splitForSpeech(text: string, maxChars = MAX_MESSAGE_CHARS): string[] {
+  const trimmed = text.trim();
+  if (trimmed.length <= maxChars) return [trimmed];
+
+  const sentences = trimmed.match(/[^.!?]+[.!?]+(?:\s|$)/g) ?? [trimmed];
+  const chunks: string[] = [];
+  let current = '';
+
+  for (const sentence of sentences) {
+    const s = sentence.trim();
+    if (!s) continue;
+
+    if (current.length + s.length + 1 <= maxChars) {
+      current += (current ? ' ' : '') + s;
+    } else {
+      if (current) chunks.push(current);
+      if (s.length > maxChars) {
+        const clauses = s.split(/([,;:]\s*)/).filter(Boolean);
+        let clauseChunk = '';
+        for (const clause of clauses) {
+          if (clauseChunk.length + clause.length <= maxChars) {
+            clauseChunk += clause;
+          } else {
+            if (clauseChunk) chunks.push(clauseChunk.trim());
+            clauseChunk = clause;
+          }
+        }
+        if (clauseChunk) chunks.push(clauseChunk.trim());
+      } else {
+        current = s;
+      }
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks.flatMap((chunk) =>
+    chunk.length <= maxChars ? [chunk] : chunk.match(new RegExp(`.{1,${maxChars}}`, 'g')) ?? [chunk]
+  );
+}
+
 /**
  * Client-side agent service.
  *
@@ -107,24 +153,28 @@ class SunnyBrain {
   ): Promise<void> {
     const cleanMessage = typeof message === 'string' ? message.trim() : '';
     if (!cleanMessage) throw new Error('Notification message must be a non-empty string.');
-    if (cleanMessage.length > MAX_MESSAGE_CHARS) {
-      throw new Error(`Notification message must be ${MAX_MESSAGE_CHARS} characters or fewer.`);
-    }
     if (!SPEECH_PRIORITIES.includes(priority)) {
       throw new Error(`priority must be one of: ${SPEECH_PRIORITIES.join(', ')}`);
     }
     const clampedRepeat = Math.min(Math.max(Math.trunc(repeat) || 1, MIN_REPEAT), MAX_REPEAT);
 
-    // Only validate/acknowledge through Electron when it is available.
+    // Split into chunks if needed
+    const chunks = splitForSpeech(cleanMessage);
+
+    // Validate/acknowledge through Electron once (main process rate-limits per call)
     if (window.electronAPI) {
       await window.electronAPI.speakNotification({
-        message: cleanMessage,
+        message: cleanMessage, // send full message for logging/validation
         priority,
         repeat: clampedRepeat,
       });
     }
 
-    this.speakLocally(cleanMessage, clampedRepeat);
+    // Speak each chunk sequentially with a tiny gap
+    for (const chunk of chunks) {
+      this.speakLocally(chunk, clampedRepeat);
+      if (chunks.length > 1) await new Promise((r) => setTimeout(r, CHUNK_GAP_MS));
+    }
   }
 
   // -------------------------------------------------------------------------

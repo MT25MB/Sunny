@@ -1566,6 +1566,35 @@ textarea::placeholder { color: #65747b; }
   background: #263239;
 }
 
+.tts-btn-secondary {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: inherit;
+  color: #1d262c;
+  border: 2px solid #fbbf24;
+  border-radius: 14px;
+  background: #fbbf24;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  transition: all 0.2s;
+}
+
+.tts-btn-secondary:hover {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #1d262c;
+}
+
+.tts-btn-secondary:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+}
+
 /* Medication Section */
 .medication-section {
   background: #131a1f;
