@@ -83,6 +83,12 @@ async function loadTransformers() {
  */
 function makeProgressReporter() {
   const seen = new Map();
+  // transformers.js fires `progress` per network chunk. A 1.5 GB download is
+  // tens of thousands of them, and forwarding each one floods the IPC channel
+  // and repaints the UI far faster than a human can read. Only forward when
+  // the displayed percentage actually changes.
+  let lastSentProgress = -1;
+
   return (data) => {
     if (!progressCallback || !data) return;
 
@@ -97,6 +103,9 @@ function makeProgressReporter() {
       modelProgress = Math.min(99, Math.round((total / APPROX_DOWNLOAD_BYTES) * 100));
       modelStatus = 'downloading';
       statusMessage = `Downloading Sunny's model... ${modelProgress}%`;
+
+      if (modelProgress === lastSentProgress) return;
+      lastSentProgress = modelProgress;
     } else if (data.status === 'done') {
       modelStatus = 'loading';
       statusMessage = 'Loading the model into memory...';
@@ -145,6 +154,7 @@ async function initModel(onProgress) {
         model,
         processor,
         tokenizer,
+        Tensor: transformersLib.Tensor,
         generate: async (inputs, options = {}) => {
           return model.generate(inputs, options);
         },
@@ -196,25 +206,65 @@ async function runVisionInference(prompt, imageBase64) {
       await initModel();
     }
     if (!pipeline) throw new Error('Model not initialized');
-    const { model, processor, tokenizer } = pipeline;
+    const { model, processor, tokenizer, Tensor } = pipeline;
     const image = await decodeImage(imageBase64);
 
-    // Moondream expects the image marker plus an explicit Q/A scaffold.
-    const text = `<image>\n\nQuestion: ${prompt}\n\nAnswer:`;
-    const textInputs = tokenizer(text);
-    const visionInputs = await processor(image);
+    // Moondream2 needs one image token per vision feature spliced into the
+    // prompt. Neither helper does this for us: AutoProcessor resolves to the
+    // generic Processor, which only emits pixel_values and never tokenizes
+    // text, and the tokenizer leaves a literal "<image>" as ordinary text. Get
+    // the counts wrong and the model raises
+    // "Number of tokens and features do not match".
+    const visionInputs = await processor([image]);
+
+    // The SigLIP tower resizes every image to 378x378 and patches at 14px, so
+    // the feature count is fixed rather than dependent on the source image.
+    // Derived rather than hard-coded so a processor config change shows up as a
+    // mismatch here instead of silently returning a wrong answer.
+    const PATCH_SIZE = 14;
+    const [batch, , height, width] = visionInputs.pixel_values.dims;
+    const numFeatures = (height / PATCH_SIZE) * (width / PATCH_SIZE);
+
+    if (!Number.isInteger(numFeatures) || numFeatures <= 0 || batch !== 1) {
+      throw new Error(`Unexpected pixel_values shape: ${visionInputs.pixel_values.dims}`);
+    }
+
+    const imageTokenId = BigInt(model.config.image_token_index);
+
+    // Moondream was instruction-tuned on a Question/Answer scaffold and
+    // answers far better when it is present, so normalise whatever the caller
+    // passed rather than trusting it to arrive pre-formatted.
+    const question = /question\s*:/i.test(prompt) ? prompt : `Question: ${prompt}`;
+    const scaffold = /answer\s*:/i.test(question) ? question : `${question}\n\nAnswer:`;
+
+    const promptIds = tokenizer(scaffold).input_ids.data;
+
+    // Keep the BOS token, splice in the image tokens, then the rest of the prompt.
+    const ids = [
+      promptIds[0],
+      ...new Array(numFeatures).fill(imageTokenId),
+      ...promptIds.slice(1),
+    ];
+
+    const input_ids = new Tensor('int64', BigInt64Array.from(ids.map(BigInt)), [1, ids.length]);
+    const attention_mask = new Tensor(
+      'int64',
+      BigInt64Array.from(new Array(ids.length).fill(1n)),
+      [1, ids.length]
+    );
 
     const output = await model.generate({
-      ...textInputs,
+      input_ids,
+      attention_mask,
       ...visionInputs,
       do_sample: false,
       max_new_tokens: 200,
     });
 
     const decoded = tokenizer.batch_decode(output, { skip_special_tokens: true });
-    const text2 = Array.isArray(decoded) ? decoded[0] : decoded;
-    const answer = typeof text2 === 'string' && text2.length > 0
-      ? text2.split('Answer:').pop()?.trim() ?? ''
+    const first = Array.isArray(decoded) ? decoded[0] : decoded;
+    const answer = typeof first === 'string' && first.length > 0
+      ? first.split('Answer:').pop()?.trim() ?? ''
       : '';
     return { response: answer };
   } catch (err) {
@@ -243,15 +293,16 @@ async function runInference(prompt, imageBase64) {
       await initModel();
     }
 
-    const output = await pipeline.generate({ input_ids: pipeline.tokenizer(prompt).input_ids }, {
-      max_new_tokens: 200,
-      temperature: 0.3,
-      do_sample: false,
-    });
+    // model.generate() returns raw token ids, not text. They must be decoded
+    // with the tokenizer. The previous code looked for `generated_text`, a
+    // property a raw model never returns, so every text-only reply was empty.
+    const { model, tokenizer } = pipeline;
+    const inputs = tokenizer(prompt);
+    const output = await model.generate({ ...inputs, do_sample: false, max_new_tokens: 200 });
 
-    const text = Array.isArray(output) && output[0]?.generated_text
-      ? output[0].generated_text
-      : typeof output === 'string' ? output : '';
+    const decoded = tokenizer.batch_decode(output, { skip_special_tokens: true });
+    const raw = Array.isArray(decoded) ? decoded[0] : decoded;
+    const text = typeof raw === 'string' ? raw.trim() : '';
 
     return { response: text };
   } catch (err) {

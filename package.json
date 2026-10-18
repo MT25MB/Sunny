@@ -15,6 +15,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "typecheck:electron": "tsc --noEmit -p tsconfig.electron.json",
+    "verify:model": "electron scripts/verify-model.cjs",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "package:win": "electron-forge make --platform win32",

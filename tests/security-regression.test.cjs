@@ -262,16 +262,19 @@ test('inference feeds the screenshot to the vision encoder (H6 regression)', () 
   assert.ok(src.includes('AutoProcessor'), 'must build vision inputs with AutoProcessor');
   assert.ok(src.includes('RawImage'), 'must decode the base64 screenshot into a RawImage');
   assert.ok(
-    /processor\(image\)/.test(src),
+    /processor\(\[image\]\)/.test(src),
     'the decoded image must actually be passed to the processor'
   );
   assert.ok(
     /image:\s*base64|if \(imageBase64\)/.test(src),
     'runInference must branch on the presence of an image'
   );
+  // Moondream wants a Q/A scaffold. The prompt is passed through as-is and the
+  // image tokens are spliced in separately, so the scaffold markers are
+  // expected in the caller rather than in a hardcoded prefix.
   assert.ok(
-    src.includes('Question:') && src.includes('Answer:'),
-    'moondream requires the <image> Question/Answer prompt scaffold'
+    /Question:/i.test(src) && /Answer:/i.test(src),
+    'moondream requires the Question/Answer prompt scaffold'
   );
   // Regression: the old code only prefixed the prompt and dropped the pixels.
   assert.ok(
@@ -443,7 +446,7 @@ test('vision inference never falls back to text-only pipeline when an image is p
   // assertion that would have caught the original bug: a vision path that
   // never calls the processor is, in effect, a text path wearing a costume.
   assert.ok(
-    /processor\(\s*image\s*\)/.test(visionFn),
+    /processor\(\[image\]\)/.test(visionFn),
     'runVisionInference must pass the decoded image into the multimodal processor'
   );
 
@@ -451,6 +454,18 @@ test('vision inference never falls back to text-only pipeline when an image is p
   assert.ok(
     /\.\.\.visionInputs/.test(visionFn),
     'runVisionInference must merge the vision inputs into the generate call'
+  );
+
+  // The processor emits pixel_values only. One image token per vision feature
+  // must be spliced into the prompt by hand, or the model raises
+  // "Number of tokens and features do not match" and vision never works.
+  assert.ok(
+    /image_token_index/.test(visionFn),
+    'runVisionInference must splice image tokens using the model image_token_index'
+  );
+  assert.ok(
+    /pixel_values\.dims/.test(visionFn),
+    'runVisionInference must derive the feature count from pixel_values'
   );
 
   // It must not recurse into itself or re-enter the text branch.
@@ -537,6 +552,64 @@ test('native model dependencies are unpacked from the ASAR (packaging regression
   assert.ok(
     /new RegExp\(/.test(forge),
     'ignore entries must be RegExp objects, not globs or functions'
+  );
+});
+
+test('text-only inference decodes token ids into real text', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const src = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'electron', 'inference.cjs'),
+    'utf8'
+  );
+
+  const start = src.indexOf('async function runInference(');
+  assert.ok(start !== -1, 'runInference must exist');
+  const textBranch = src.slice(start, src.indexOf('\n}', start));
+
+  // model.generate() returns raw token ids. Reading `generated_text` — a
+  // property of a transformers.js *pipeline*, not a raw model — always yielded
+  // undefined, so every text-only reply came back empty.
+  assert.ok(
+    /batch_decode\(/.test(textBranch),
+    'the text branch must decode token ids via batch_decode'
+  );
+  // Strip comments first: the branch documents *why* generated_text is wrong,
+  // and a naive scan would trip over that explanation.
+  const codeOnly = textBranch
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '');
+  assert.ok(
+    !/generated_text/.test(codeOnly),
+    'the text branch must not read generated_text; a raw model never returns it'
+  );
+
+  // It must spread the full tokenizer output, not just input_ids: dropping
+  // attention_mask silently degrades generation quality.
+  assert.ok(
+    /model\.generate\(\{\s*\.\.\.inputs/.test(textBranch),
+    'all tokenizer inputs must be forwarded, including attention_mask'
+  );
+});
+
+test('download progress is throttled to whole percentage points', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const src = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'electron', 'inference.cjs'),
+    'utf8'
+  );
+
+  // transformers.js emits a progress event per network chunk — tens of
+  // thousands for a 1.5 GB download. Forwarding each one floods the IPC
+  // channel and repaints the UI faster than anyone can read.
+  assert.ok(
+    /lastSentProgress/.test(src),
+    'progress reporting must remember the last sent percentage'
+  );
+  assert.ok(
+    /if \(modelProgress === lastSentProgress\) return;/.test(src),
+    'progress must be suppressed when the percentage has not changed'
   );
 });
 

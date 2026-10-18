@@ -22,5 +22,9 @@ dist-ssr
 *.sw?
 .env
 out/
+# Ignore ad-hoc local scratch files, but keep the tracked model verifier.
+# Without the negation, scripts/verify-model.cjs never shipped and existed only
+# on one machine, where it silently rotted.
 verify*
+!scripts/verify-model.cjs
 *:Zone.Identifier
