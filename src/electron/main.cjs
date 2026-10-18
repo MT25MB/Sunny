@@ -1157,7 +1157,22 @@ app.whenReady().then(() => {
     callback(permission === 'media');
   });
 
-  // --- Screen capture & model -------------------------------------------
+    // Pause status polling when window is hidden to save useless network probes
+  mainWindow.webContents.on('hide', () => {
+    if (statusEmitterTimer) {
+      clearInterval(statusEmitterTimer);
+      statusEmitterTimer = null;
+    }
+  });
+  mainWindow.webContents.on('show', () => {
+    if (!statusEmitterTimer) {
+      emitSystemStatus();
+      statusEmitterTimer = setInterval(emitSystemStatus, STATUS_POLL_INTERVAL_MS);
+      if (typeof statusEmitterTimer.unref === 'function') statusEmitterTimer.unref();
+    }
+  });
+
+// --- Screen capture & model -------------------------------------------
   ipcMain.handle('sunny:capture-screen', withSecurityConfirmation(
     'capture_screen',
     'Sunny will capture a screenshot of your screen.',
@@ -1227,7 +1242,8 @@ app.whenReady().then(() => {
     }
   ));
 
-  ipcMain.handle('sunny:cancel-actions', () => {
+  ipcMain.handle('sunny:cancel-actions', (event) => {
+    assertTrustedSender(event);
     automationCancelled = true;
     return { cancelled: true };
   });
@@ -1241,7 +1257,11 @@ app.whenReady().then(() => {
   });
 
   // --- Model lifecycle ---------------------------------------------------
-  ipcMain.handle('sunny:get-model-status', () => inference.getModelStatus());
+  ipcMain.handle('sunny:get-model-status', (event) => {
+    assertTrustedSender(event);
+    rateLimit('sunny:get-system-status');
+    return withTimeout(buildSystemStatus(), TOOL_CALL_TIMEOUT_MS, 'The system check took too long and was stopped.');
+  });
 
   ipcMain.handle('sunny:init-model', withSecurityConfirmation(
     'init_model',
@@ -1328,9 +1348,15 @@ app.whenReady().then(() => {
     return { success: true };
   });
 
-  ipcMain.handle('sunny:get-available-tools', () => SUNNY_TOOLS.slice());
+  ipcMain.handle('sunny:get-available-tools', (event) => {
+    assertTrustedSender(event);
+    return SUNNY_TOOLS.slice();
+  });
 
-  ipcMain.handle('sunny:is-tool-available', (_event, toolName) => SUNNY_TOOLS.includes(requireString(toolName, 'toolName')));
+  ipcMain.handle('sunny:is-tool-available', (event, toolName) => {
+    assertTrustedSender(event);
+    return SUNNY_TOOLS.includes(requireString(toolName, 'toolName'));
+  });
 
   // --- Debug logs --------------------------------------------------------
   ipcMain.handle('sunny:write-debug-log', withSecurityConfirmation(

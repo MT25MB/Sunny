@@ -238,18 +238,13 @@ const electronAPI = {
 
   onSystemStatusChange: (callback) => createListener('sunny:system-status-change', callback),
 
-  onToolResult: (callback) =>
-    createListener('sunny:tool-result', callback),
 
-  onNotification: (callback) =>
-    createListener('sunny:notification', callback),
 
   onModelProgress: (callback) => createListener('sunny:model-progress', callback),
 
   onWindowVisibilityChange: (callback) =>
     createListener('sunny:window-visibility-change', callback),
 
-  onDebugLog: (callback) => createListener('sunny:debug-log', callback),
 
   // -------------------------------------------------------------------------
   // New event subscriptions
