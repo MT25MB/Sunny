@@ -1463,15 +1463,19 @@ app.whenReady().then(() => {
     else mainWindow.show();
   });
 
+  // The model is loaded in the background so the window is usable straight
+  // away. A failure here is recoverable: the renderer surfaces it as a notice
+  // with a Retry button, and every other feature (status, recipes, reminders,
+  // digest) still works. Killing the process would leave the user with no
+  // window and no way to recover, which is the worst outcome for an app
+  // aimed at older adults.
   inference.initModel((status) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('sunny:model-progress', status);
     }
   }).catch((err) => {
-     console.error('[Startup] Failed to initialize model:', err);
-     dialog.showErrorBox('Sunny could not start', `Failed to load AI model: ${err.message}. Please check your internet connection and restart.`);
-     app.exit(1);
-   });
+    console.error('[Startup] Model initialization failed:', err);
+  });
 });
 
 app.on('window-all-closed', () => {

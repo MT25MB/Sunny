@@ -1,7 +1,7 @@
 {
   "name": "sunny-desktop",
   "private": true,
-  "version": "1.2.6",
+  "version": "1.2.9",
   "description": "A friendly, accessible AI desktop assistant designed to help seniors navigate computers easily using voice and text.",
   "main": "src/electron/main.cjs",
   "type": "module",
@@ -31,6 +31,7 @@
     "@electron-forge/maker-dmg": "^8.0.1",
     "@electron-forge/maker-squirrel": "^8.0.1",
     "@electron-forge/maker-zip": "^8.0.1",
+    "@electron-forge/plugin-auto-unpack-natives": "^8.0.1",
     "@eslint/js": "^9.9.1",
     "@nut-tree-fork/nut-js": "^4.2.6",
     "@tailwindcss/postcss": "^4.3.3",

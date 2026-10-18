@@ -13,10 +13,23 @@ let initPromise = null;
 // Use the multimodal Moondream2 model for both text generation and vision
 const MODEL_ID = 'Xenova/moondream2';
 const MODEL_DTYPE = 'q4';
-const APPROX_DOWNLOAD_MB = 1200;
+// Measured on disk after a cold fetch of Xenova/moondream2 at the dtypes
+// below: 1,479,956,659 bytes across three .onnx files plus tokenizer/config.
+const APPROX_DOWNLOAD_MB = 1500;
+const APPROX_DOWNLOAD_BYTES = APPROX_DOWNLOAD_MB * 1000 * 1000;
 
 function getModelDir() {
   return path.join(app.getPath('userData'), 'models');
+}
+
+/**
+ * transformers.js defaults its cache to `__dirname/.cache` — that is, inside
+ * `node_modules`. Anything downloaded there gets packaged into the installer,
+ * which previously added ~1.4 GB of model weights to a 2.27 GB app.asar.
+ * Point it at userData so the download lives with the app's other data.
+ */
+function getModelCacheDir() {
+  return path.join(app.getPath('userData'), 'models-cache');
 }
 
 function getLogDir() {
@@ -40,8 +53,11 @@ async function loadTransformers() {
     transformersLib = await import('@huggingface/transformers');
     const env = transformersLib.env;
     const modelDir = getModelDir();
+    const cacheDir = getModelCacheDir();
     if (!fs.existsSync(modelDir)) fs.mkdirSync(modelDir, { recursive: true });
+    if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
     env.localModelPath = modelDir;
+    env.cacheDir = cacheDir;
     env.allowRemoteModels = true;
     env.allowLocalModels = true;
     if (env.backends && env.backends.onnx && env.backends.onnx.wasm) {
@@ -56,6 +72,41 @@ async function loadTransformers() {
     throw err;
   }
   return transformersLib;
+}
+
+/**
+ * Forwards a transformers.js progress event onto the renderer's
+ * sunny:model-progress channel.
+ *
+ * This matters for a first run: the model is ~1.4 GB, and a spinner with no
+ * percentage reads as a hang to anyone waiting on it.
+ */
+function makeProgressReporter() {
+  const seen = new Map();
+  return (data) => {
+    if (!progressCallback || !data) return;
+
+    if (data.status === 'progress') {
+      // Many files make up the model. Track bytes per file and report the
+      // aggregate, so the number climbs steadily instead of jumping 0 -> 100.
+      const file = data.file || 'model';
+      const current = seen.get(file) || 0;
+      const next = Math.max(current, data.loaded || 0);
+      seen.set(file, next);
+      const total = [...seen.values()].reduce((sum, n) => sum + n, 0);
+      modelProgress = Math.min(99, Math.round((total / APPROX_DOWNLOAD_BYTES) * 100));
+      modelStatus = 'downloading';
+      statusMessage = `Downloading Sunny's model... ${modelProgress}%`;
+    } else if (data.status === 'done') {
+      modelStatus = 'loading';
+      statusMessage = 'Loading the model into memory...';
+    } else if (data.status === 'ready') {
+      modelStatus = 'loading';
+      statusMessage = 'Loading the model into memory...';
+    }
+
+    progressCallback({ status: modelStatus, progress: modelProgress, message: statusMessage });
+  };
 }
 
 async function initModel(onProgress) {
@@ -73,9 +124,9 @@ async function initModel(onProgress) {
       modelStatus = 'downloading';
       statusMessage = `Downloading Sunny's model (~${(APPROX_DOWNLOAD_MB / 1000).toFixed(1)} GB). This happens only once!`;
 
-      // Use the multimodal Moondream2 model for both text generation and vision
-      const { AutoProcessor, AutoTokenizer, Moondream1ForConditionalGeneration } = transformersLib;
-      
+      // One multimodal Moondream2 stack serves both text and vision.
+      const onFileProgress = makeProgressReporter();
+
       const [processor, tokenizer, model] = await Promise.all([
         transformersLib.AutoProcessor.from_pretrained(MODEL_ID),
         transformersLib.AutoTokenizer.from_pretrained(MODEL_ID),
@@ -83,8 +134,9 @@ async function initModel(onProgress) {
           dtype: {
             embed_tokens: 'fp16',
             vision_encoder: 'q8',
-            decoder_model_merged: 'q4',
+            decoder_model_merged: MODEL_DTYPE,
           },
+          progress_callback: onFileProgress,
         }),
       ]);
 
@@ -106,7 +158,7 @@ async function initModel(onProgress) {
       return pipeline;
     } catch (err) {
       modelStatus = 'error';
-      statusMessage = `Failed to load model: ${err.message}. Check internet connection and restart.`;
+      statusMessage = `Sunny could not load its AI model: ${err.message}`;
       if (progressCallback) progressCallback({ status: modelStatus, progress: 0, message: statusMessage });
       throw err;
     } finally {

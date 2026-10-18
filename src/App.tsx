@@ -89,7 +89,12 @@ function App() {
     if (window.sunnyDesktop?.getModelStatus) {
       try {
         const status = await window.sunnyDesktop.getModelStatus();
-        if (status) setModelStatus(status);
+        if (status) {
+          setModelStatus(status);
+          // The window may load after a failed startup attempt, in which case
+          // no progress event was ever delivered. Recover the reason here.
+          setModelError(status.status === "error" ? status.message : null);
+        }
         const result = await window.sunnyDesktop.getDebugLogCount?.();
         if (result && typeof result.count === 'number') setDebugLogCount(result.count);
       } catch {
@@ -155,8 +160,12 @@ function App() {
     try {
       const status = await window.sunnyDesktop.initModel();
       setModelStatus(status);
+      setModelError(status?.status === "error" ? status.message : null);
     } catch (e) {
+      // Surface the reason rather than failing silently into the console.
+      const reason = e instanceof Error ? e.message : String(e);
       console.error('Failed to init model:', e);
+      setModelError(reason);
     }
   }, []);
 
@@ -170,6 +179,9 @@ function App() {
     if (!window.sunnyDesktop?.onModelProgress) return;
     const unsub = window.sunnyDesktop.onModelProgress((status: ModelStatus) => {
       setModelStatus(status);
+      // Carry the main process's reason through so the notice explains what
+      // actually went wrong instead of a generic "not available".
+      setModelError(status.status === "error" ? status.message : null);
     });
     return unsub;
   }, []);
@@ -465,6 +477,9 @@ function App() {
         <OfflineFallback
           onRetry={() => {
             setModelError(null);
+            // Actually re-attempt the load. The progress subscription clears
+            // modelError again if it fails, so a second failure still shows.
+            void handleInitModel();
             sunnyBrain.getSystemStatus().then(setSystemStatus).catch(() => {});
           }}
           reason={modelError || "AI model is not available"}

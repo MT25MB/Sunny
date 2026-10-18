@@ -32,3 +32,45 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+
+  package-windows:
+    # Runs on Windows because sharp and onnxruntime-node resolve their native
+    # binaries through optionalDependencies at install time. Building elsewhere
+    # produces a package that is missing them, which fails at dlopen on the
+    # user's machine rather than here.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci --legacy-peer-deps
+      - name: Build renderer
+        run: npm run build
+      - name: Package installer
+        run: npx electron-forge make --platform win32 --arch x64
+      - name: Verify native deps were unpacked
+        shell: pwsh
+        run: |
+          # The ASAR cannot be read by the OS loader. If a native package ends
+          # up inside it, the app dies at launch with ERR_DLOPEN_FAILED — the
+          # exact failure that shipped broken through v1.2.8.
+          $unpacked = 'out/Sunny-win32-x64/resources/app.asar.unpacked/node_modules/@img'
+          if (-not (Test-Path $unpacked)) {
+            throw "sharp/libvips were not unpacked from the ASAR (missing $unpacked)"
+          }
+          $vips = Get-ChildItem -Path $unpacked -Recurse -Include 'libvips*.dll' -ErrorAction SilentlyContinue
+          if (-not $vips) {
+            throw 'libvips DLL not found next to the unpacked sharp binary'
+          }
+          Write-Host "OK: $($vips.Name) shipped unpacked"
+          $native = Get-ChildItem -Path 'out/Sunny-win32-x64/resources/app.asar.unpacked' -Recurse -Filter '*.node'
+          Write-Host "Unpacked native modules: $($native.Count)"
+          $native | ForEach-Object { Write-Host "  $($_.Name)" }
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sunny-Setup-win32-x64
+          path: out/make/squirrel.windows/x64/*.exe
+          if-no-files-found: error

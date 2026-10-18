@@ -413,30 +413,156 @@ test('vision inference never falls back to text-only pipeline when an image is p
     'runInference must immediately delegate to runVisionInference when an image is provided'
   );
 
-  // runVisionInference must exist and use the SAME initModel (multimodal) for both text and vision
+  // Structural invariant: a text-only fallback is only possible if a second,
+  // image-blind model exists. Exactly one model id must be declared.
+  const modelIds = src.match(/^const \w*MODEL_ID\w* = /gm) || [];
+  assert.strictEqual(
+    modelIds.length,
+    1,
+    `exactly one model id must be declared (found ${modelIds.length}: ${modelIds.join(', ')}) — a second model is how a text-only fallback reappears`
+  );
+
+  // There must be no separate text-generation pipeline anywhere.
+  assert.ok(
+    !/lib\.pipeline\(/.test(src),
+    'a standalone text-generation pipeline must not exist; the multimodal stack serves both paths'
+  );
+
   const visionStart = src.indexOf('async function runVisionInference');
   const visionEnd = src.indexOf('async function runInference', visionStart);
-  const visionFn = src.slice(visionStart, visionEnd === -1 ? undefined : visionEnd);
-  
-  // runVisionInference should use the SAME initModel (now multimodal) for vision
+  assert.ok(visionStart !== -1 && visionEnd > visionStart, 'runVisionInference must exist');
+  const visionFn = src.slice(visionStart, visionEnd);
+
+  // The image must actually reach the multimodal processor. This is the
+  // assertion that would have caught the original bug: a vision path that
+  // never calls the processor is, in effect, a text path wearing a costume.
   assert.ok(
-    /initModel\(\)/.test(visionFn),
-    'runVisionInference must use the shared initModel (multimodal) for vision'
+    /processor\(\s*image\s*\)/.test(visionFn),
+    'runVisionInference must pass the decoded image into the multimodal processor'
   );
-  
-  // runVisionInference should NOT use a separate text-only pipeline
+
+  // ...and its output must be merged into the generate call.
   assert.ok(
-    !/pipeline\(prompt/.test(visionFn),
-    'runVisionInference must not use a separate text-only pipeline'
+    /\.\.\.visionInputs/.test(visionFn),
+    'runVisionInference must merge the vision inputs into the generate call'
+  );
+
+  // It must not recurse into itself or re-enter the text branch.
+  assert.ok(
+    !/runInference\(\s*prompt\s*\)/.test(visionFn),
+    'runVisionInference must not re-enter runInference without the image'
   );
   assert.ok(
-    /throw|return.*error|catch/.test(visionFn),
-    'runVisionInference must handle errors explicitly'
+    !/catch[\s\S]{0,400}runInference\(/.test(visionFn),
+    'runVisionInference must not retry through the text branch on failure'
+  );
+
+  // Failures are reported, never silently swallowed.
+  assert.ok(
+    /error:/.test(visionFn),
+    'runVisionInference must return an explicit error on failure'
   );
 
   // The image-dropping shortcut must be completely gone
   assert.ok(
     !/`<image>\\n\\n\$\{prompt\}`/.test(src),
     'the image-dropping prompt-only shortcut must be gone'
+  );
+});
+
+test('native model dependencies are unpacked from the ASAR (packaging regression)', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const forge = fs.readFileSync(path.join(__dirname, '..', 'forge.config.js'), 'utf8');
+
+  // sharp's shared library ships as libvips-*.so / libvips-*.dll with no .node
+  // beside it, so the auto-unpack plugin (which keys off .node files) silently
+  // skips it. Left inside the ASAR, the OS loader cannot resolve it and the
+  // sharp binary fails with ERR_DLOPEN_FAILED — which crashed the Windows
+  // installer outright. Only an explicit glob fixes this.
+  assert.ok(
+    /import\s*\{[^}]*AutoUnpackNativesPlugin[^}]*\}\s*from\s*'@electron-forge\/plugin-auto-unpack-natives'/.test(forge),
+    'the auto-unpack-natives plugin must be imported'
+  );
+  assert.ok(
+    /plugins:\s*\[[^\]]*AutoUnpackNativesPlugin/.test(forge),
+    'the auto-unpack-natives plugin must be enabled for other native modules'
+  );
+  // The plugin's glob is `**/*.node`, which cannot see libvips. Without the
+  // explicit @img/** entry the fix silently does nothing.
+  assert.ok(
+    /\*\*\/node_modules\/@img\/\*\*/.test(forge),
+    '@img/** (sharp and libvips) must be listed in the unpack patterns'
+  );
+  // @electron/asar minimatches these against absolute paths, so a pattern
+  // without a leading **/ matches nothing and fails silently.
+  for (const pattern of forge.match(/'\*\*\/node_modules\/[^']+'/g) || []) {
+    assert.ok(pattern.startsWith("'**/"), `unpack pattern must start with **/: ${pattern}`);
+  }
+  // `asarUnpack` is silently ignored by @electron/packager and Forge. Only
+  // `asar.unpack` is read, so the fix must live there or not at all.
+  // Anchored to the key so the explanatory comment above it cannot trip this.
+  assert.ok(
+    !/^\s*asarUnpack\s*:/m.test(forge),
+    'asarUnpack is a no-op; use asar.unpack instead'
+  );
+  assert.ok(
+    /asar:\s*\{\s*unpack:/.test(forge),
+    'unpack patterns must be passed via asar.unpack'
+  );
+
+  // The downloaded weights default to node_modules/<pkg>/.cache, which Forge
+  // would otherwise bake into the installer (~1.4 GB inside a 2.27 GB app.asar).
+  // Scoped to the ignore array so a match elsewhere in the file cannot satisfy it.
+  const ignoreStart = forge.indexOf('ignore: [');
+  const ignoreEnd = forge.indexOf(']', ignoreStart);
+  assert.ok(ignoreStart !== -1 && ignoreEnd > ignoreStart, 'forge.config.js must declare an ignore array');
+  const ignoreBlock = forge.slice(ignoreStart, ignoreEnd);
+  assert.ok(
+    /@huggingface[\s\S]*\.cache/.test(ignoreBlock),
+    'the transformers weight cache must be excluded from packaging'
+  );
+  assert.ok(
+    /FOREIGN_ONNX_IGNORE/.test(ignoreBlock),
+    'onnxruntime binaries for other platforms must be pruned at package time'
+  );
+  // Glob strings and predicate functions both break @electron/packager's
+  // copy-filter, which compiles every entry with String.match.
+  assert.ok(
+    /new RegExp\(/.test(forge),
+    'ignore entries must be RegExp objects, not globs or functions'
+  );
+});
+
+test('model caching is redirected out of node_modules', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'electron', 'inference.cjs'), 'utf8');
+
+  assert.ok(
+    /env\.cacheDir\s*=\s*cacheDir/.test(src),
+    'transformers env.cacheDir must be set explicitly, not left at its __dirname default'
+  );
+  assert.ok(
+    /getModelCacheDir\(\)[\s\S]{0,200}userData/.test(src),
+    'the cache dir must live under userData, not inside the packaged module'
+  );
+});
+
+test('a failed model load does not terminate the app', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'electron', 'main.cjs'), 'utf8');
+
+  // Killing the process leaves the user with no window and no way to recover.
+  // The renderer already shows a notice with a Retry button.
+  const startupInit = src.slice(src.indexOf('inference.initModel((status)'));
+  assert.ok(
+    !/app\.exit\(/.test(startupInit),
+    'startup model failure must not call app.exit()'
+  );
+  assert.ok(
+    !/showErrorBox/.test(startupInit),
+    'startup model failure must not raise a blocking error dialog'
   );
 });

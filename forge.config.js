@@ -1,13 +1,56 @@
+import process from 'node:process';
+import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-natives';
+
+const ONNX_NAPI_DIR = '/node_modules/onnxruntime-node/bin/napi-v6';
+
+// onnxruntime-node ships a prebuilt binary for every platform inside one
+// package (~548 MB). Only the build target's binary can ever be dlopen'd, so
+// the rest are dropped before packaging.
+//
+// These must be RegExp objects: @electron/packager's copy-filter compiles
+// every entry in `ignore` with String.match, so glob strings and predicate
+// functions both throw or silently mis-stage the app directory.
+const FOREIGN_ONNX_IGNORE = [
+  ...['darwin', 'linux', 'win32']
+    .filter((platform) => platform !== process.platform)
+    .map((platform) => new RegExp(`${ONNX_NAPI_DIR}/${platform}/`)),
+  ...['x64', 'arm64']
+    .filter((arch) => arch !== process.arch)
+    .map((arch) => new RegExp(`${ONNX_NAPI_DIR}/${process.platform}/${arch}/`)),
+];
+
+// Packages that must exist on disk as real files rather than ASAR entries,
+// because the OS dynamic loader has to open them by path.
+//
+// @electron/asar matches these with `minimatch(filename, unpack)` against the
+// *absolute* path of each file, so every pattern needs a leading `**/`.
+// Without it the pattern silently matches nothing.
+//
+// `asar.unpack` is also the only key @electron/packager reads; the older
+// `asarUnpack` spelling is ignored outright by both packager and Forge.
+//
+// @img/** is the load-bearing one: packager's built-in default only globs
+// `**/*.node`, but sharp's shared library ships as libvips-*.so / libvips-*.dll
+// with no .node beside it, so it is never unpacked. With libvips sealed inside
+// the ASAR, the unpacked sharp binary fails to dlopen with ERR_DLOPEN_FAILED —
+// the crash that shipped through v1.2.8.
+const UNPACK_PATTERNS = [
+  '**/node_modules/@nut-tree-fork/**',
+  '**/node_modules/@huggingface/transformers/**',
+  '**/node_modules/@img/**',
+  '**/node_modules/sharp/**',
+  '**/node_modules/onnxruntime-node/**',
+];
+
+
 export default {
+  plugins: [new AutoUnpackNativesPlugin()],
   packagerConfig: {
     name: 'Sunny',
     executableName: 'sunny-desktop',
     icon: 'public/assets/mascot',
-    asar: true,
-    asarUnpack: [
-      'node_modules/@nut-tree-fork/**',
-      'node_modules/@huggingface/transformers/**',
-    ],
+    // The plugin appends its own `**/*.node` glob to this list.
+    asar: { unpack: UNPACK_PATTERNS.join(',') },
     extraResource: ['public/assets/mascot.png'],
     osxSign: undefined,
     ignore: [
@@ -31,6 +74,13 @@ export default {
       /^\/src\/vite-env\.d\.ts$/,
       /^\/src\/preload\.ts$/,
       /^\/src\/electron\/app\.js$/,
+      /^\/scripts\//,
+      // transformers.js caches downloaded weights at __dirname/.cache, which
+      // lands inside the package directory. That is ~1.4 GB of model files
+      // that have no business inside an installer. See inference.cjs, which
+      // points env.cacheDir at userData instead.
+      /^\/node_modules\/@huggingface\/transformers\/\.cache/,
+      ...FOREIGN_ONNX_IGNORE,
     ],
   },
   makers: [
