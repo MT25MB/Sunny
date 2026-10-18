@@ -186,7 +186,7 @@ test('window creation installs navigation and window-open guards (H8 regression)
     path.join(__dirname, '..', 'src', 'electron', 'main.cjs'),
     'utf8'
   );
-  const createWindow = mainSrc.match(/function createWindow\(\) \{[\s\S]{0,2000}?\n\}/);
+  const createWindow = mainSrc.match(/function createWindow\(\) \{[\s\S]{0,5000}?\n\}/);
   assert.ok(createWindow, 'createWindow must exist');
   assert.ok(
     createWindow[0].includes('setWindowOpenHandler'),

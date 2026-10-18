@@ -338,6 +338,21 @@ function createWindow() {
     console.error(`[Renderer] Failed to load ${validatedURL}: ${errorDescription} (${errorCode})`);
   });
 
+  // Pause status polling when window is hidden to save useless network probes
+  mainWindow.on('hide', () => {
+    if (statusEmitterTimer) {
+      clearInterval(statusEmitterTimer);
+      statusEmitterTimer = null;
+    }
+  });
+  mainWindow.on('show', () => {
+    if (!statusEmitterTimer) {
+      emitSystemStatus();
+      statusEmitterTimer = setInterval(emitSystemStatus, STATUS_POLL_INTERVAL_MS);
+      if (typeof statusEmitterTimer.unref === 'function') statusEmitterTimer.unref();
+    }
+  });
+
   if (isDev) mainWindow.loadURL(rendererUrl);
   else mainWindow.loadURL(pathToFileURL(path.join(__dirname, '../../dist/app.html')).toString());
 }
@@ -1157,20 +1172,7 @@ app.whenReady().then(() => {
     callback(permission === 'media');
   });
 
-    // Pause status polling when window is hidden to save useless network probes
-  mainWindow.webContents.on('hide', () => {
-    if (statusEmitterTimer) {
-      clearInterval(statusEmitterTimer);
-      statusEmitterTimer = null;
-    }
-  });
-  mainWindow.webContents.on('show', () => {
-    if (!statusEmitterTimer) {
-      emitSystemStatus();
-      statusEmitterTimer = setInterval(emitSystemStatus, STATUS_POLL_INTERVAL_MS);
-      if (typeof statusEmitterTimer.unref === 'function') statusEmitterTimer.unref();
-    }
-  });
+
 
 // --- Screen capture & model -------------------------------------------
   ipcMain.handle('sunny:capture-screen', withSecurityConfirmation(
@@ -1465,7 +1467,11 @@ app.whenReady().then(() => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('sunny:model-progress', status);
     }
-  }).catch(() => {});
+  }).catch((err) => {
+     console.error('[Startup] Failed to initialize model:', err);
+     dialog.showErrorBox('Sunny could not start', 'Failed to initialize the vision model. See logs for details.');
+     app.exit(1);
+   });
 });
 
 app.on('window-all-closed', () => {
