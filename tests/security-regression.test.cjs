@@ -401,7 +401,7 @@ test('preferences store keeps onboarding and safety defaults safe', () => {
   );
 });
 
-test('vision inference never falls back to text pipeline when an image is provided (H6 invariant)', () => {
+test('vision inference never falls back to text-only pipeline when an image is provided (H6 invariant)', () => {
   const src = require('node:fs').readFileSync(
     require('node:path').join(__dirname, '..', 'src', 'electron', 'inference.cjs'),
     'utf8'
@@ -413,17 +413,21 @@ test('vision inference never falls back to text pipeline when an image is provid
     'runInference must immediately delegate to runVisionInference when an image is provided'
   );
 
-  // runVisionInference must exist and NOT contain any fallback to the text pipeline
+  // runVisionInference must exist and use the SAME initModel (multimodal) for both text and vision
   const visionStart = src.indexOf('async function runVisionInference');
   const visionEnd = src.indexOf('async function runInference', visionStart);
   const visionFn = src.slice(visionStart, visionEnd === -1 ? undefined : visionEnd);
+  
+  // runVisionInference should use the SAME initModel (now multimodal) for vision
   assert.ok(
-    !/initModel\(\)/.test(visionFn),
-    'runVisionInference must not call the text-only initModel as fallback'
+    /initModel\(\)/.test(visionFn),
+    'runVisionInference must use the shared initModel (multimodal) for vision'
   );
+  
+  // runVisionInference should NOT use a separate text-only pipeline
   assert.ok(
     !/pipeline\(prompt/.test(visionFn),
-    'runVisionInference must not use the text pipeline'
+    'runVisionInference must not use a separate text-only pipeline'
   );
   assert.ok(
     /throw|return.*error|catch/.test(visionFn),

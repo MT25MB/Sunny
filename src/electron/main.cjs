@@ -1469,7 +1469,7 @@ app.whenReady().then(() => {
     }
   }).catch((err) => {
      console.error('[Startup] Failed to initialize model:', err);
-     dialog.showErrorBox('Sunny could not start', 'Failed to initialize the vision model. See logs for details.');
+     dialog.showErrorBox('Sunny could not start', `Failed to load AI model: ${err.message}. Please check your internet connection and restart.`);
      app.exit(1);
    });
 });

@@ -4,26 +4,16 @@ const fs = require('node:fs');
 
 let transformersLib = null;
 let pipeline = null;
-let visionModel = null;
-let visionProcessor = null;
-let visionTokenizer = null;
-let visionPromise = null;
-let RawImageCtor = null;
 let modelStatus = 'not-downloaded';
 let modelProgress = 0;
 let statusMessage = 'Model not loaded yet.';
 let progressCallback = null;
 let initPromise = null;
 
-const MODEL_ID = 'onnx-community/moondream2.text_model-ONNX';
+// Use the multimodal Moondream2 model for both text generation and vision
+const MODEL_ID = 'Xenova/moondream2';
 const MODEL_DTYPE = 'q4';
 const APPROX_DOWNLOAD_MB = 1200;
-
-// Moondream2 vision needs the full multimodal export. The text-generation
-// pipeline above cannot accept an image at all: transformers.js routes images
-// through AutoProcessor + the Moondream model class, and a text-generation
-// pipeline silently discards them. This repo is the multimodal ONNX export.
-const VISION_MODEL_ID = 'Xenova/moondream2';
 
 function getModelDir() {
   return path.join(app.getPath('userData'), 'models');
@@ -74,47 +64,55 @@ async function initModel(onProgress) {
   
   initPromise = (async () => {
     progressCallback = onProgress || null;
-  modelStatus = 'downloading';
-  modelProgress = 0;
-  statusMessage = 'Setting up your assistant... This happens only once!';
-
-  try {
-    const lib = await loadTransformers();
     modelStatus = 'downloading';
-    statusMessage = `Downloading Sunny's vision model (~${(APPROX_DOWNLOAD_MB / 1000).toFixed(1)} GB). This happens only once!`;
+    modelProgress = 0;
+    statusMessage = 'Setting up your assistant... This happens only once!';
 
-    pipeline = await lib.pipeline('text-generation', MODEL_ID, {
-      dtype: MODEL_DTYPE,
-      progress_callback: (data) => {
-        if (data.status === 'progress') {
-          const pct = data.progress || 0;
-          modelProgress = Math.round(pct);
-          statusMessage = `Downloading Sunny's vision model... ${modelProgress}%`;
-        } else if (data.status === 'done') {
-          modelProgress = 100;
-          statusMessage = 'Finishing setup...';
-        } else if (data.status === 'ready') {
-          modelStatus = 'loading';
-          statusMessage = 'Loading the model into memory...';
-        }
-        if (progressCallback) progressCallback({ status: modelStatus, progress: modelProgress, message: statusMessage });
-      },
-    });
+    try {
+      const lib = await loadTransformers();
+      modelStatus = 'downloading';
+      statusMessage = `Downloading Sunny's model (~${(APPROX_DOWNLOAD_MB / 1000).toFixed(1)} GB). This happens only once!`;
 
-    modelStatus = 'ready';
-    modelProgress = 100;
-    statusMessage = 'Sunny is ready to help!';
-    if (progressCallback) progressCallback({ status: modelStatus, progress: modelProgress, message: statusMessage });
-    return pipeline;
-  } catch (err) {
-    modelStatus = 'error';
-    statusMessage = 'Could not download the vision model. Please check your internet connection and restart.';
-    if (progressCallback) progressCallback({ status: modelStatus, progress: 0, message: statusMessage });
-    throw err;
-  } finally {
-    initPromise = null;
-  }
-})();
+      // Use the multimodal Moondream2 model for both text generation and vision
+      const { AutoProcessor, AutoTokenizer, Moondream1ForConditionalGeneration } = transformersLib;
+      
+      const [processor, tokenizer, model] = await Promise.all([
+        transformersLib.AutoProcessor.from_pretrained(MODEL_ID),
+        transformersLib.AutoTokenizer.from_pretrained(MODEL_ID),
+        transformersLib.Moondream1ForConditionalGeneration.from_pretrained(MODEL_ID, {
+          dtype: {
+            embed_tokens: 'fp16',
+            vision_encoder: 'q8',
+            decoder_model_merged: 'q4',
+          },
+        }),
+      ]);
+
+      // Store for vision inference
+      pipeline = {
+        model,
+        processor,
+        tokenizer,
+        generate: async (inputs, options = {}) => {
+          return model.generate(inputs, options);
+        },
+        tokenizer,
+      };
+
+      modelStatus = 'ready';
+      modelProgress = 100;
+      statusMessage = 'Sunny is ready to help!';
+      if (progressCallback) progressCallback({ status: modelStatus, progress: modelProgress, message: statusMessage });
+      return pipeline;
+    } catch (err) {
+      modelStatus = 'error';
+      statusMessage = `Failed to load model: ${err.message}. Check internet connection and restart.`;
+      if (progressCallback) progressCallback({ status: modelStatus, progress: 0, message: statusMessage });
+      throw err;
+    } finally {
+      initPromise = null;
+    }
+  })();
   
   try {
     return await initPromise;
@@ -127,48 +125,10 @@ function getModelStatus() {
   return { status: modelStatus, progress: modelProgress, message: statusMessage };
 }
 
-/**
- * Loads the multimodal Moondream2 stack used for screen understanding.
- * Single-flight: concurrent callers share one in-flight load.
- */
-async function initVisionModel() {
-  if (visionModel && visionProcessor && visionTokenizer) {
-    return { model: visionModel, processor: visionProcessor, tokenizer: visionTokenizer };
-  }
-  if (visionPromise) return visionPromise;
-
-  visionPromise = (async () => {
-    const lib = await loadTransformers();
-    const { AutoProcessor, AutoTokenizer, Moondream1ForConditionalGeneration, RawImage } = lib;
-
-    const [processor, tokenizer, model] = await Promise.all([
-      AutoProcessor.from_pretrained(VISION_MODEL_ID),
-      AutoTokenizer.from_pretrained(VISION_MODEL_ID),
-      Moondream1ForConditionalGeneration.from_pretrained(VISION_MODEL_ID, {
-        dtype: {
-          embed_tokens: 'fp16',
-          vision_encoder: 'q8',
-          decoder_model_merged: 'q4',
-        },
-      }),
-    ]);
-
-    visionProcessor = processor;
-    visionTokenizer = tokenizer;
-    visionModel = model;
-    RawImageCtor = RawImage;
-    return { model, processor, tokenizer };
-  })().catch((err) => {
-    visionPromise = null;
-    throw err;
-  });
-
-  return visionPromise;
-}
-
 /** Decodes a base64 PNG/JPEG payload (no data-URL prefix) into a RawImage. */
 async function decodeImage(imageBase64) {
-  const RawImage = RawImageCtor;
+  const lib = await import('@huggingface/transformers');
+  const RawImage = lib.RawImage;
   if (!RawImage) throw new Error('Image decoding is unavailable.');
   const buffer = Buffer.from(imageBase64, 'base64');
   const blob = new Blob([buffer]);
@@ -178,11 +138,13 @@ async function decodeImage(imageBase64) {
 /**
  * Vision branch: runs a prompt against a screenshot using the multimodal
  * Moondream2 stack. This MUST succeed or throw — no fallback to text pipeline.
- * See the invariant comment in `runInference`.
  */
 async function runVisionInference(prompt, imageBase64) {
   try {
-    const { model, processor, tokenizer } = await initVisionModel();
+    if (!pipeline) {
+      await initModel();
+    }
+    const { model, processor, tokenizer } = pipeline;
     const image = await decodeImage(imageBase64);
 
     // Moondream expects the image marker plus an explicit Q/A scaffold.
@@ -214,10 +176,6 @@ async function runVisionInference(prompt, imageBase64) {
 
 /**
  * Runs a prompt, optionally against a screen capture.
- *
- * With an image this uses the multimodal Moondream stack and actually feeds the
- * pixels to the vision encoder. Without one it uses the text-generation
- * pipeline, which is cheaper and is what decide-action wants.
  */
 async function runInference(prompt, imageBase64) {
   // INVARIANT: when a screenshot is supplied, the answer MUST come from the
@@ -233,7 +191,7 @@ async function runInference(prompt, imageBase64) {
       await initModel();
     }
 
-    const output = await pipeline(prompt, {
+    const output = await pipeline.generate({ input_ids: pipeline.tokenizer(prompt).input_ids }, {
       max_new_tokens: 200,
       temperature: 0.3,
       do_sample: false,
