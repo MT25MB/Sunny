@@ -23,7 +23,11 @@ jobs:
       - name: Lint
         run: npm run lint
       - name: Main-process syntax
-        run: npm run check:syntax
+        run: |
+          node --check src/electron/main.cjs
+          node --check src/electron/preload.cjs
+          node --check src/electron/inference.cjs
+          node --check src/main/security/interceptor.cjs
       - name: Regression tests
         run: npm test
       - name: Build
