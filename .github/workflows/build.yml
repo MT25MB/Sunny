@@ -18,16 +18,12 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci --legacy-peer-deps
-      - name: Typecheck
+      - name: Typecheck (renderer)
         run: npm run typecheck
+      - name: Typecheck (main process)
+        run: npm run typecheck:electron
       - name: Lint
         run: npm run lint
-      - name: Main-process syntax
-        run: |
-          node --check src/electron/main.cjs
-          node --check src/electron/preload.cjs
-          node --check src/electron/inference.cjs
-          node --check src/main/security/interceptor.cjs
       - name: Regression tests
         run: npm test
       - name: Build

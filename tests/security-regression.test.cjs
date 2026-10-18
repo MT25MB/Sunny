@@ -167,13 +167,19 @@ test('execute-actions honours both block and confirm verdicts (C2 regression)', 
 test('CSP no longer permits Google Fonts (C1 regression)', () => {
   const fs = require('node:fs');
   const path = require('node:path');
+  // CSP moved to csp.cjs for testability
+  const cspSrc = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'electron', 'csp.cjs'),
+    'utf8'
+  );
   const mainSrc = fs.readFileSync(
     path.join(__dirname, '..', 'src', 'electron', 'main.cjs'),
     'utf8'
   );
-  assert.ok(!/fonts\.googleapis\.com/.test(mainSrc), 'CSP must not allow fonts.googleapis.com');
-  assert.ok(!/fonts\.gstatic\.com/.test(mainSrc), 'CSP must not allow fonts.gstatic.com');
-  assert.ok(mainSrc.includes("font-src 'self'"), 'font-src must be self-only');
+
+  assert.ok(!/fonts\.googleapis\.com/.test(cspSrc), 'CSP must not allow fonts.googleapis.com');
+  assert.ok(!/fonts\.gstatic\.com/.test(cspSrc), 'CSP must not allow fonts.gstatic.com');
+  assert.ok(cspSrc.includes("font-src 'self'"), "font-src must be self-only");
 
   const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.css'), 'utf8');
   assert.ok(!css.includes('fonts.googleapis.com'), 'stylesheet must not import from Google Fonts');
@@ -564,5 +570,68 @@ test('a failed model load does not terminate the app', () => {
   assert.ok(
     !/showErrorBox/.test(startupInit),
     'startup model failure must not raise a blocking error dialog'
+  );
+});
+
+test('CSP header rewrite uses the correct object shape (regression for TS2349)', () => {
+  const { withCsp } = require('../src/electron/csp.cjs');
+
+  // Electron's onHeadersReceived gives Record<string, string[]>, not an array.
+  // This test would have caught the TS2349 "filter is not a function" crash.
+  const mixedCaseHeaders = {
+    'Content-Type': ['text/html'],
+    'Content-Security-Policy': ["default-src 'unsafe-inline'"],
+    'X-Custom-Header': ['foo'],
+  };
+
+  const rewritten = withCsp(mixedCaseHeaders);
+
+  // Original CSP removed (case-insensitive match on key)
+  assert.ok(!('Content-Security-Policy' in mixedCaseHeaders) || rewritten['Content-Security-Policy'][0] !== "default-src 'unsafe-inline'");
+  assert.ok(!('content-security-policy' in rewritten), 'CSP key must be removed case-insensitively');
+
+  // Our strict policy inserted
+  assert.ok('Content-Security-Policy' in rewritten, 'our CSP must be present');
+  assert.ok(
+    rewritten['Content-Security-Policy'][0].includes("default-src 'self'"),
+    'policy must be our strict one'
+  );
+
+  // Unrelated headers preserved
+  assert.deepStrictEqual(rewritten['Content-Type'], ['text/html']);
+  assert.deepStrictEqual(rewritten['X-Custom-Header'], ['foo']);
+
+  // Input not mutated
+  assert.ok('Content-Security-Policy' in mixedCaseHeaders, 'input must not be mutated');
+});
+
+test('CSP rewrite handles undefined input gracefully', () => {
+  const { withCsp } = require('../src/electron/csp.cjs');
+  const rewritten = withCsp(undefined);
+  assert.ok('Content-Security-Policy' in rewritten);
+  assert.ok(rewritten['Content-Security-Policy'][0].includes("default-src 'self'"));
+});
+
+test('main process has global error guard', () => {
+  const fs = require('node:fs');
+  const src = fs.readFileSync(
+    require('node:path').join(__dirname, '..', 'src', 'electron', 'main.cjs'),
+    'utf8'
+  );
+
+  // uncaughtException handler prevents Electron's raw "A JavaScript error occurred in the main process" modal
+  assert.ok(
+    /process\.on\(['"]uncaughtException['"]/.test(src),
+    'uncaughtException handler must exist'
+  );
+  // unhandledRejection handler prevents unhandled promise rejections from becoming raw modals
+  assert.ok(
+    /process\.on\(['"]unhandledRejection['"]/.test(src),
+    'unhandledRejection handler must exist'
+  );
+  // Both handlers push a friendly message through the existing model-progress channel
+  assert.ok(
+    /sunny:model-progress/.test(src),
+    'error guard must signal via existing model-progress channel'
   );
 });

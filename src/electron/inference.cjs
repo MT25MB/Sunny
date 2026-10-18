@@ -148,7 +148,6 @@ async function initModel(onProgress) {
         generate: async (inputs, options = {}) => {
           return model.generate(inputs, options);
         },
-        tokenizer,
       };
 
       modelStatus = 'ready';
@@ -196,6 +195,7 @@ async function runVisionInference(prompt, imageBase64) {
     if (!pipeline) {
       await initModel();
     }
+    if (!pipeline) throw new Error('Model not initialized');
     const { model, processor, tokenizer } = pipeline;
     const image = await decodeImage(imageBase64);
 
@@ -213,8 +213,8 @@ async function runVisionInference(prompt, imageBase64) {
 
     const decoded = tokenizer.batch_decode(output, { skip_special_tokens: true });
     const text2 = Array.isArray(decoded) ? decoded[0] : decoded;
-    const answer = typeof text2 === 'string'
-      ? text2.split('Answer:').pop().trim()
+    const answer = typeof text2 === 'string' && text2.length > 0
+      ? text2.split('Answer:').pop()?.trim() ?? ''
       : '';
     return { response: answer };
   } catch (err) {

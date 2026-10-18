@@ -7,6 +7,37 @@ const inference = require('./inference.cjs');
 const { interceptAction, sanitizeUntrustedContent } = require('../main/security/interceptor.cjs');
 
 // ============================================================================
+// Global error guard — never let a main-process throw reach Electron's modal.
+// The renderer already surfaces model errors; a raw dialog with a file path
+// is near-unusable for the target audience. We log and keep the app running.
+// ============================================================================
+process.on('uncaughtException', (err) => {
+  const msg = err instanceof Error ? err.message : String(err);
+  console.error('[FATAL] Uncaught exception:', err);
+  // Surface a friendly message via the existing model-error channel
+  // so the renderer can show it without a hard modal.
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('sunny:model-progress', {
+      status: 'error',
+      progress: 0,
+      message: `Sunny hit an unexpected error: ${msg}`,
+    });
+  }
+});
+
+process.on('unhandledRejection', (reason) => {
+  const msg = reason instanceof Error ? reason.message : String(reason);
+  console.error('[FATAL] Unhandled rejection:', reason);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('sunny:model-progress', {
+      status: 'error',
+      progress: 0,
+      message: `Sunny hit an unexpected error: ${msg}`,
+    });
+  }
+});
+
+// ============================================================================
 // Security Interlocks — System Confirmation for Sensitive Operations
 // ============================================================================
 
@@ -68,8 +99,8 @@ async function confirmSensitiveOperation(operation, description) {
  * Middleware to wrap IPC handlers with security confirmation.
  * @param {string} operation - Operation name (from SENSITIVE_OPERATIONS)
  * @param {string} description - Human-readable description
- * @param {Function} handler - The actual handler function
- * @returns {Function} Wrapped handler
+ * @param {(event: Electron.IpcMainInvokeEvent, ...args: any[]) => Promise<any>} handler - The actual handler function
+ * @returns {(event: Electron.IpcMainInvokeEvent, ...args: any[]) => Promise<any>} Wrapped handler
  */
 function withSecurityConfirmation(operation, description, handler) {
   return async (event, ...args) => {
@@ -216,7 +247,7 @@ function rateLimit(channel) {
   if (hits.length >= RATE_LIMIT_MAX_CALLS) {
     const retrySec = Math.max(1, Math.ceil((RATE_LIMIT_WINDOW_MS - (now - hits[0])) / 1000));
     const err = new Error(`Too many requests. Please wait about ${retrySec} second(s) and try again.`);
-    err.code = 'RATE_LIMITED';
+    Object.defineProperty(err, 'code', { value: 'RATE_LIMITED', enumerable: true });
     throw err;
   }
   hits.push(now);
@@ -1142,30 +1173,17 @@ app.whenReady().then(() => {
   // Load persisted medication reminders
   loadMedicationReminders();
 
-  // Content Security Policy
+  // Content Security Policy — delegated to csp.cjs so it is pure and unit-testable.
+  // The callback is ALWAYS called inside a try/catch; a handler that never
+  // calls back stalls the network stack indefinitely.
+  const { withCsp } = require('./csp.cjs');
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    const csp = [
-      "default-src 'self'",
-      "script-src 'self'",
-      "style-src 'self' 'unsafe-inline'",
-      "font-src 'self'",
-      "img-src 'self' data: https:",
-      // Loopback is allowed because `ollama_endpoint` is user-configurable in
-      // Settings (default http://localhost:11434). Local inference is the
-      // product's headline feature and 'self' does not cover loopback.
-      // Safe here: the renderer is sandboxed with script-src 'self', so only
-      // bundled code can issue these requests.
-      "connect-src 'self' https://www.themealdb.com https://api.open-meteo.com https://api.rss2json.com https://ip-api.com https://html.duckduckgo.com https://api.openai.com https://api.anthropic.com https://api.groq.com http://localhost:* http://127.0.0.1:*",
-      "frame-ancestors 'none'",
-      "base-uri 'self'",
-      "form-action 'self'"
-    ].join('; ');
-    
-    const responseHeaders = details.responseHeaders || [];
-    const filteredHeaders = responseHeaders.filter(h => h.name.toLowerCase() !== 'content-security-policy');
-    filteredHeaders.push({ name: 'Content-Security-Policy', value: csp });
-    
-    callback({ responseHeaders: filteredHeaders });
+    try {
+      callback({ responseHeaders: withCsp(details.responseHeaders) });
+    } catch (err) {
+      console.error('[CSP] Header rewrite failed:', err);
+      callback({ responseHeaders: details.responseHeaders });
+    }
   });
 
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
@@ -1379,13 +1397,13 @@ app.whenReady().then(() => {
   ipcMain.handle('sunny:clear-debug-logs', withSecurityConfirmation(
     'clear_debug_logs',
     'Sunny will clear all debug logs.',
-    () => inference.clearDebugLogs()
+    async () => inference.clearDebugLogs()
   ));
 
   ipcMain.handle('sunny:export-debug-logs', withSecurityConfirmation(
     'export_debug_logs',
     'Sunny will export all debug logs.',
-    () => inference.exportDebugLogs()
+    async () => inference.exportDebugLogs()
   ));
 
   ipcMain.handle('sunny:get-debug-log-count', () => inference.getDebugLogCount());
