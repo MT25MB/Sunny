@@ -1,7 +1,7 @@
 {
   "name": "sunny-desktop",
   "private": true,
-  "version": "1.4.1",
+  "version": "1.5.0",
   "description": "A friendly, accessible AI desktop assistant designed to help seniors navigate computers easily using voice and text.",
   "main": "src/electron/main.cjs",
   "type": "module",

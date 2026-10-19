@@ -40,6 +40,7 @@ import Footer from "@/components/Footer";
 import { SettingsModal } from "@/components/SettingsModal";
 import { OnboardingScreen } from "@/components/OnboardingScreen";
 import { UpdateToast } from "@/components/UpdateToast";
+import { MicButton } from "@/components/MicButton";
 import {
   loadLocalPreferences,
   saveLocalPreferences,
@@ -90,8 +91,19 @@ function App() {
   const loadPreferences = useCallback(async () => {
     const prefs = loadLocalPreferences();
     setPreferences(prefs);
+    // Re-assert them in the main process: it holds no persisted copy, so a
+    // restart would otherwise silently reset every setting to its default.
+    void window.electronAPI?.setPreferences?.(prefs);
     if (!prefs.has_completed_onboarding) {
       setShowOnboarding(true);
+    }
+    // The updater preference lives in the main process so it survives a
+    // cleared localStorage; reflect the stored value, not the default.
+    try {
+      const stored = await window.electronAPI?.getAutoCheckUpdates?.();
+      if (typeof stored === 'boolean') setAutoCheckUpdates(stored);
+    } catch {
+      // Non-fatal: the main process defaults to enabled.
     }
     if (window.sunnyDesktop?.getModelStatus) {
       try {
@@ -114,12 +126,17 @@ function App() {
     const newPrefs = { ...preferences, ...patch };
     setPreferences(newPrefs);
     saveLocalPreferences(newPrefs);
+    // Mirror into the main process. localStorage lives in the renderer, and
+    // the main process is where these settings actually change behaviour, so
+    // without this every toggle was purely decorative.
+    void window.electronAPI?.setPreferences?.(newPrefs);
   }, [preferences]);
 
   const handlePreferencesReset = useCallback(() => {
     const newPrefs = { ...defaultPreferences };
     setPreferences(newPrefs);
     saveLocalPreferences(newPrefs);
+    void window.electronAPI?.setPreferences?.(newPrefs);
   }, []);
 
   const handleOnboardingComplete = useCallback(() => {
@@ -202,6 +219,9 @@ function App() {
 
   const handleAutoCheckUpdatesChange = useCallback((enabled: boolean) => {
     setAutoCheckUpdates(enabled);
+    // Persist to the main process. Setting local state alone left this toggle
+    // decorative: nothing downstream ever read it.
+    void window.electronAPI?.setAutoCheckUpdates?.(enabled);
   }, []);
 
   const handleCheckForUpdates = useCallback(async () => {
@@ -251,7 +271,7 @@ function App() {
         }
         return [...prev, reminder];
       });
-      sunnyBrain.addMessage("system", `?? Medication Reminder: Time to take ${reminder.pillName}!`);
+      sunnyBrain.addMessage("system", `\u{1F48A} Medication Reminder: Time to take ${reminder.pillName}!`);
       sunnyBrain.speakNotification(`Time to take your ${reminder.pillName}!`, "high", 2);
     });
 
@@ -722,6 +742,12 @@ function App() {
                   >
                     <Search size={20} /> {isSearching ? "Searching..." : "Search"}
                   </button>
+                  {preferences.voice_enabled && (
+                    <MicButton
+                      disabled={isSearching}
+                      onTranscript={(text) => setRecipeSearchQuery(text)}
+                    />
+                  )}
                 </form>
 
                 {searchResults.length > 0 && (
@@ -731,8 +757,8 @@ function App() {
                         <div className="recipe-card-header">
                           <h3 className="recipe-title">{recipe.title}</h3>
                           <span className="recipe-meta">
-                            <span>?? {recipe.prepTimeMinutes + recipe.cookTimeMinutes} min</span>
-                            <span>?? {recipe.servings} servings</span>
+                            <span>&#9201; {recipe.prepTimeMinutes + recipe.cookTimeMinutes} min</span>
+                            <span>&#128101; {recipe.servings} servings</span>
                           </span>
                         </div>
                         <div className="recipe-preview">

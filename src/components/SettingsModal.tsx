@@ -447,6 +447,13 @@ export function SettingsModal({
               <span>{preferences.require_sensitive_confirmation ? 'Sensitive actions need approval' : 'Sensitive actions run automatically'}</span>
               <span className="toggle"><span /></span>
             </button>
+            {!preferences.require_sensitive_confirmation && (
+              <p className="settings-warning" role="alert">
+                Sunny will act without asking first — including deleting files, sending
+                messages, and making purchases on the websites you have open. Turn this
+                back on unless you are confident about every task you give it.
+              </p>
+            )}
           </section>
 
           {/* Privacy */}

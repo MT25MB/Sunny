@@ -18,7 +18,7 @@ export const defaultPreferences: SunnyPreferences = {
   execution_speed: 'careful',
   require_sensitive_confirmation: true,
   local_only: true,
-  voice_enabled: false,
+  voice_enabled: true,
   brain_provider: 'embedded',
   brain_model: 'moondream2',
   clarification_level: 'all',

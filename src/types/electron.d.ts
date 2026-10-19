@@ -211,9 +211,6 @@ export interface ElectronAPI {
   /** Whether a specific tool is available. */
   isToolAvailable(toolName: string): Promise<boolean>;
 
-  /** Strip instruction-like content out of untrusted text before display. */
-  sanitizeContent(text: string): Promise<string>;
-
   /** Synchronous tool-name list for code that cannot await. */
   listTools(): string[];
 
@@ -250,6 +247,42 @@ export interface ElectronAPI {
 
   /** Check for updates manually (from Settings). Returns update info if available. */
   checkForUpdates(): Promise<{ success: boolean; updateInfo?: unknown; error?: string }>;
+
+  /**
+   * Start downloading an announced update.
+   * Downloads are opt-in: autoDownload is off so a compromised release
+   * channel cannot install a binary without the user being asked.
+   */
+  downloadUpdate(): Promise<{ success: boolean; error?: string }>;
+
+  /** Whether the app checks for updates automatically. Defaults to true. */
+  getAutoCheckUpdates(): Promise<boolean>;
+
+  /** Persist the "check for updates automatically" preference. */
+  setAutoCheckUpdates(enabled: boolean): Promise<boolean>;
+
+  /**
+   * Push the renderer's preference patch into the main process, which is the
+   * only place that can act on them. Unknown keys and bad values are ignored.
+   */
+  setPreferences(patch: Record<string, unknown>): Promise<Record<string, unknown>>;
+
+  // Voice input
+  // -------------------------------------------------------------------------
+
+  /** Whether local speech-to-text is usable, and its load state. */
+  getSpeechStatus(): Promise<{
+    available: boolean;
+    modelLoaded: boolean;
+    model: string;
+    error: string;
+  }>;
+
+  /**
+   * Transcribe 16 kHz mono PCM locally. Resolves `silent: true` rather than
+   * inventing text when the recording contained nothing.
+   */
+  transcribe(samples: Float32Array): Promise<{ text: string; silent: boolean }>;
 
   /** Quit the app and install the downloaded update. */
   quitAndInstall(): Promise<{ success: boolean }>;

@@ -351,6 +351,17 @@ textarea::placeholder { color: #65747b; }
 .save-indicator svg { color: #71d2a4; }
 
 .settings-section { padding: 20px 0; border-top: 1px solid rgba(255,255,255,.06); }
+
+.settings-warning {
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #f4d0a0;
+  background: rgba(241, 145, 90, 0.12);
+  border: 1px solid rgba(241, 145, 90, 0.4);
+  border-radius: 10px;
+}
 .settings-section:first-child { border-top: 0; padding-top: 20px; }
 .settings-section-title { display: flex; align-items: flex-start; gap: 11px; color: #f1b568; }
 .settings-section-title > span { display: block; }
@@ -1357,6 +1368,91 @@ textarea::placeholder { color: #65747b; }
 .recipe-search-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* --- Voice input ------------------------------------------------------- */
+
+.mic-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+}
+
+.mic-btn {
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #f1b568;
+  border-radius: 50%;
+  background: transparent;
+  color: #f1b568;
+  cursor: pointer;
+  /* Suppress the tap highlight so press-and-hold reads as one gesture. */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+  user-select: none;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+}
+
+.mic-btn:hover:not(:disabled) {
+  background: rgba(241, 181, 104, 0.15);
+}
+
+.mic-btn:active:not(:disabled),
+.mic-btn.recording {
+  background: #f1b568;
+  color: #1a2226;
+  transform: scale(0.94);
+}
+
+.mic-btn.recording {
+  animation: mic-pulse 1.4s ease-in-out infinite;
+}
+
+.mic-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mic-btn.busy {
+  border-style: dashed;
+}
+
+.mic-btn:focus-visible {
+  outline: 3px solid #ffca7e;
+  outline-offset: 3px;
+}
+
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(241, 181, 104, 0.55); }
+  50% { box-shadow: 0 0 0 0.6rem rgba(241, 181, 104, 0); }
+}
+
+.mic-spin {
+  animation: spin 1s linear infinite;
+}
+
+.mic-timer {
+  font-size: 0.95rem;
+  color: #f1b568;
+  font-weight: 600;
+}
+
+.mic-error {
+  font-size: 0.9rem;
+  color: #f4a09c;
+  max-width: 18rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mic-btn.recording,
+  .mic-spin {
+    animation: none;
+  }
 }
 
 .recipe-results {

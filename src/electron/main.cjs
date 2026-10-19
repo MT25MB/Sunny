@@ -4,6 +4,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const { pathToFileURL } = require('node:url');
 const inference = require('./inference.cjs');
+const speech = require('./speech.cjs');
+const { getCredentialPath: resolveCredentialPath } = require('./credential-path.cjs');
 const { interceptAction, sanitizeUntrustedContent } = require('../main/security/interceptor.cjs');
 
 // ============================================================================
@@ -58,7 +60,135 @@ const SENSITIVE_OPERATIONS = new Set([
   'write_debug_log',      // Debug logging
   'clear_debug_logs',     // Clearing debug logs
   'export_debug_logs',    // Exporting debug logs
+  'transcribe_speech',    // Local speech-to-text
 ]);
+
+/**
+ * Runtime preferences, mirrored from the renderer.
+ *
+ * These used to live only in renderer localStorage and were read by nothing,
+ * so every Settings toggle was decorative — most seriously
+ * `require_sensitive_confirmation`, which a user could switch off and still be
+ * prompted for everything.
+ */
+/** @type {{
+ *   require_sensitive_confirmation: boolean,
+ *   clarification_level: 'all'|'destructive-only',
+ *   local_only: boolean,
+ *   execution_speed: 'careful'|'balanced'|'fast',
+ *   brain_provider: 'embedded'|'openai'|'anthropic'|'groq'|'ollama',
+ *   brain_model: string,
+ *   ollama_endpoint: string,
+ *   voice_enabled: boolean,
+ * }} */
+const runtimePreferences = {
+  require_sensitive_confirmation: true,
+  clarification_level: 'all',
+  local_only: true,
+  execution_speed: 'careful',
+  brain_provider: 'embedded',
+  brain_model: 'moondream2',
+  ollama_endpoint: 'http://localhost:11434',
+  voice_enabled: true,
+};
+
+/** Only these keys are accepted, and only with these value shapes. */
+const PREFERENCE_VALIDATORS = {
+  require_sensitive_confirmation: (v) => typeof v === 'boolean',
+  clarification_level: (v) => v === 'all' || v === 'destructive-only',
+  local_only: (v) => typeof v === 'boolean',
+  execution_speed: (v) => v === 'careful' || v === 'balanced' || v === 'fast',
+  brain_provider: (v) => ['embedded', 'openai', 'anthropic', 'groq', 'ollama'].includes(v),
+  brain_model: (v) => typeof v === 'string' && v.length > 0 && v.length <= 64,
+  ollama_endpoint: (v) => typeof v === 'string' && /^https?:\/\/[^\s]+$/i.test(v) && v.length <= 300,
+  voice_enabled: (v) => typeof v === 'boolean',
+};
+
+function applyPreferenceUpdates(patch) {
+  if (!patch || typeof patch !== 'object') return runtimePreferences;
+  for (const [key, value] of Object.entries(patch)) {
+    const validate = PREFERENCE_VALIDATORS[key];
+    // Unknown keys are ignored rather than merged: this channel is reachable
+    // from the renderer, so it must not accept arbitrary state.
+    if (!validate || !validate(value)) continue;
+    runtimePreferences[key] = value;
+  }
+  return runtimePreferences;
+}
+
+/** Reads a stored credential straight from disk; never exposed to the renderer. */
+function readStoredCredential(key) {
+  const filePath = getCredentialPath(key);
+  try {
+    if (!fs.existsSync(filePath)) return '';
+    if (!safeStorage.isEncryptionAvailable()) return '';
+    return safeStorage.decryptString(fs.readFileSync(filePath));
+  } catch (err) {
+    console.error(`[Credentials] Failed to read ${key}:`, err);
+    return '';
+  }
+}
+
+/** Maps a provider to the credential key Settings stores its API key under. */
+const PROVIDER_CREDENTIAL_KEYS = {
+  openai: 'openai_api_key',
+  anthropic: 'anthropic_api_key',
+  groq: 'groq_api_key',
+};
+
+/**
+ * Routes an inference to the provider the user selected in Settings.
+ *
+ * Returns the same `{ response, error? }` shape as inference.runInference so
+ * both callers are unchanged by which provider is active.
+ *
+ * Never falls back to the cloud, and never silently downgrades a screenshot to
+ * a text-only request.
+ *
+ * @returns {Promise<{response: string, error?: string}>}
+ */
+async function runConfiguredInference(guardedPrompt, imageBase64) {
+  const provider = runtimePreferences.brain_provider;
+
+  if (provider === 'embedded') {
+    return inference.runInference(guardedPrompt, imageBase64);
+  }
+
+  const credentialKey = PROVIDER_CREDENTIAL_KEYS[provider];
+  const apiKey = credentialKey ? readStoredCredential(credentialKey) : '';
+
+  if (!apiKey && provider !== 'ollama') {
+    const detail = runtimePreferences.local_only
+      ? ', and local-only mode is on'
+      : '';
+    return {
+      response: '',
+      error:
+        `No API key is saved for ${provider}${detail}. ` +
+        'Add one in Settings or switch the provider back to the built-in model.',
+    };
+  }
+
+  try {
+    const { runProviderInference } = require('./providers.cjs');
+    const response = await runProviderInference({
+      provider,
+      prompt: guardedPrompt,
+      imageBase64,
+      model: runtimePreferences.brain_model,
+      apiKey,
+      endpoint: provider === 'ollama' ? runtimePreferences.ollama_endpoint : undefined,
+    });
+    return { response: String(response ?? '') };
+  } catch (err) {
+    // Providers throw (rather than returning an error field) so the failure
+    // reaches the user as a readable message instead of a silent blank.
+    return {
+      response: '',
+      error: err && err.message ? err.message : 'The selected provider could not be reached.',
+    };
+  }
+}
 
 /**
  * Shows a system confirmation dialog for sensitive operations.
@@ -68,6 +198,13 @@ const SENSITIVE_OPERATIONS = new Set([
  * @returns {Promise<boolean>} - true if user confirmed, false otherwise
  */
 async function confirmSensitiveOperation(operation, description) {
+  // The user can turn confirmations off in Settings. Previously this setting
+  // was stored in the renderer and never consulted, so it did nothing.
+  if (!runtimePreferences.require_sensitive_confirmation) {
+    console.log(`[Security] ${operation}: auto-allowed (confirmations disabled)`);
+    return true;
+  }
+
   if (!mainWindow || mainWindow.isDestroyed()) {
     console.warn(`[Security] No window available for confirmation: ${operation}`);
     return false;
@@ -305,13 +442,54 @@ function getCredentialsDir() {
   return path.join(app.getPath('userData'), 'credentials');
 }
 
+/**
+ * Builds the on-disk path for a credential.
+ *
+ * The key arrives from the renderer, so it goes through credential-path.cjs,
+ * which rejects traversal. Every caller (save, load, delete, and the provider
+ * key lookup) uses this, which is what makes one check enough.
+ */
 function getCredentialPath(key) {
-  return path.join(getCredentialsDir(), `${key}.enc`);
+  return resolveCredentialPath(getCredentialsDir(), key);
 }
 
 function ensureCredentialsDir() {
   const dir = getCredentialsDir();
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+}
+
+// ============================================================================
+// Updater preferences (main-process owned, so they survive a cleared renderer)
+// ============================================================================
+
+function getUpdaterPrefsPath() {
+  return path.join(app.getPath('userData'), 'updater-preferences.json');
+}
+
+/**
+ * Auto-check defaults to true so existing users keep the behaviour they had.
+ * A missing or corrupt file must never silently opt a user out of updates.
+ */
+function isAutoCheckUpdatesEnabled() {
+  try {
+    const filePath = getUpdaterPrefsPath();
+    if (!fs.existsSync(filePath)) return true;
+    const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    return parsed.auto_check_updates !== false;
+  } catch {
+    return true;
+  }
+}
+
+function setAutoCheckUpdatesEnabled(enabled) {
+  try {
+    const filePath = getUpdaterPrefsPath();
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(filePath, JSON.stringify({ auto_check_updates: enabled }, null, 2), 'utf8');
+  } catch (err) {
+    console.error('[Updater] Failed to persist preference:', err);
+  }
 }
 
 // ============================================================================
@@ -444,6 +622,14 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      // The preload runs sandboxed and cannot require('electron'), so the
+      // facts it needs are handed across explicitly. Reading them from env
+      // does not work: Electron never sets NODE_ENV or APP_VERSION for a
+      // packaged build, so both were permanently wrong in production.
+      additionalArguments: [
+        `--sunny-version=${app.getVersion()}`,
+        `--sunny-dev=${String(isDev)}`,
+      ],
     },
   });
 
@@ -1111,9 +1297,14 @@ async function getDailyDigest(location = 'auto', newsCount = 5) {
       const newsData = await newsResponse.json();
       
       if (newsData.items) {
+        // Headlines come from a third-party RSS proxy and are genuinely
+        // untrusted: a compromised feed could otherwise smuggle
+        // instruction-like text into anything Sunny later reads. React escapes
+        // these on render, so this is defence in depth rather than the primary
+        // control.
         news = newsData.items.slice(0, newsCount).map(item => ({
-          title: item.title,
-          summary: (item.description || '').replace(/[<>]/g, '').substring(0, 200),
+          title: sanitizeUntrustedContent(String(item.title || '').slice(0, 200)),
+          summary: sanitizeUntrustedContent(String(item.description || '').replace(/[<>]/g, '').substring(0, 200)),
           url: item.link,
         }));
       }
@@ -1289,15 +1480,21 @@ app.whenReady().then(() => {
   createTray();
 
   // Auto-updater (electron-updater) — checks GitHub Releases for updates
-  if (process.env.NODE_ENV === 'production') {
+  // app.isPackaged, not NODE_ENV: Electron never sets NODE_ENV for a packaged
+  // build, so gating on it left the entire updater dead in production.
+  if (app.isPackaged) {
     try {
       const { autoUpdater } = require('electron-updater');
       const log = require('electron-log');
-      
+
       autoUpdater.logger = log;
-      autoUpdater.autoDownload = true;
+      // Opt-in download, not silent. autoDownload would pull a ~200 MB binary
+      // from GitHub Releases and install it on quit with no prompt, so a
+      // compromised repo account could ship code to every user unnoticed. The
+      // toast asks first instead.
+      autoUpdater.autoDownload = false;
       autoUpdater.autoInstallOnAppQuit = true;
-      
+
       autoUpdater.setFeedURL({
         provider: 'github',
         owner: 'MT25MB',
@@ -1311,18 +1508,18 @@ app.whenReady().then(() => {
           mainWindow.webContents.send('sunny:update-available', info);
         }
       });
-      
+
       autoUpdater.on('update-downloaded', (info) => {
         log.info('Update downloaded:', info.version);
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('sunny:update-downloaded', info);
         }
       });
-      
+
       autoUpdater.on('update-not-available', (info) => {
         log.info('No update available');
       });
-      
+
       autoUpdater.on('error', (err) => {
         log.error('Auto-updater error:', err);
         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1330,13 +1527,18 @@ app.whenReady().then(() => {
         }
       });
 
-      // Check for updates on startup
-      autoUpdater.checkForUpdatesAndNotify().catch(err => log.warn('Update check failed:', err));
+      const runUpdateCheck = () => {
+        autoUpdater.checkForUpdatesAndNotify().catch((err) => log.warn('Update check failed:', err));
+      };
 
-      // Periodic check every 4 hours
-      setInterval(() => {
-        autoUpdater.checkForUpdatesAndNotify().catch(err => log.warn('Periodic update check failed:', err));
+      // Check on startup only if the user left automatic checks on.
+      if (isAutoCheckUpdatesEnabled()) runUpdateCheck();
+
+      // Periodic check every 4 hours, honouring the user's preference.
+      const periodicTimer = setInterval(() => {
+        if (isAutoCheckUpdatesEnabled()) runUpdateCheck();
       }, 4 * 60 * 60 * 1000);
+      if (typeof periodicTimer.unref === 'function') periodicTimer.unref();
 
       // IPC handler for manual update check from Settings
       ipcMain.handle('sunny:check-for-updates', async () => {
@@ -1347,6 +1549,24 @@ app.whenReady().then(() => {
           log.error('Manual update check failed:', err);
           return { success: false, error: err.message };
         }
+      });
+
+      // Start the download the user explicitly asked for in the toast.
+      ipcMain.handle('sunny:download-update', async () => {
+        try {
+          await autoUpdater.downloadUpdate();
+          return { success: true };
+        } catch (err) {
+          log.error('Update download failed:', err);
+          return { success: false, error: err.message };
+        }
+      });
+
+      // Persisted preference, so the Settings toggle is not decorative.
+      ipcMain.handle('sunny:get-auto-check-updates', () => isAutoCheckUpdatesEnabled());
+      ipcMain.handle('sunny:set-auto-check-updates', (_event, enabled) => {
+        setAutoCheckUpdatesEnabled(enabled === true);
+        return isAutoCheckUpdatesEnabled();
       });
 
       // IPC handler for quit and install
@@ -1373,11 +1593,18 @@ app.whenReady().then(() => {
     }
   });
 
+  // Voice input needs the microphone. `media` covers both the audio and video
+  // capture permissions, and nothing else is granted.
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     callback(permission === 'media');
   });
 
-
+  // The request handler alone is not enough: getUserMedia also performs a
+  // synchronous permission check, which Electron routes here. Without it the
+  // microphone is silently denied and voice input fails with no diagnostic.
+  session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
+    return permission === 'media';
+  });
 
 // --- Screen capture & model -------------------------------------------
   ipcMain.handle('sunny:capture-screen', withSecurityConfirmation(
@@ -1398,7 +1625,7 @@ app.whenReady().then(() => {
       const base64Image = image.replace(/^data:image\/[^;]+;base64,/, '');
       // Apply system guardrail to prevent prompt injection
       const guardedPrompt = withSystemGuardrail(prompt);
-      const result = await inference.runInference(guardedPrompt, base64Image);
+      const result = await runConfiguredInference(guardedPrompt, base64Image);
       if (result.error) throw new Error(result.error);
       return { response: result.response };
     }
@@ -1414,7 +1641,9 @@ app.whenReady().then(() => {
       const prompt = requireString(box.prompt, 'prompt');
       // Apply system guardrail to prevent prompt injection
       const guardedPrompt = withSystemGuardrail(prompt);
-      const result = await inference.runInference(guardedPrompt, null);
+      // Routed to whichever provider the user chose in Settings, not always
+      // the local model.
+      const result = await runConfiguredInference(guardedPrompt, null);
       if (result.error) throw new Error(result.error);
       return { response: result.response };
     }
@@ -1499,6 +1728,41 @@ app.whenReady().then(() => {
     return !!(mainWindow && !mainWindow.isDestroyed() && mainWindow.isAlwaysOnTop());
   });
 
+  // --- Voice input -------------------------------------------------------
+  // Audio is captured and resampled to 16 kHz mono in the renderer, then
+  // structured-cloned across as a Float32Array. Transcription is local (see
+  // speech.cjs); the audio is never written to disk.
+  ipcMain.handle('sunny:get-speech-status', (event) => {
+    assertTrustedSender(event);
+    return speech.getAsrStatus();
+  });
+
+  ipcMain.handle('sunny:transcribe', withSecurityConfirmation(
+    'transcribe_speech',
+    'Sunny will transcribe the recording on your computer. The audio never leaves this machine.',
+    async (event, samples) => {
+      assertTrustedSender(event);
+      rateLimit('sunny:transcribe');
+      if (!ArrayBuffer.isView(samples) && !(samples instanceof Float32Array)) {
+        throw new Error('Audio samples must be a Float32Array.');
+      }
+      const result = await speech.transcribe(
+        samples instanceof Float32Array ? samples : new Float32Array(samples.buffer ?? samples),
+      );
+      return { text: result.text, silent: result.silent };
+    }
+  ));
+
+  // --- Renderer preferences ---------------------------------------------
+  // The renderer holds the same values in localStorage for its UI, but the
+  // main process is the only place that can act on them. Before this the
+  // Settings toggles were stored and never read.
+  ipcMain.handle('sunny:set-preferences', (event, patch) => {
+    assertTrustedSender(event);
+    rateLimit('sunny:set-preferences');
+    return applyPreferenceUpdates(patch);
+  });
+
   // --- Model lifecycle ---------------------------------------------------
   ipcMain.handle('sunny:get-model-status', (event) => {
     assertTrustedSender(event);
@@ -1569,9 +1833,6 @@ app.whenReady().then(() => {
       reminder.takenOn = today;
       medicationReminders.set(reminderId, reminder);
       saveMedicationReminders();
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('sunny:medication-reminder-updated', reminder);
-      }
       return { success: true };
     }
     throw new Error('Reminder not found');
@@ -1630,19 +1891,6 @@ app.whenReady().then(() => {
   ));
 
   ipcMain.handle('sunny:get-debug-log-count', () => inference.getDebugLogCount());
-
-  // --- Content sanitisation ---------------------------------------------
-  ipcMain.handle('sunny:sanitize-content', (event, text) => {
-    assertTrustedSender(event);
-    if (typeof text !== 'string') {
-      throw new Error('Input must be a string.');
-    }
-    const byteLength = Buffer.byteLength(text, 'utf8');
-    if (byteLength > MAX_PAYLOAD_BYTES) {
-      throw new Error(`Input too large (${byteLength} bytes, limit ${MAX_PAYLOAD_BYTES}).`);
-    }
-    return sanitizeUntrustedContent(text);
-  });
 
   // --- Encrypted credentials --------------------------------------------
   ipcMain.handle('sunny:save-credential', withSecurityConfirmation(

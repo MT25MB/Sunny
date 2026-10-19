@@ -51,7 +51,6 @@ type SunnyDesktop = {
   initModel: () => Promise<ModelStatus>;
   onModelProgress: (callback: (status: ModelStatus) => void) => () => void;
   writeDebugLog: (entry: unknown) => Promise<{ success: boolean }>;
-  sanitizeContent: (text: string) => Promise<string>;
   clearDebugLogs: () => Promise<{ success: boolean }>;
   exportDebugLogs: () => Promise<{ content: string }>;
   getDebugLogCount: () => Promise<{ count: number }>;

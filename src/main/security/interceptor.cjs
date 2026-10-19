@@ -11,13 +11,47 @@ const BLOCKED_COMMAND_PATTERNS = [
   /\bshutdown\b/i, /\breboot\b/i, /\bmkfs\b/i, /\bdd\b\s+if=/i,
   /\bchmod\b/i, /\bchown\b/i, /\bkillall\b/i, /\btaskkill\b/i,
   /\breg\s+delete\b/i, /\bregedit\b/i, /\bnet\s+user\b/i,
-  /\bnet\s+localgroup\b/i, /\bat\s+\d/i, /\bschtasks\b/i,
+  /\bnet\s+localgroup\b/i, /\bat\s+\d{1,2}:\d{2}\s+\//i, /\bschtasks\b/i,
   /\bcron\b/i, /\bsystemctl\b/i,
   /\bservice\s+(stop|delete|disable)\b/i, /\bftp\b\s+/i,
   /\bscp\b\s+/i, /\bwget\b\s+/i,
   /\bcurl\b.*\|\s*(sh|bash|python|perl)/i, /\bnohup\b/i,
   /\bhistory\s+-c\b/i, /\bexport\s+(PATH|LD_LIBRARY_PATH|DYLD)/i,
 ];
+
+/**
+ * English function words. Their density distinguishes a sentence from a
+ * command line.
+ *
+ * The blocked patterns above match bare command names, so applied literally to
+ * every string Sunny types they also fire on ordinary speech: "call the doctor
+ * at 3pm", "format the letter", "set up a cron schedule". Hard-blocking a user
+ * for typing a sentence is the worst possible failure for this policy, so a
+ * blocked pattern only applies to text that is genuinely command-shaped.
+ */
+const PROSE_WORDS =
+  /\b(?:i|me|my|mine|you|your|yours|we|our|he|she|they|them|it|its|the|a|an|and|or|but|so|to|of|in|on|at|for|with|from|by|as|is|are|was|were|be|been|am|do|does|did|can|could|will|would|should|shall|may|might|must|please|need|want|like|call|email|write|make|get|tell|show|find|help|know|think|when|what|where|which|who|why|how|then|than|about|after|before|also|very|really|just|still|even|some|any|there|here|now|today|tomorrow|set|up|out|again|more|less|later|tonight|schedule|remind|bring|read|look|thank|please)\b/gi;
+
+/** True when the text reads as a sentence rather than a command line. */
+function looksLikeProse(text) {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  // A single token is a command, not prose.
+  if (words.length < 2) return false;
+  const hits = (text.match(PROSE_WORDS) || []).length;
+  return hits >= 2;
+}
+
+/**
+ * A command position: the very start of the text, or right after something
+ * that chains commands (`&&`, `||`, `;`, `|`, `$`, a newline, or a prompt).
+ * "rm" here is a shell command; "the rm button" is not.
+ */
+const COMMAND_POSITION = /(?:^|[;&|$\n>]\s*)\S/;
+
+function isCommandShaped(text) {
+  if (looksLikeProse(text)) return false;
+  return COMMAND_POSITION.test(text.trim());
+}
 
 const FILE_DELETION_PATTERNS = [
   /\b(delete|remove|trash|erase|wipe|shred)\b/i, /\bmove\s+to\s+trash\b/i,
@@ -78,13 +112,62 @@ function interceptAction(action) {
   if (typeof a.type !== 'string') return { verdict: 'block', reason: 'Action has no type field.' };
 
   switch (a.type) {
-    case 'screenshot': case 'wait': case 'move': case 'scroll': case 'click':
-      return { verdict: 'allow', reason: 'Safe action.' };
+    case 'screenshot': case 'wait': return { verdict: 'allow', reason: 'Safe action.' };
+    // Coordinates matter differently per action: `move` must have them to do
+    // anything, while `click` acts on the cursor's current position and may
+    // legitimately omit them. Either way, numbers that are present must be
+    // real numbers — `Number.isFinite` is used instead of a truthiness check
+    // because the string "NaN" is truthy and `{ x: 'NaN' }` used to be
+    // reported as a safe action.
+    case 'click': return interceptPoint(a, false);
+    case 'move': return interceptPoint(a, true);
+    case 'scroll': return interceptScroll(a);
     case 'key': return interceptKey(a);
     case 'type': return interceptType(a);
     case 'open_app': return interceptOpenApp(a);
     default: return { verdict: 'block', reason: `Unknown action type: "${a.type}".` };
   }
+}
+
+/**
+ * Validates a coordinate pair.
+ *
+ * Rejects non-numbers and clamps to sane bounds so a hallucinated coordinate
+ * cannot fling the pointer off into space.
+ */
+const MAX_COORDINATE = 100_000;
+
+function hasValidCoords(a, required) {
+  if (a.x === undefined && a.y === undefined) return !required;
+  if (a.x === undefined || a.y === undefined) return false;
+  if (typeof a.x !== 'number' || typeof a.y !== 'number') return false;
+  if (!Number.isFinite(a.x) || !Number.isFinite(a.y)) return false;
+  return a.x >= 0 && a.y >= 0 && a.x <= MAX_COORDINATE && a.y <= MAX_COORDINATE;
+}
+
+function interceptPoint(a, required) {
+  if (!hasValidCoords(a, required)) {
+    return {
+      verdict: 'block',
+      reason: required
+        ? 'Action is missing usable coordinates.'
+        : 'Action has invalid coordinates.',
+    };
+  }
+  return { verdict: 'allow', reason: 'Safe action.' };
+}
+
+function interceptScroll(a) {
+  if (a.amount === undefined || a.amount === null) {
+    return { verdict: 'block', reason: 'Scroll action has no amount.' };
+  }
+  if (typeof a.amount !== 'number' || !Number.isFinite(a.amount)) {
+    return { verdict: 'block', reason: 'Scroll amount is not a number.' };
+  }
+  if (Math.abs(a.amount) > MAX_COORDINATE) {
+    return { verdict: 'block', reason: 'Scroll amount is unreasonably large.' };
+  }
+  return { verdict: 'allow', reason: 'Safe action.' };
 }
 
 function interceptKey(a) {
@@ -115,7 +198,12 @@ function interceptType(a) {
   const text = a.text;
 
   for (const p of BLOCKED_COMMAND_PATTERNS) {
-    if (p.test(text)) return { verdict: 'block', reason: `Blocked: text matches dangerous command pattern.`, confirmLabel: 'Blocked command', confirmReason: `Sunny detected a dangerous command in the text it was about to type: "${text.slice(0, 80)}". This was blocked.` };
+    // Only command-shaped text is hard-blocked; the same word inside a
+    // sentence falls through to the confirm groups below, which is the right
+    // level for "delete the old photos".
+    if (p.test(text) && isCommandShaped(text)) {
+      return { verdict: 'block', reason: `Blocked: text matches dangerous command pattern.`, confirmLabel: 'Blocked command', confirmReason: `Sunny detected a dangerous command in the text it was about to type: "${text.slice(0, 80)}". This was blocked.` };
+    }
   }
   const confirmGroups = [
     { patterns: FILE_DELETION_PATTERNS, label: 'Delete files', reason: 'Sunny is about to type text that could delete files or data. Deleted items may not be recoverable.' },

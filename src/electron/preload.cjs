@@ -21,6 +21,12 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
+/** Reads a `--flag=value` argument the main process passed via additionalArguments. */
+function readMainArg(prefix) {
+  const hit = process.argv.find((arg) => arg.startsWith(prefix));
+  return hit ? hit.slice(prefix.length) : '';
+}
+
 /** Names of every tool the main process will execute. Mirrors main.cjs. */
 const SUNNY_TOOLS = ['get_system_status', 'speak_notification', 'search_recipe', 'get_daily_digest', 'schedule_medication_reminder', 'emit_cooking_step'];
 
@@ -267,13 +273,27 @@ const electronAPI = {
     return ipcRenderer.invoke('sunny:is-tool-available', toolName);
   },
 
-  sanitizeContent: async (text) => {
-    if (typeof text !== 'string') return '';
-    return ipcRenderer.invoke('sunny:sanitize-content', text);
-  },
-
   /** Check for updates manually (from Settings) */
   checkForUpdates: async () => ipcRenderer.invoke('sunny:check-for-updates'),
+
+  /** Start the download for an update the user was told about. */
+  downloadUpdate: async () => ipcRenderer.invoke('sunny:download-update'),
+
+  /** Persisted "check automatically" preference. */
+  getAutoCheckUpdates: async () => ipcRenderer.invoke('sunny:get-auto-check-updates'),
+  setAutoCheckUpdates: async (enabled) => ipcRenderer.invoke('sunny:set-auto-check-updates', enabled),
+
+  /** Mirror Settings preferences into the main process, which acts on them. */
+  setPreferences: async (patch) => ipcRenderer.invoke('sunny:set-preferences', patch),
+
+  /**
+   * Voice input. Audio is captured and resampled to 16 kHz mono in the
+   * renderer, then transcribed locally. Electron's IPC structured-clones the
+   * typed array across; the buffer is never written to disk.
+   */
+  getSpeechStatus: async () => ipcRenderer.invoke('sunny:get-speech-status'),
+
+  transcribe: async (samples) => ipcRenderer.invoke('sunny:transcribe', samples),
 
   /** Quit and install downloaded update */
   quitAndInstall: async () => ipcRenderer.invoke('sunny:quit-and-install'),
@@ -307,8 +327,11 @@ const electronAPI = {
   // -------------------------------------------------------------------------
 
   platform: process.platform,
-  appVersion: process.env.APP_VERSION || '0.0.0',
-  isDev: !process.env.NODE_ENV || process.env.NODE_ENV === 'development',
+  // Supplied by the main process via webPreferences.additionalArguments.
+  // Reading NODE_ENV / APP_VERSION from env returned '0.0.0' and `true` in
+  // every packaged build, because Electron sets neither.
+  appVersion: readMainArg('--sunny-version=') || '0.0.0',
+  isDev: readMainArg('--sunny-dev=') === 'true',
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
@@ -361,8 +384,6 @@ contextBridge.exposeInMainWorld('sunnyDesktop', {
   },
 
   writeDebugLog: (entry) => ipcRenderer.invoke('sunny:write-debug-log', entry),
-
-  sanitizeContent: (text) => ipcRenderer.invoke('sunny:sanitize-content', text),
 
   clearDebugLogs: () => ipcRenderer.invoke('sunny:clear-debug-logs'),
 
