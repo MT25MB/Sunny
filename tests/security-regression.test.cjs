@@ -265,8 +265,11 @@ test('execute-actions honours both block and confirm verdicts (C2 regression)', 
     path.join(__dirname, '..', 'src', 'electron', 'main.cjs'),
     'utf8'
   );
+  // Bounded generously: the lazy match stops at the first "\n  ));" so a
+  // tighter window only makes this test fail when the handler legitimately
+  // grows, which is how it broke when clarification support was added.
   const handler = mainSrc.match(
-    /ipcMain\.handle\('sunny:execute-actions',[\s\S]{0,1600}?\n  \)\);/
+    /ipcMain\.handle\('sunny:execute-actions',[\s\S]{0,8000}?\n  \)\);/
   );
   assert.ok(handler, 'sunny:execute-actions handler must exist');
   assert.ok(handler[0].includes("verdict === 'block'"), 'must block denied actions');
@@ -920,6 +923,54 @@ test('renderer exposes window chrome and a draggable title bar', () => {
   assert.ok(/handleToggleAlwaysOnTop/.test(appSrc), 'always-on-top must be toggleable');
 });
 
+test('clarification-level preference gates the ambiguity check', () => {
+  const { checkParameterAmbiguity, DESTRUCTIVE_TEXT_PATTERN } = require('../src/main/security/interceptor.cjs');
+
+  // checkParameterAmbiguity has always existed but nothing called it, so the
+  // clarification_level toggle decided nothing.
+  assert.equal(typeof checkParameterAmbiguity, 'function', 'must be callable');
+
+  // Under-specified actions must be detectable.
+  const ambiguous = [
+    { type: 'type', text: '   ' },
+    { type: 'open_app', app: '' },
+    { type: 'key', key: '' },
+    { type: 'move', x: 'NaN', y: 5 },
+    { type: 'scroll' },
+  ];
+  for (const action of ambiguous) {
+    assert.equal(
+      checkParameterAmbiguity(action).isAmbiguous,
+      true,
+      `must flag as ambiguous: ${JSON.stringify(action)}`
+    );
+  }
+
+  // ...and well-specified ones must not be, or every action prompts.
+  for (const action of [
+    { type: 'type', text: 'hello' },
+    { type: 'open_app', app: 'notepad' },
+    { type: 'key', key: 'Enter' },
+    { type: 'move', x: 5, y: 5 },
+    { type: 'click' },
+  ]) {
+    assert.equal(
+      checkParameterAmbiguity(action).isAmbiguous,
+      false,
+      `must not flag a complete action: ${JSON.stringify(action)}`
+    );
+  }
+
+  // The destructive-text matcher is shared with the interceptor's own confirm
+  // policy, so 'destructive-only' cannot drift from what is actually risky.
+  for (const text of ['delete the photos', 'remove my documents', 'empty the recycle bin']) {
+    assert.equal(DESTRUCTIVE_TEXT_PATTERN.test(text), true, `must be destructive: ${text}`);
+  }
+  for (const text of ['what is the weather', 'open the browser']) {
+    assert.equal(DESTRUCTIVE_TEXT_PATTERN.test(text), false, `must not be destructive: ${text}`);
+  }
+});
+
 test('microphone permission is granted for voice input (voice regression)', () => {
   const fs = require('node:fs');
   const path = require('node:path');
@@ -977,6 +1028,24 @@ test('voice preferences are mirrored into the main process, not just stored', ()
       `${key} must be read by the main process`
     );
   }
+
+  // Each must be read, not merely named: assert the read sites exist.
+  assert.ok(
+    /runtimePreferences\.require_sensitive_confirmation/.test(mainSrc),
+    'require_sensitive_confirmation must gate the confirmation dialog'
+  );
+  assert.ok(
+    /runtimePreferences\.brain_provider/.test(mainSrc),
+    'brain_provider must route inference'
+  );
+  assert.ok(
+    /runtimePreferences\.clarification_level/.test(mainSrc),
+    'clarification_level must decide when to ask for clarification'
+  );
+  assert.ok(
+    /checkParameterAmbiguity\(/.test(mainSrc),
+    'clarification_level must actually call the ambiguity check'
+  );
 
   // The renderer must push changes across, not only write localStorage.
   assert.ok(

@@ -6,7 +6,7 @@ const { pathToFileURL } = require('node:url');
 const inference = require('./inference.cjs');
 const speech = require('./speech.cjs');
 const { getCredentialPath: resolveCredentialPath } = require('./credential-path.cjs');
-const { interceptAction, sanitizeUntrustedContent } = require('../main/security/interceptor.cjs');
+const { interceptAction, sanitizeUntrustedContent, checkParameterAmbiguity, DESTRUCTIVE_TEXT_PATTERN } = require('../main/security/interceptor.cjs');
 
 // ============================================================================
 // Global error guard — never let a main-process throw reach Electron's modal.
@@ -197,6 +197,36 @@ async function runConfiguredInference(guardedPrompt, imageBase64) {
  * @param {string} description - Human-readable description of what will happen
  * @returns {Promise<boolean>} - true if user confirmed, false otherwise
  */
+/**
+ * Whether to run the ambiguity check on an action, per the user's
+ * `clarification_level` preference.
+ *
+ * 'all' checks everything, which suits a first-time user who would rather be
+ * asked than have Sunny guess. 'destructive-only' restricts the question to
+ * actions that could destroy something, so routine navigation stays silent.
+ * Defaulting to the cautious end matters here: this app is used by people who
+ * are not going to notice a wrong guess.
+ */
+function shouldClarify(action) {
+  if (runtimePreferences.clarification_level === 'all') return true;
+
+  const type = action && action.type;
+  if (type === 'key') {
+    // Delete/Backspace and the quit shortcuts are the destructive ones; the
+    // interceptor already confirms those, so only the ambiguous remainder is
+    // left to clarify.
+    const key = typeof action.key === 'string' ? action.key.trim() : '';
+    return key === 'Delete' || key === 'Backspace';
+  }
+  if (type === 'type') {
+    return DESTRUCTIVE_TEXT_PATTERN.test(action.text ?? '');
+  }
+  if (type === 'open_app') {
+    return ['email', 'mail'].includes(String(action.app ?? '').toLowerCase());
+  }
+  return false;
+}
+
 async function confirmSensitiveOperation(operation, description) {
   // The user can turn confirmations off in Settings. Previously this setting
   // was stored in the renderer and never consulted, so it did nothing.
@@ -1671,6 +1701,20 @@ app.whenReady().then(() => {
           );
           if (!confirmed) {
             throw new Error('Security confirmation denied for confirm_action');
+          }
+        }
+
+        // The clarification-level preference. An action that is merely
+        // well-formed can still be under-specified — "click" says nothing
+        // about where. This setting was rendered and stored but never read,
+        // so Sunny silently guessed. Now it decides how often to ask.
+        if (shouldClarify(action)) {
+          const { isAmbiguous, question } = checkParameterAmbiguity(action);
+          if (isAmbiguous) {
+            const clarified = await confirmSensitiveOperation('clarify_action', question);
+            if (!clarified) {
+              throw new Error(`Sunny stopped: ${question}`);
+            }
           }
         }
       }

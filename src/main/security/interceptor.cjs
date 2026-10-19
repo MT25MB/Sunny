@@ -57,6 +57,17 @@ const FILE_DELETION_PATTERNS = [
   /\b(delete|remove|trash|erase|wipe|shred)\b/i, /\bmove\s+to\s+trash\b/i,
   /\bempty\s+(the\s+)?(recycle|trash)\b/i, /\brm\s+/i, /\bdel\s+/i,
 ];
+/**
+ * Text that could destroy something, as a single matcher.
+ *
+ * Exported so the clarification-level setting decides destructiveness with the
+ * same rules the interceptor confirms on, rather than a second, drifting copy.
+ */
+const DESTRUCTIVE_TEXT_PATTERN = new RegExp(
+  FILE_DELETION_PATTERNS.map((p) => p.source).join('|'),
+  'i'
+);
+
 const EMAIL_SEND_PATTERNS = [
   /\b(send|reply|forward|compose)\b.*\b(email|mail|message|inbox)/i,
   /\bmailto:/i, /\bsend\s+(it|now|this)/i, /\bclick\s+send\b/i,
@@ -254,4 +265,9 @@ function checkParameterAmbiguity(action) {
   return { isAmbiguous: false, question: '' };
 }
 
-module.exports = { interceptAction, sanitizeUntrustedContent, checkParameterAmbiguity };
+module.exports = {
+  interceptAction,
+  sanitizeUntrustedContent,
+  checkParameterAmbiguity,
+  DESTRUCTIVE_TEXT_PATTERN,
+};
