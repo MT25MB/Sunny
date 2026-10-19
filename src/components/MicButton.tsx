@@ -105,7 +105,12 @@ export function MicButton({ onTranscript, disabled }: MicButtonProps) {
   }, [release, onTranscript]);
 
   const start = useCallback(async () => {
-    if (disabled || phase === "transcribing" || phase === "unavailable") return;
+    // Guard recording too: Space/Enter auto-repeat fires onKeyDown on
+    // every tick while held, and between the first keydown's setPhase
+    // and the re-render this closure still sees phase === "idle".
+    // Without this each repeat spawns a second getUserMedia +
+    // MediaRecorder and orphans the first mic track.
+    if (disabled || phase === "transcribing" || phase === "unavailable" || phase === "recording") return;
     setError("");
 
     if (!navigator.mediaDevices?.getUserMedia) {

@@ -46,7 +46,7 @@ jobs:
           # FATAL:sandbox/linux/suid/suid_sandbox_host.cc before the window
           # opens otherwise. Without this the app dies before Playwright
           # attaches and the whole job fails.
-          ./sunny-desktop --no-sandbox &
+          ./sunny-desktop --no-sandbox --remote-debugging-port=9222 &
           APP_PID=$!
           # Wait for app to be ready (model load + window)
           sleep 10

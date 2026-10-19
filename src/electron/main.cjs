@@ -1401,7 +1401,10 @@ function startMedicationChecker() {
   medicationCheckInterval = setInterval(() => {
     const now = new Date();
     const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    const today = now.toISOString().split('T')[0];
+    // Local date, not UTC: reminder times are compared against local
+    // getHours()/getMinutes() below, so the taken-reset boundary must
+    // use the same clock or it drifts by the UTC offset.
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
     for (const [id, reminder] of medicationReminders.entries()) {
       if (!reminder.enabled) continue;
@@ -1571,7 +1574,9 @@ app.whenReady().then(() => {
       if (typeof periodicTimer.unref === 'function') periodicTimer.unref();
 
       // IPC handler for manual update check from Settings
-      ipcMain.handle('sunny:check-for-updates', async () => {
+      ipcMain.handle('sunny:check-for-updates', async (event) => {
+        assertTrustedSender(event);
+        rateLimit('sunny:check-for-updates');
         try {
           const result = await autoUpdater.checkForUpdates();
           return { success: true, updateInfo: result?.updateInfo };
@@ -1582,7 +1587,9 @@ app.whenReady().then(() => {
       });
 
       // Start the download the user explicitly asked for in the toast.
-      ipcMain.handle('sunny:download-update', async () => {
+      ipcMain.handle('sunny:download-update', async (event) => {
+        assertTrustedSender(event);
+        rateLimit('sunny:download-update');
         try {
           await autoUpdater.downloadUpdate();
           return { success: true };
@@ -1593,14 +1600,22 @@ app.whenReady().then(() => {
       });
 
       // Persisted preference, so the Settings toggle is not decorative.
-      ipcMain.handle('sunny:get-auto-check-updates', () => isAutoCheckUpdatesEnabled());
-      ipcMain.handle('sunny:set-auto-check-updates', (_event, enabled) => {
+      ipcMain.handle('sunny:get-auto-check-updates', (event) => {
+        assertTrustedSender(event);
+        rateLimit('sunny:get-auto-check-updates');
+        return isAutoCheckUpdatesEnabled();
+      });
+      ipcMain.handle('sunny:set-auto-check-updates', (event, enabled) => {
+        assertTrustedSender(event);
+        rateLimit('sunny:set-auto-check-updates');
         setAutoCheckUpdatesEnabled(enabled === true);
         return isAutoCheckUpdatesEnabled();
       });
 
       // IPC handler for quit and install
-      ipcMain.handle('sunny:quit-and-install', async () => {
+      ipcMain.handle('sunny:quit-and-install', async (event) => {
+        assertTrustedSender(event);
+        rateLimit('sunny:quit-and-install');
         autoUpdater.quitAndInstall(false, true);
         return { success: true };
       });
@@ -1649,6 +1664,7 @@ app.whenReady().then(() => {
     async (event, payload) => {
       rateLimit('sunny:analyze-screen');
       assertTrustedSender(event);
+      assertPayloadSize(payload, 'screen analysis payload');
       const box = requirePlainObject(payload, 'payload');
       const prompt = requireString(box.prompt, 'prompt');
       const image = requireString(box.image, 'image');
@@ -1667,6 +1683,7 @@ app.whenReady().then(() => {
     async (event, payload) => {
       rateLimit('sunny:decide-action');
       assertTrustedSender(event);
+      assertPayloadSize(payload, 'decision payload');
       const box = requirePlainObject(payload, 'payload');
       const prompt = requireString(box.prompt, 'prompt');
       // Apply system guardrail to prevent prompt injection
@@ -1810,8 +1827,8 @@ app.whenReady().then(() => {
   // --- Model lifecycle ---------------------------------------------------
   ipcMain.handle('sunny:get-model-status', (event) => {
     assertTrustedSender(event);
-    rateLimit('sunny:get-system-status');
-    return withTimeout(buildSystemStatus(), TOOL_CALL_TIMEOUT_MS, 'The system check took too long and was stopped.');
+    rateLimit('sunny:get-model-status');
+    return inference.getModelStatus();
   });
 
   ipcMain.handle('sunny:init-model', withSecurityConfirmation(
@@ -1934,7 +1951,11 @@ app.whenReady().then(() => {
     async () => inference.exportDebugLogs()
   ));
 
-  ipcMain.handle('sunny:get-debug-log-count', () => inference.getDebugLogCount());
+  ipcMain.handle('sunny:get-debug-log-count', (event) => {
+    assertTrustedSender(event);
+    rateLimit('sunny:get-debug-log-count');
+    return inference.getDebugLogCount();
+  });
 
   // --- Encrypted credentials --------------------------------------------
   ipcMain.handle('sunny:save-credential', withSecurityConfirmation(

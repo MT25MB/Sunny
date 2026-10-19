@@ -1,7 +1,7 @@
 {
   "name": "sunny-desktop",
   "private": true,
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "A friendly, accessible AI desktop assistant designed to help seniors navigate computers easily using voice and text.",
   "main": "src/electron/main.cjs",
   "type": "module",
@@ -39,6 +39,7 @@
     "@eslint/js": "^9.9.1",
     "@nut-tree-fork/nut-js": "^4.2.6",
     "@tailwindcss/postcss": "^4.3.3",
+    "playwright": "^1.49.0",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^5.0.0",

@@ -45,6 +45,9 @@ export function UpdateToast({ onRestart }: UpdateToastProps) {
   // Downloads are opt-in, so the toast asks before anything is fetched.
   const handleDownload = () => {
     if (!window.electronAPI?.downloadUpdate) return;
+    // Guard against double-clicks: the button only disappears on
+    // re-render, so two rapid taps would fire downloadUpdate twice.
+    if (phase === 'downloading') return;
     setPhase('downloading');
     void window.electronAPI.downloadUpdate().then((result) => {
       if (!result?.success) {
