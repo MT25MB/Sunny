@@ -34,18 +34,24 @@ jobs:
         run: npm run package:linux
 
       - name: Install Playwright
-        run: npx playwright install --with-deps chromium
+        run: |
+          sudo apt-get update && sudo apt-get install -y xvfb
+          npx playwright install --with-deps chromium
 
       - name: Launch Sunny & capture screenshots
         env:
           CAPTURE_SCREENSHOTS: 'true'
+          DISPLAY: ':99'
         run: |
           cd out/Sunny-linux-x64
-          # --no-sandbox is required in a CI container: the runner provides no
-          # root-owned chrome-sandbox SUID helper, and Electron aborts with
-          # FATAL:sandbox/linux/suid/suid_sandbox_host.cc before the window
-          # opens otherwise. Without this the app dies before Playwright
-          # attaches and the whole job fails.
+          # The runner is headless; without a display Electron aborts with
+          # "Missing X server or $DISPLAY" during platform init and the CDP
+          # port never opens. Xvfb provides a virtual one. --no-sandbox is
+          # also required: the runner exposes no root-owned chrome-sandbox
+          # SUID helper, which would abort with
+          # FATAL:sandbox/linux/suid/suid_sandbox_host.cc.
+          Xvfb :99 -screen 0 1280x720x24 -nolisten tcp &
+          sleep 1
           ./sunny-desktop --no-sandbox --remote-debugging-port=9222 &
           APP_PID=$!
           # Wait for app to be ready (model load + window)
