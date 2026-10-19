@@ -67,6 +67,11 @@ export default {
     asar: { unpack: UNPACK_PATTERNS.join(',') },
     extraResource: ['public/assets/mascot.png'],
     osxSign: undefined,
+    publish: {
+      provider: 'github',
+      owner: 'MT25MB',
+      repo: 'Sunny',
+    },
     ignore: [
       /^\/\.bolt$/,
       /^\/supabase$/,

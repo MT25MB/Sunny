@@ -1288,6 +1288,78 @@ app.whenReady().then(() => {
   // after the user closes it.
   createTray();
 
+  // Auto-updater (electron-updater) — checks GitHub Releases for updates
+  if (process.env.NODE_ENV === 'production') {
+    try {
+      const { autoUpdater } = require('electron-updater');
+      const log = require('electron-log');
+      
+      autoUpdater.logger = log;
+      autoUpdater.autoDownload = true;
+      autoUpdater.autoInstallOnAppQuit = true;
+      
+      autoUpdater.setFeedURL({
+        provider: 'github',
+        owner: 'MT25MB',
+        repo: 'Sunny',
+      });
+
+      // Forward update events to renderer
+      autoUpdater.on('update-available', (info) => {
+        log.info('Update available:', info.version);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('sunny:update-available', info);
+        }
+      });
+      
+      autoUpdater.on('update-downloaded', (info) => {
+        log.info('Update downloaded:', info.version);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('sunny:update-downloaded', info);
+        }
+      });
+      
+      autoUpdater.on('update-not-available', (info) => {
+        log.info('No update available');
+      });
+      
+      autoUpdater.on('error', (err) => {
+        log.error('Auto-updater error:', err);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('sunny:update-error', err.message);
+        }
+      });
+
+      // Check for updates on startup
+      autoUpdater.checkForUpdatesAndNotify().catch(err => log.warn('Update check failed:', err));
+
+      // Periodic check every 4 hours
+      setInterval(() => {
+        autoUpdater.checkForUpdatesAndNotify().catch(err => log.warn('Periodic update check failed:', err));
+      }, 4 * 60 * 60 * 1000);
+
+      // IPC handler for manual update check from Settings
+      ipcMain.handle('sunny:check-for-updates', async () => {
+        try {
+          const result = await autoUpdater.checkForUpdates();
+          return { success: true, updateInfo: result?.updateInfo };
+        } catch (err) {
+          log.error('Manual update check failed:', err);
+          return { success: false, error: err.message };
+        }
+      });
+
+      // IPC handler for quit and install
+      ipcMain.handle('sunny:quit-and-install', async () => {
+        autoUpdater.quitAndInstall(false, true);
+        return { success: true };
+      });
+
+    } catch (err) {
+      console.warn('Auto-updater not available (likely dev environment):', err.message);
+    }
+  }
+
   // Content Security Policy — delegated to csp.cjs so it is pure and unit-testable.
   // The callback is ALWAYS called inside a try/catch; a handler that never
   // calls back stalls the network stack indefinitely.

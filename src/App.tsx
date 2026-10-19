@@ -39,6 +39,7 @@ import OfflineFallback from "@/components/OfflineFallback";
 import Footer from "@/components/Footer";
 import { SettingsModal } from "@/components/SettingsModal";
 import { OnboardingScreen } from "@/components/OnboardingScreen";
+import { UpdateToast } from "@/components/UpdateToast";
 import {
   loadLocalPreferences,
   saveLocalPreferences,
@@ -73,6 +74,7 @@ function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [preferences, setPreferences] = useState<SunnyPreferences>(defaultPreferences);
   const [alwaysOnTop, setAlwaysOnTop] = useState(false);
+  const [autoCheckUpdates, setAutoCheckUpdates] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -195,6 +197,19 @@ function App() {
       const reason = e instanceof Error ? e.message : String(e);
       console.error('Failed to init model:', e);
       setModelError(reason);
+    }
+  }, []);
+
+  const handleAutoCheckUpdatesChange = useCallback((enabled: boolean) => {
+    setAutoCheckUpdates(enabled);
+  }, []);
+
+  const handleCheckForUpdates = useCallback(async () => {
+    if (!window.electronAPI?.checkForUpdates) return;
+    try {
+      await window.electronAPI.checkForUpdates();
+    } catch (e) {
+      console.error('Manual update check failed:', e);
     }
   }, []);
 
@@ -501,8 +516,10 @@ function App() {
   // fallback is shown as a notice and the UI stays usable.
   const showOfflineFallback = modelStatus?.status === "error" || modelError !== null;
   return (
-    <ErrorBoundary>
-      {showOfflineFallback && (
+    <>
+      <ErrorBoundary>
+        <>
+          {showOfflineFallback && (
         <OfflineFallback
           onRetry={() => {
             setModelError(null);
@@ -514,7 +531,7 @@ function App() {
           reason={modelError || "AI model is not available"}
         />
       )}
-      {(
+      {
         <>
           <div className={`app-shell ${highContrast ? 'high-contrast' : ''}`}>
             <header className="app-header" role="banner">
@@ -993,7 +1010,7 @@ function App() {
             </main>
           </div>
         </>
-      )}
+      }
       {showSettings && (
         <SettingsModal
           open={showSettings}
@@ -1006,6 +1023,9 @@ function App() {
           onClearLogs={handleClearLogs}
           onExportLogs={handleExportLogs}
           onInitModel={handleInitModel}
+          autoCheckUpdates={autoCheckUpdates}
+          onAutoCheckUpdatesChange={handleAutoCheckUpdatesChange}
+          onCheckForUpdates={handleCheckForUpdates}
         />
       )}
       {showOnboarding && (
@@ -1014,7 +1034,14 @@ function App() {
           onSkip={handleOnboardingSkip}
         />
       )}
-    </ErrorBoundary>
+    </>
+      </ErrorBoundary>
+      <UpdateToast onRestart={() => {
+        if (window.electronAPI?.quitAndInstall) {
+          void window.electronAPI.quitAndInstall();
+        }
+      }} />
+    </>
   );
 }
 

@@ -272,6 +272,33 @@ const electronAPI = {
     return ipcRenderer.invoke('sunny:sanitize-content', text);
   },
 
+  /** Check for updates manually (from Settings) */
+  checkForUpdates: async () => ipcRenderer.invoke('sunny:check-for-updates'),
+
+  /** Quit and install downloaded update */
+  quitAndInstall: async () => ipcRenderer.invoke('sunny:quit-and-install'),
+
+  /** Subscribe to update-available event */
+  onUpdateAvailable: (callback) => {
+    const handler = (_event, info) => callback(info);
+    ipcRenderer.on('sunny:update-available', handler);
+    return () => ipcRenderer.removeListener('sunny:update-available', handler);
+  },
+
+  /** Subscribe to update-downloaded event */
+  onUpdateDownloaded: (callback) => {
+    const handler = (_event, info) => callback(info);
+    ipcRenderer.on('sunny:update-downloaded', handler);
+    return () => ipcRenderer.removeListener('sunny:update-downloaded', handler);
+  },
+
+  /** Subscribe to update-error event */
+  onUpdateError: (callback) => {
+    const handler = (_event, message) => callback(message);
+    ipcRenderer.on('sunny:update-error', handler);
+    return () => ipcRenderer.removeListener('sunny:update-error', handler);
+  },
+
   /** Synchronous list of tool names, for code that cannot await. */
   listTools: () => SUNNY_TOOLS.slice(),
 

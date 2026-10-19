@@ -244,6 +244,25 @@ export interface ElectronAPI {
   /** Subscribe to cooking mode step changes */
   onCookingStepChange(callback: (step: { stepIndex: number; totalSteps: number; instruction: string }) => void): Unsubscribe;
 
+  // -------------------------------------------------------------------------
+  // Auto-updater
+  // -------------------------------------------------------------------------
+
+  /** Check for updates manually (from Settings). Returns update info if available. */
+  checkForUpdates(): Promise<{ success: boolean; updateInfo?: unknown; error?: string }>;
+
+  /** Quit the app and install the downloaded update. */
+  quitAndInstall(): Promise<{ success: boolean }>;
+
+  /** Subscribe to update-available event. */
+  onUpdateAvailable(callback: (info: { version: string; releaseNotes?: string; releaseDate?: string }) => void): Unsubscribe;
+
+  /** Subscribe to update-downloaded event. */
+  onUpdateDownloaded(callback: (info: { version: string; releaseNotes?: string; releaseDate?: string }) => void): Unsubscribe;
+
+  /** Subscribe to update-error event. */
+  onUpdateError(callback: (message: string) => void): Unsubscribe;
+
   /** Host platform: 'win32' | 'darwin' | 'linux' | ... */
   readonly platform: NodeJS.Platform;
 

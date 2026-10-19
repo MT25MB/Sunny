@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Brain, Check, CircleHelp, Download, Eye, EyeOff, FileText, Gauge,
-  Loader2, LockKeyhole, Mic, Plug, RotateCcw, ShieldCheck,
+  Loader2, LockKeyhole, Mic, Plug, RefreshCw, RotateCcw, ShieldCheck,
   Trash2, Wifi, X,
 } from 'lucide-react';
 import {
@@ -87,11 +87,15 @@ type Props = {
   onClearLogs: () => void;
   onExportLogs: () => void;
   onInitModel: () => void;
+  autoCheckUpdates: boolean;
+  onAutoCheckUpdatesChange: (enabled: boolean) => void;
+  onCheckForUpdates: () => void;
 };
 
 export function SettingsModal({
   open, onClose, preferences, onUpdate, onReset,
   modelStatus, debugLogCount, onClearLogs, onExportLogs, onInitModel,
+  autoCheckUpdates, onAutoCheckUpdatesChange,
 }: Props) {
   const modalRef = useRef<HTMLDivElement>(null);
   const [apiKeyValues, setApiKeyValues] = useState<Record<CredentialKey, string>>({
@@ -111,6 +115,7 @@ export function SettingsModal({
   });
   const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
   const [saveState, setSaveState] = useState<'idle' | 'saved'>('idle');
+  const [checkState, setCheckState] = useState<'idle' | 'checking' | 'available' | 'up-to-date' | 'error'>('idle');
 
   const activeConfig = PROVIDER_CONFIGS.find((p) => p.value === preferences.brain_provider) ?? PROVIDER_CONFIGS[0];
 
@@ -191,6 +196,37 @@ export function SettingsModal({
       [provider]: { state: result.success ? 'success' : 'error', message: result.message },
     }));
   }, [preferences.brain_provider, preferences.brain_model, preferences.ollama_endpoint, activeConfig.credentialKey, apiKeyValues]);
+
+  const handleCheckForUpdates = useCallback(async () => {
+    setCheckState('checking');
+    try {
+      if (!window.electronAPI?.checkForUpdates) {
+        throw new Error('Update check not available');
+      }
+      const result = await window.electronAPI.checkForUpdates();
+      if (result.success) {
+        if (result.updateInfo) {
+          setCheckState('available');
+        } else {
+          setCheckState('up-to-date');
+        }
+      } else {
+        setCheckState('error');
+      }
+    } catch (err) {
+      console.error('Update check failed:', err);
+      setCheckState('error');
+    }
+  }, []);
+
+  const handleDownloadUpdate = useCallback(async () => {
+    if (!window.electronAPI?.quitAndInstall) return;
+    try {
+      await window.electronAPI.quitAndInstall();
+    } catch (err) {
+      console.error('Failed to quit and install:', err);
+    }
+  }, []);
 
   if (!open) return null;
 
@@ -454,6 +490,54 @@ export function SettingsModal({
               <div className="log-buttons">
                 <button className="secondary-button" onClick={onExportLogs}><FileText size={14} /> Export</button>
                 <button className="secondary-button" onClick={onClearLogs}><Trash2 size={14} /> Clear logs</button>
+              </div>
+            </div>
+          </section>
+
+          {/* Updates */}
+          <section className="settings-section">
+            <div className="settings-section-title">
+              <RefreshCw size={18} />
+              <span><strong>Updates</strong><small>Keep Sunny current with the latest features and fixes.</small></span>
+            </div>
+            <div className="update-controls">
+              <button
+                className="update-check-button"
+                onClick={handleCheckForUpdates}
+                disabled={checkState === 'checking'}
+              >
+                {checkState === 'checking' ? (
+                  <>
+                    <Loader2 size={14} className="spin" />
+                    Checking…
+                  </>
+                ) : checkState === 'available' ? (
+                  <>
+                    <Download size={14} /> Update available
+                  </>
+                ) : checkState === 'up-to-date' ? (
+                  <>
+                    <Check size={14} /> Up to date
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={14} /> Check for updates
+                  </>
+                )}
+              </button>
+              {checkState === 'error' && (
+                <span className="update-error">Failed to check for updates</span>
+              )}
+              {checkState === 'available' && (
+                <button className="update-download-button" onClick={handleDownloadUpdate}>
+                  <Download size={14} /> Download and install
+                </button>
+              )}
+              <div className="toggle-row {autoCheckUpdates ? 'enabled' : ''}">
+                <span>Automatically check for updates</span>
+                <span className="toggle" onClick={() => onAutoCheckUpdatesChange(!autoCheckUpdates)}>
+                  <span />
+                </span>
               </div>
             </div>
           </section>
