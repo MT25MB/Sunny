@@ -41,11 +41,16 @@ jobs:
           CAPTURE_SCREENSHOTS: 'true'
         run: |
           cd out/Sunny-linux-x64
-          ./sunny-desktop &
+          # --no-sandbox is required in a CI container: the runner provides no
+          # root-owned chrome-sandbox SUID helper, and Electron aborts with
+          # FATAL:sandbox/linux/suid/suid_sandbox_host.cc before the window
+          # opens otherwise. Without this the app dies before Playwright
+          # attaches and the whole job fails.
+          ./sunny-desktop --no-sandbox &
           APP_PID=$!
           # Wait for app to be ready (model load + window)
           sleep 10
-          node ../../scripts/capture-screenshots.js
+          node ../../scripts/capture-screenshots.cjs
           kill $APP_PID
 
       - name: Commit screenshots

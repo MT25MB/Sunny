@@ -73,23 +73,33 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: |
-            out/make/**/${{ matrix.installer }}
-            out/**/*.exe
-            out/**/*.dmg
-            out/**/*.deb
+          # Only the per-leg make glob can match: installers land at
+          # out/make/<maker>/<arch>/<file> (e.g. out/make/deb/x64/foo.deb),
+          # three segments under out/, so out/**/*.deb never matches.
+          path: out/make/**/${{ matrix.installer }}
       
+      # One writer per release. This used to run on all three matrix legs at
+      # once, so three action-gh-release processes raced on the same release:
+      # one deleted an asset while another tried to re-upload it, which
+      # surfaced as "Not Found - delete-a-release-asset" and cancelled the
+      # other legs. Restricted to a single leg and fed every platform's
+      # installer via download-artifact.
+      - name: Download artifacts
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: 'sunny-*'
+          path: out/make/
+          merge-multiple: true
+
       - name: Create Release
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && matrix.os == 'ubuntu-latest'
         uses: softprops/action-gh-release@v2
         with:
           files: |
             out/make/**/*.exe
             out/make/**/*.dmg
             out/make/**/*.deb
-            out/**/*.exe
-            out/**/*.dmg
-            out/**/*.deb
           draft: false
           prerelease: false
         env:
