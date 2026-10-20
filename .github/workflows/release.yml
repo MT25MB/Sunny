@@ -14,7 +14,8 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  build:
+    name: build
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -29,18 +30,18 @@ jobs:
           - os: ubuntu-latest
             artifact_name: sunny-linux
             installer: '*.deb'
-    
+
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
@@ -51,7 +52,7 @@ jobs:
         run: npm run make
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
+
        # ------------------------------------------------------------------
        # OPTIONAL: SignPath.io free code signing for open source
        # Uncomment and configure if you want to sign Windows installers
@@ -66,9 +67,9 @@ jobs:
        #     project_key: ${{ secrets.SIGNPATH_PROJECT_KEY }}
        #     # artifacts must be specified relative to workspace root
        #     artifacts: 'out/make/**/*.exe'
-       #     # optional: add timestamp server for LTV
+       #     # optional: add timestamp server for LTPS
        #     timestamp_server: 'http://timestamp.digicert.com'
-      
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v7
         with:
@@ -77,15 +78,23 @@ jobs:
           # out/make/<maker>/<arch>/<file> (e.g. out/make/deb/x64/foo.deb),
           # three segments under out/, so out/**/*.deb never matches.
           path: out/make/**/${{ matrix.installer }}
-      
-      # One writer per release. This used to run on all three matrix legs at
-      # once, so three action-gh-release processes raced on the same release:
-      # one deleted an asset while another tried to re-upload it, which
-      # surfaced as "Not Found - delete-a-release-asset" and cancelled the
-      # other legs. Restricted to a single leg and fed every platform's
-      # installer via download-artifact.
+          # Fail loudly if a leg produced nothing. The default is "warn",
+          # which let the Windows installer go missing without a word.
+          if-no-files-found: error
+
+  publish:
+    name: publish
+    # Waits for every matrix leg. Creating the release from inside one leg
+    # meant the download ran while the other legs were still uploading, so
+    # the release was published without the Windows installer -- it was not
+    # discoverable yet, not missing. The two problems looked the same: no
+    # .exe on the release page.
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
       - name: Download artifacts
-        if: matrix.os == 'ubuntu-latest'
         uses: actions/download-artifact@v8
         with:
           pattern: 'sunny-*'
@@ -93,7 +102,7 @@ jobs:
           merge-multiple: true
 
       - name: Create Release
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && matrix.os == 'ubuntu-latest'
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
           files: |

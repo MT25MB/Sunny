@@ -688,11 +688,13 @@ function createWindow() {
   });
 
   // Pause status polling when window is hidden to save useless network probes
+  // Emit window-visibility-change for renderer subscription
   mainWindow.on('hide', () => {
     if (statusEmitterTimer) {
       clearInterval(statusEmitterTimer);
       statusEmitterTimer = null;
     }
+    mainWindow.webContents.send('sunny:window-visibility-change', { visible: false });
   });
   mainWindow.on('show', () => {
     if (!statusEmitterTimer) {
@@ -700,6 +702,7 @@ function createWindow() {
       statusEmitterTimer = setInterval(emitSystemStatus, STATUS_POLL_INTERVAL_MS);
       if (typeof statusEmitterTimer.unref === 'function') statusEmitterTimer.unref();
     }
+    mainWindow.webContents.send('sunny:window-visibility-change', { visible: true });
   });
 
   // Closing hides to the tray instead of quitting. Without this the app would

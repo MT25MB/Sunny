@@ -20,7 +20,8 @@
     "make": "electron-forge make",
     "package:win": "electron-forge make --platform win32",
     "package:mac": "electron-forge make --platform darwin",
-    "package:linux": "electron-forge make --platform linux"
+    "package:linux": "electron-forge make --platform linux",
+    "premake": "npm run build"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.3.1",
