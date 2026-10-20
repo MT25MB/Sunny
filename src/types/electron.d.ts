@@ -6,7 +6,7 @@
  * (`src/electron/preload.cjs`) exposes them on the global `window` object; and
  * the renderer (`src/renderer/services/sunnyBrain.ts`) consumes them.
  *
- * Both `executeTool` and `invokeTool` are exposed and behave identically —
+ * Both `executeTool` and `invokeTool` are exposed and behave identically -
  * `executeTool` is canonical, `invokeTool` is retained so older callers keep
  * working.
  */
@@ -63,7 +63,7 @@ export interface SystemStatus extends SystemRecommendations {
    *
    * Note: a flat `battery: number` field is impossible here because `battery`
    * below is the structured `BatteryInfo`. Use `batteryLevel` for the plain
-   * percentage, or `battery.batteryPercent` — they are the same value.
+   * percentage, or `battery.batteryPercent` - they are the same value.
    */
   /** Battery percentage 0–100, or `null` when the machine has no battery. */
   batteryLevel: number | null;

@@ -4,7 +4,7 @@
  * Ambient types for Vite/build-time globals and the legacy `sunnyDesktop`
  * automation bridge.
  *
- * The `electornAPI` renderer surface intentionally does NOT live here — it has a
+ * The `electornAPI` renderer surface intentionally does NOT live here - it has a
  * single definition in `src/types/electron.d.ts`, which also performs the
  * `declare global` augmentation of `Window`. Declaring `electronAPI` in both
  * files makes TypeScript report "Subsequent property declarations must have the
