@@ -1,0 +1,3 @@
+name: "Sunny CodeQL config"
+languages: ["javascript", "typescript"]
+queries: +security-and-quality
