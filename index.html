@@ -358,6 +358,15 @@
   details.faq[open] summary svg { transform: rotate(45deg); }
   details.faq p { margin-top: .8rem; color: var(--text-muted); }
 
+  .btn-full { width: 100%; justify-content: center; }
+  .setup-link {
+    display: inline-block; margin-top: var(--space-3);
+    color: var(--brand-dark); font-weight: 600; text-decoration: none;
+    transition: opacity 120ms var(--spring-response);
+  }
+  .setup-link:hover { opacity: .7; }
+  .setup-link:active { opacity: .5; }
+
   /* CTA band - the single inversion */
   .cta-band {
     background: var(--text);
@@ -387,6 +396,14 @@
   }
   .cta-card h2 { color: var(--text); margin-bottom: var(--space-2); }
   .cta-card p { color: var(--text-muted); max-width: 40rem; margin: 0 auto var(--space-4); }
+  .btn-full { width: 100%; justify-content: center; }
+  .setup-link {
+    display: inline-block; margin-top: var(--space-3);
+    color: var(--brand-dark); font-weight: 600; text-decoration: none;
+    transition: opacity 120ms var(--spring-response);
+  }
+  .setup-link:hover { opacity: .7; }
+  .setup-link:active { opacity: .5; }
 
   /* Footer */
   footer.site { border-top: 1px solid var(--border); padding: var(--space-6) 0 var(--space-4); margin-top: var(--space-6); }
@@ -574,7 +591,7 @@
       <div class="container">
         <div class="section-head">
           <h2>What Sunny does</h2>
-          <p>Five tools. Each one does one thing well.</p>
+          <p>Six tools. Each one does one thing well.</p>
         </div>
         <div class="bento">
           <article class="tile wide tall tile-voice">
@@ -588,7 +605,7 @@
             <h3>Voice input</h3>
             <p>Hold the button and talk. Sunny types what you said right into the box.</p>
             <div class="tile-art" aria-hidden="true">
-              <svg viewBox="0 0 240 120" preserveAspectRatio="xMidYMid slice">
+              <svg viewBox="0 0 240 120" preserveAspectRatio="xMidYMid meet">
                 <defs>
                   <linearGradient id="wave" x1="0" x2="1" y1="0" y2="0">
                     <stop offset="0" stop-color="#e08a1e" stop-opacity="0.2"/>
@@ -596,7 +613,6 @@
                     <stop offset="1" stop-color="#1f6f5c" stop-opacity="0.3"/>
                   </linearGradient>
                 </defs>
-                <rect width="240" height="120" fill="none"/>
                 <g fill="none" stroke="url(#wave)" stroke-width="3" stroke-linecap="round">
                   <path d="M0 60 Q20 30 40 60 T80 60 T120 60 T160 60 T200 60 T240 60"/>
                   <path d="M0 60 Q20 80 40 60 T80 60 T120 60 T160 60 T200 60 T240 60" opacity="0.6"/>
@@ -606,7 +622,6 @@
                   <path d="M-8 30 a20 20 0 0 0 40 0" fill="none" stroke="#b96f10" stroke-width="3"/>
                   <line x1="12" y1="50" x2="12" y2="62" stroke="#b96f10" stroke-width="3"/>
                 </g>
-              </svg>
             </div>
           </article>
           <article class="tile tile-recipes">
@@ -631,7 +646,7 @@
             <h3>Medication reminders</h3>
             <p>Set a pill name and time. Sunny speaks up. Big button to mark it taken.</p>
           </article>
-          <article class="tile wide tile-computer">
+          <article class="tile tile-computer">
             <div class="tile-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="2" y="3" width="20" height="14" rx="2" />
@@ -746,9 +761,9 @@
           <h2>Ready to get started?</h2>
           <p>Download Sunny from GitHub Releases and install it in two clicks.</p>
           <div class="cta-actions">
-            <a class="btn btn-primary" href="https://github.com/MT25MB/Sunny/releases/latest">Download Sunny for free</a>
-            <a class="btn btn-ghost" href="SETUP.md">View detailed setup guide</a>
+            <a class="btn btn-primary btn-full" href="https://github.com/MT25MB/Sunny/releases/latest">Download Sunny for free</a>
           </div>
+          <a class="setup-link" href="SETUP.md">View detailed setup guide (permissions, shortcuts, troubleshooting)</a>
         </div>
       </div>
     </section>

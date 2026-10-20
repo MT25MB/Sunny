@@ -1206,6 +1206,23 @@ async function searchRecipes(query, maxResults = 5) {
 }
 
 /**
+ * Decode common HTML entities in a string.
+ * Used to clean up recipe titles and URLs scraped from HTML.
+ */
+function decodeHtmlEntities(text) {
+  if (!text) return '';
+  return text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, '/');
+}
+
+/**
  * Fallback recipe search using DuckDuckGo HTML scraping (free, no API key).
  * Extracts recipe links from search results.
  */
@@ -1235,8 +1252,8 @@ async function searchDuckDuckGoRecipes(query, maxResults = 5) {
       const [, url, title] = match;
       if (url && title && title.trim()) {
         // Clean up HTML entities
-        const cleanTitle = title.replace(/&/g, '&').replace(/"/g, '"').replace(/'/g, "'").replace(/</g, '<').replace(/>/g, '>').trim();
-        const cleanUrl = url.replace(/&/g, '&').trim();
+        const cleanTitle = decodeHtmlEntities(title).trim();
+        const cleanUrl = url.replace(/&amp;/g, '&').trim();
         
         // Only include if it looks like a recipe URL
         if (cleanTitle.length > 3 && (cleanUrl.includes('recipe') || cleanUrl.includes('food') || cleanUrl.includes('cook') || cleanUrl.includes('meal') || cleanUrl.includes('kitchen') || cleanUrl.includes('allrecipes') || cleanUrl.includes('foodnetwork') || cleanUrl.includes('epicurious') || cleanUrl.includes('thekitchn') || cleanUrl.includes('seriouseats') || cleanUrl.includes('simplyrecipes') || cleanUrl.includes('budgetbytes') || cleanUrl.includes('damndelicious') || cleanUrl.includes('gimmesomeoven') || cleanUrl.includes('sallysbakingaddiction'))) {
