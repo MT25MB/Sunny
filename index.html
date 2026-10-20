@@ -7,7 +7,7 @@
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <link rel="canonical" href="https://mt25mb.github.io/Sunny/" />
   <meta name="description" content="Sunny is a free, accessible AI desktop assistant that helps older adults with daily tasks, medication reminders, recipes, and computer help using voice and text." />
-  <meta property="og:title" content="Sunny — Accessible AI Desktop Companion for Older Adults" />
+  <meta property="og:title" content="Sunny Accessible AI Desktop Companion for Older Adults" />
   <meta property="og:description" content="Sunny is a free, accessible AI desktop assistant that helps older adults with daily tasks, medication reminders, recipes, and computer help using voice and text." />
   <meta property="og:image" content="https://mt25mb.github.io/Sunny/public/assets/mascot.png" />
   <meta property="og:image:width" content="816" />
@@ -17,35 +17,35 @@
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Sunny" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Sunny — Accessible AI Desktop Companion for Older Adults" />
+  <meta name="twitter:title" content="Sunny Accessible AI Desktop Companion for Older Adults" />
   <meta name="twitter:description" content="Sunny is a free, accessible AI desktop assistant that helps older adults with daily tasks, medication reminders, recipes, and computer help using voice and text." />
   <meta name="twitter:image" content="https://mt25mb.github.io/Sunny/public/assets/mascot.png" />
   <link rel="icon" href="public/assets/mascot.png" />
   <link rel="stylesheet" href="public/assets/fonts.css" />
-  <title>Sunny — Accessible AI Desktop Companion for Older Adults</title>
+  <title>Sunny Accessible AI Desktop Companion for Older Adults</title>
 
 <style>
   :root {
-    /* Material system — translucent, layered, not opaque blocks */
+    /* Material system - translucent, layered, not opaque blocks */
     --material-base: rgba(255, 255, 255, 0.72);
     --material-raised: rgba(255, 255, 255, 0.85);
     --material-heavy: rgba(255, 255, 255, 0.92);
     --material-glass: rgba(255, 255, 255, 0.55);
     --bg: #faf6ef;
 
-    /* Blur radii — bigger surfaces = stronger blur = "thicker" material */
+    /* Blur radii - bigger surfaces = stronger blur = "thicker" material */
     --blur-standard: blur(20px);
     --blur-heavy: blur(40px);
 
-    /* Edge — light catching the material, hairline separation */
+    /* Edge - light catching the material, hairline separation */
     --edge-dim: rgba(0, 0, 0, 0.08);
 
-    /* Ink — never pure black, always warm */
+    /* Ink - never pure black, always warm */
     --text: #1d1d1f;
     --text-muted: #5a657a;
     --text-soft: #636c7e;
 
-    /* Accent — sun warmth, semantically earned */
+    /* Accent - sun warmth, semantically earned */
     --brand: #e08a1e;
     --brand-dark: #b96f10;
     --brand-soft: #fdf0dd;
@@ -53,16 +53,16 @@
     --border-strong: #d4c9b0;
     --focus: #1a56db;
 
-    /* Inverted band (CTA) — ink surface, so ink reverses */
+    /* Inverted band (CTA) - ink surface, so ink reverses */
     --ink-on-dark: #faf6ef;
     --ink-on-dark-muted: #b9bfcc;
 
-    /* Separation — shadow encodes thickness, not elevation */
+    /* Separation - shadow encodes thickness, not elevation */
     --shadow-sm: 0 1px 0 rgba(0, 0, 0, 0.04);
     --shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.08);
 
-    /* Radii — not one size for everything */
+    /* Radii - not one size for everything */
     --radius-sm: 8px;
     --radius: 16px;
     --radius-lg: 24px;
@@ -77,7 +77,7 @@
     --max: 1180px;
     --measure: 58ch;
 
-    /* Springs — the only motion primitive */
+    /* Springs - the only motion primitive */
     --spring-default: cubic-bezier(0.32, 0.72, 0, 1);
     --spring-response: cubic-bezier(0.16, 1, 0.3, 1);
 
@@ -90,7 +90,7 @@
     --fs-meta: 0.8125rem;
   }
 
-  /* Dark mode — full material inversion */
+  /* Dark mode - full material inversion */
   @media (prefers-color-scheme: dark) {
     :root {
       --material-base: rgba(28, 28, 30, 0.72);
@@ -116,7 +116,7 @@
     }
   }
 
-  /* Reduced transparency — solid materials, no blur */
+  /* Reduced transparency - solid materials, no blur */
   @media (prefers-reduced-transparency: reduce) {
     :root {
       --material-base: rgba(255, 255, 255, 0.95);
@@ -128,7 +128,7 @@
     }
   }
 
-  /* High contrast — near-solid backgrounds, defined borders */
+  /* High contrast - near-solid backgrounds, defined borders */
   @media (prefers-contrast: more) {
     :root {
       --text-muted: #3a3a3c;
@@ -236,7 +236,7 @@
     background: linear-gradient(180deg, transparent 60%, rgba(29,36,51,.18));
   }
 
-  /* One orchestrated hero entrance — pure CSS, no JS */
+  /* One orchestrated hero entrance - pure CSS, no JS */
   .hero-trust, .hero h1, .hero-lead, .hero-actions, .hero-note, .hero-art {
     animation: hero-enter .5s var(--spring-response) forwards both;
   }
@@ -271,7 +271,7 @@
   .section-head p { color: var(--text-muted); font-size: 1.15rem; }
   .principles-head { margin-bottom: var(--space-4); }
 
-  /* Features — asymmetric grid, material cards */
+  /* Features - asymmetric grid, material cards */
   .bento {
     display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem;
     grid-auto-rows: minmax(180px, auto);
@@ -301,7 +301,7 @@
   .tile .tile-art svg { display: block; width: 100%; height: 120px; }
   .tile .tile-art img { width: 100%; height: 120px; object-fit: cover; }
 
-  /* Accessibility band — sunk material, hairline rules */
+  /* Accessibility band - sunk material, hairline rules */
   .principles {
     background: var(--material-base);
     -webkit-backdrop-filter: var(--blur-standard);
@@ -333,7 +333,7 @@
   .t-body h3 { margin-bottom: .3rem; }
   .t-body p { color: var(--text-muted); }
 
-  /* FAQ — hairline rows, native disclosure */
+  /* FAQ - hairline rows, native disclosure */
   .faq-wrap { max-width: 760px; margin: 0 auto; }
   details.faq {
     border-bottom: 1px solid var(--edge-dim);
@@ -352,7 +352,7 @@
   details.faq[open] summary svg { transform: rotate(45deg); }
   details.faq p { margin-top: .8rem; color: var(--text-muted); }
 
-  /* CTA band — the single inversion */
+  /* CTA band - the single inversion */
   .cta-band {
     background: var(--text);
     color: var(--ink-on-dark);
@@ -406,7 +406,7 @@
     .hero-actions .btn, .cta-actions .btn { width: 100%; justify-content: center; }
   }
 
-  /* Animations — hero entrance only; everything else responds to the user */
+  /* Animations - hero entrance only; everything else responds to the user */
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     *, *::before, *::after { transition: none !important; animation: none !important; }
@@ -536,9 +536,9 @@
         <div>
           <span class="hero-trust">Free. Open source. No accounts. No tracking.</span>
           <h1>Technology help that feels like a sunny day</h1>
-          <p class="hero-lead">Sunny is a gentle AI desktop companion built for older adults. Speak naturally or type a question, and Sunny helps with your computer, medications, meals, and day — out loud, in plain language.</p>
+          <p class="hero-lead">Sunny runs on your computer and helps with everyday tasks: computer questions, medication reminders, recipes, weather. Speak or type. Sunny listens and answers out loud.</p>
           <div class="hero-actions">
-            <a class="btn btn-primary" href="https://github.com/MT25MB/Sunny/releases/latest">Download Sunny — Free</a>
+            <a class="btn btn-primary" href="https://github.com/MT25MB/Sunny/releases/latest">Download Sunny Free</a>
             <a class="btn btn-ghost" href="https://github.com/MT25MB/Sunny">View on GitHub</a>
           </div>
           <p class="hero-note">Available for Windows, macOS, and Linux. Works on screens as small as a phone.</p>
@@ -553,8 +553,8 @@
     <section id="features">
       <div class="container">
         <div class="section-head">
-          <h2>Everything Sunny can do for you</h2>
-          <p>Simple tools for daily life, designed one button at a time.</p>
+          <h2>What Sunny does</h2>
+          <p>Five tools. Each one does one thing well.</p>
         </div>
         <div class="bento">
           <article class="tile wide tall">
@@ -566,7 +566,7 @@
               </svg>
             </div>
             <h3>Voice input</h3>
-            <p>Hold the microphone and speak. Sunny transcribes your words on your computer and drops them into the box for you to check.</p>
+            <p>Hold the button and talk. Sunny types what you said right into the box.</p>
             <div class="tile-art" aria-hidden="true">
               <svg viewBox="0 0 240 120" preserveAspectRatio="xMidYMid slice">
                 <defs>
@@ -598,7 +598,7 @@
               </svg>
             </div>
             <h3>Recipes &amp; cooking mode</h3>
-            <p>Ask for any dish. Sunny finds a recipe, reads ingredients, and walks through each step out loud.</p>
+            <p>Ask for a dish. Sunny finds the recipe and reads each step aloud while you cook.</p>
           </article>
           <article class="tile">
             <div class="tile-icon" aria-hidden="true">
@@ -609,7 +609,7 @@
               </svg>
             </div>
             <h3>Medication reminders</h3>
-            <p>Set a pill name and time. Sunny speaks up when it's time, with a big "I Took It" button.</p>
+            <p>Set a pill name and time. Sunny speaks up. Big button to mark it taken.</p>
           </article>
           <article class="tile wide">
             <div class="tile-icon" aria-hidden="true">
@@ -621,7 +621,7 @@
               </svg>
             </div>
             <h3>Computer help &amp; health</h3>
-            <p>"My internet is slow" or "Is my battery okay?" Sunny checks Wi-Fi, battery, memory, and updates in plain English.</p>
+            <p>Ask "why is my internet slow?" or "how is my battery?" Sunny checks and tells you in plain English.</p>
           </article>
           <article class="tile">
             <div class="tile-icon" aria-hidden="true">
@@ -632,7 +632,7 @@
               </svg>
             </div>
             <h3>Morning digest</h3>
-            <p>Weather and headlines, read aloud in a calm voice.</p>
+            <p>Weather and top headlines, read aloud.</p>
           </article>
         </div>
       </div>
@@ -656,7 +656,7 @@
               Download Sunny-Setup.exe
             </a>
             <ol class="install-steps">
-              <li>Click the button above — file downloads automatically</li>
+              <li>Click the button above. File downloads automatically</li>
               <li>Open <code>Downloads/Sunny-Setup.exe</code></li>
               <li>If Windows says "Windows protected your PC", click <strong>More info → Run anyway</strong></li>
               <li>Follow the installer (Next → Next → Finish)</li>
@@ -672,7 +672,7 @@
               Download Sunny.dmg
             </a>
             <ol class="install-steps">
-              <li>Click the button above — file downloads automatically</li>
+              <li>Click the button above. File downloads automatically</li>
               <li>Open <code>Downloads/Sunny-*.dmg</code></li>
               <li>Drag <strong>Sunny</strong> into the <strong>Applications</strong> folder</li>
               <li>First launch: System Settings → Privacy & Security → Allow Sunny</li>
@@ -688,7 +688,7 @@
               Download sunny.deb
             </a>
             <ol class="install-steps">
-              <li>Click the button above — file downloads automatically</li>
+              <li>Click the button above. File downloads automatically</li>
               <li>Open terminal in Downloads folder</li>
               <li>Run: <code>sudo dpkg -i sunny_*_amd64.deb</code></li>
               <li>Launch "Sunny" from app menu</li>
@@ -699,15 +699,15 @@
         <div class="screenshots-row" role="list" aria-label="Sunny screenshots">
           <figure class="screenshot-card" role="listitem">
             <img src="public/assets/screenshots/cooking-mode.svg" alt="Cooking mode: large step text, big Previous/Next/Read Aloud buttons" loading="lazy" />
-            <figcaption>Cooking Mode — one step at a time, huge buttons</figcaption>
+            <figcaption>Cooking Mode - one step at a time, huge buttons</figcaption>
           </figure>
           <figure class="screenshot-card" role="listitem">
             <img src="public/assets/screenshots/medication-reminder.svg" alt="Medication reminder card with large 'I Took My Medicine' button" loading="lazy" />
-            <figcaption>Medication Reminder — one-tap confirmation</figcaption>
+            <figcaption>Medication Reminder - one-tap confirmation</figcaption>
           </figure>
           <figure class="screenshot-card" role="listitem">
             <img src="public/assets/screenshots/system-health.svg" alt="System health dashboard with battery, Wi-Fi, CPU, memory status" loading="lazy" />
-            <figcaption>System Health — at-a-glance computer check</figcaption>
+            <figcaption>System Health - at-a-glance computer check</figcaption>
           </figure>
         </div>
 
@@ -723,32 +723,32 @@
         <div class="principles">
           <div class="section-head principles-head">
             <h2>Built for every pair of eyes, ears, and hands</h2>
-            <p>Accessibility isn't an afterthought — it's the foundation.</p>
+            <p>Accessibility isn't an afterthought. It's the foundation.</p>
           </div>
           <div class="principles-grid">
             <div class="principle">
               <h3>Large, clear text</h3>
-              <p>Readable fonts and high contrast, one-tap resizing up to 175%.</p>
+              <p>Readable fonts. High contrast. One tap to make text bigger, up to 175%.</p>
             </div>
             <div class="principle">
               <h3>Big touch targets</h3>
-              <p>Every button at least 48×48 px, labelled for screen readers.</p>
+              <p>Every button at least 48x48 px. Labelled for screen readers.</p>
             </div>
             <div class="principle">
               <h3>Speaks out loud</h3>
-              <p>Full text-to-speech plus an easy mute switch.</p>
+              <p>Full text-to-speech. Easy mute switch.</p>
             </div>
             <div class="principle">
               <h3>Reduced motion</h3>
-              <p>Honours your system's reduce-motion setting.</p>
+              <p>Respects your system's reduce-motion setting.</p>
             </div>
             <div class="principle">
               <h3>Keyboard friendly</h3>
-              <p>Complete keyboard nav with a visible focus ring.</p>
+              <p>Complete keyboard navigation. Visible focus ring.</p>
             </div>
             <div class="principle">
               <h3>Privacy respected</h3>
-              <p>No accounts, ads, or tracking. Data stays on your computer.</p>
+              <p>No accounts. No ads. No tracking. Data stays on your computer.</p>
             </div>
           </div>
         </div>
@@ -760,28 +760,28 @@
       <div class="container">
         <div class="section-head">
           <h2>Three steps, and you're never stuck again</h2>
-          <p>Grab Sunny, speak or type, and get patient help.</p>
+          <p>Download. Speak or type. Get help.</p>
         </div>
         <div class="timeline">
           <div class="t-step">
             <div class="t-num">1</div>
             <div class="t-body">
               <h3>Download and open</h3>
-              <p>Grab Sunny from GitHub Releases and double-click. Nothing to configure, no sign-up.</p>
+              <p>Download Sunny from GitHub Releases. Double-click. No config, no sign-up.</p>
             </div>
           </div>
           <div class="t-step">
             <div class="t-num">2</div>
             <div class="t-body">
               <h3>Speak or type</h3>
-              <p>Hold the microphone and talk, or type your question in the big friendly box. Both work the same way.</p>
+              <p>Tap the mic and talk, or type in the box. Both work the same way.</p>
             </div>
           </div>
           <div class="t-step">
             <div class="t-num">3</div>
             <div class="t-body">
               <h3>Sunny helps</h3>
-              <p>Get a spoken answer, step-by-step help, a recipe, or a health check — explained in plain, patient language.</p>
+              <p>Get a spoken answer, step-by-step help, a recipe, or a health check. Explained in plain, patient language.</p>
             </div>
           </div>
         </div>
@@ -797,19 +797,19 @@
         <div class="faq-wrap">
           <details class="faq">
             <summary>Does Sunny cost anything?<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg></summary>
-            <p>No. Sunny is completely free and open source. No subscriptions, ads, or hidden fees.</p>
+            <p>No. Sunny is free and open source. No subscriptions. No ads. No hidden fees.</p>
           </details>
           <details class="faq">
             <summary>Do I need an internet connection?<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg></summary>
-            <p>An internet connection helps Sunny fetch recipes, weather, and news. Basic computer help works without one.</p>
+            <p>Internet helps Sunny fetch recipes, weather, and news. Basic help works without it.</p>
           </details>
           <details class="faq">
             <summary>Can Sunny be tricked into doing something dangerous?<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg></summary>
-            <p>No. Sunny refuses terminal commands, passwords, network scanning, or hacking. Every sensitive action asks permission first and defaults to "No".</p>
+            <p>No. Sunny refuses terminal commands, passwords, network scanning, or hacking. Every sensitive action asks permission first and defaults to No.</p>
           </details>
           <details class="faq">
             <summary>Which computers does Sunny run on?<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg></summary>
-            <p>Windows, macOS, and Linux. Not sure? Start with the Windows download — it's the easiest.</p>
+            <p>Windows, macOS, and Linux. Not sure? Start with the Windows download. It's the easiest.</p>
           </details>
         </div>
       </div>
@@ -820,7 +820,7 @@
       <div class="container">
         <div class="cta-band">
           <h2>Bring a little sunshine to your computer</h2>
-          <p>Download Sunny free from GitHub Releases and get a patient helper who never rushes you, never shouts, and is always happy to explain again.</p>
+          <p>Download Sunny free from GitHub Releases. Get a patient helper who never rushes you, never shouts, and is always happy to explain again.</p>
           <div class="cta-actions">
             <a class="btn btn-primary" href="https://github.com/MT25MB/Sunny/releases/latest">Download for free</a>
             <a class="btn btn-ghost" href="https://github.com/MT25MB/Sunny">Read the docs</a>
@@ -857,7 +857,7 @@
         </div>
       </div>
       <div class="footer-bottom">
-        <span>Made with care for older adults everywhere. Free and open source (MIT).</span>
+        <span>Free and open source for older adults. No accounts. No ads. No tracking. No cookies.</span>
         <span>© Sunny contributors</span>
       </div>
     </div>
