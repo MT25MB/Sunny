@@ -69,22 +69,29 @@ jobs:
         # detached HEAD and a plain "git push" fails. git-auto-commit-action
         # cannot be used here either: its "branch" input checks the branch
         # out over the working tree, which refuses to overwrite the freshly
-        # captured screenshots. So the commit is made explicitly and pushed
-        # to main, where the landing page picks the images up.
+        # captured screenshots.
+        #
+        # The images are copied aside first, because a previous run has
+        # usually already committed the same paths. Rebasing onto main
+        # would then be an add/add conflict on binary files, which git
+        # cannot merge, and the screenshots would never be updated again.
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          SHOTS=$(mktemp -d)
+          find public/assets/screenshots -name '*.png' -exec cp {} "$SHOTS"/ \;
+
+          git fetch origin main
+          git checkout -B main origin/main
+          mkdir -p public/assets/screenshots
+          cp "$SHOTS"/*.png public/assets/screenshots/ 2>/dev/null || true
+
           git add public/assets/screenshots
           if git diff --staged --quiet; then
             echo 'No screenshot changes to commit.'
             exit 0
           fi
           git commit -m 'chore: update screenshots [skip ci]' --no-verify
-          git fetch origin main
-          if ! git rebase origin/main; then
-            git rebase --abort || true
-            echo 'Could not rebase the screenshot commit onto main; skipping.'
-            exit 0
-          fi
-          git push origin HEAD:main
+          git push origin main

@@ -98,13 +98,50 @@ test('screenshot workflow provides a display for Electron', () => {
 test('screenshot workflow can push its commit from a tag checkout', () => {
   // The workflow is triggered by a tag push, so the checkout is a detached
   // HEAD: a plain "git push" fails, and git-auto-commit-action's branch
-  // input refuses to check out over the freshly captured images.
+  // input refuses to check out over the freshly captured images. So the
+  // workflow moves onto main explicitly and pushes there.
   assert.ok(
-    /git push origin HEAD:main/.test(WORKFLOW),
-    'must push the screenshot commit explicitly to main'
+    /git checkout -B main origin\/main/.test(WORKFLOW),
+    'must move onto main before committing'
   );
   assert.ok(
+    /git push origin main/.test(WORKFLOW),
+    'must push the screenshot commit to main'
+  );
+  assert.ok(
+    // Match the invocation, not a mention: the workflow documents why the
+    // action cannot be used, and that comment names it.
     !/uses:\s*stefanzweifel\/git-auto-commit-action/.test(WORKFLOW),
     'git-auto-commit-action cannot be used from a detached HEAD'
+  );
+  // Rebasing onto main would be an add/add conflict on the binary images
+  // whenever a previous run already committed them, which would silently
+  // stop the screenshots from ever updating again.
+  assert.ok(
+    !/git rebase/.test(WORKFLOW),
+    'must not rebase; the images are copied over main instead'
+  );
+});
+
+test('the release waits for every platform before publishing', () => {
+  // Creating the release from inside one matrix leg meant the download ran
+  // while the other legs were still uploading, so the release was published
+  // without the Windows installer -- it was not discoverable yet, not
+  // missing, and the two look identical on the release page.
+  const release = fs.readFileSync(
+    path.join(REPO, '.github', 'workflows', 'release.yml'),
+    'utf8'
+  );
+
+  assert.ok(
+    /needs:\s*build/.test(release),
+    'the publish job must wait for the build matrix'
+  );
+  // Exactly one job may create the release, or they race on the assets.
+  const createCount = (release.match(/action-gh-release/g) || []).length;
+  assert.equal(createCount, 1, 'only one job may create the release');
+  assert.ok(
+    /if-no-files-found:\s*error/.test(release),
+    'an upload that matches nothing must fail the leg, not warn'
   );
 });
