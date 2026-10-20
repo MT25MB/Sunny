@@ -271,14 +271,20 @@
   .section-head p { color: var(--text-muted); font-size: 1.15rem; }
   .principles-head { margin-bottom: var(--space-4); }
 
-  /* Features - asymmetric grid, material cards */
+  /* Features - 3-column material card grid */
   .bento {
-    display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;
     grid-auto-rows: minmax(180px, auto);
   }
-  .bento > * { grid-column: span 2; }
-  .bento .wide { grid-column: span 3; }
+  .bento > * { grid-column: span 1; }
+  .bento .wide { grid-column: span 2; }
   .bento .tall { grid-row: span 2; }
+  .tile-voice { grid-column: 1; grid-row: 1 / 3; }
+  .tile-recipes { grid-column: 2; grid-row: 1; }
+  .tile-meds { grid-column: 2; grid-row: 2; }
+  .tile-computer { grid-column: 3; grid-row: 1; }
+  .tile-morning { grid-column: 3; grid-row: 2; }
+  .tile-safety { grid-column: 3; grid-row: 3; }
   .tile {
     background: var(--material-raised);
     -webkit-backdrop-filter: var(--blur-standard);
@@ -367,6 +373,20 @@
     background: transparent; color: var(--ink-on-dark); border-color: var(--ink-on-dark-muted);
   }
   .cta-band .btn-ghost:hover { background: var(--material-glass); }
+
+  /* Get started card */
+  .cta-card {
+    background: var(--material-raised);
+    -webkit-backdrop-filter: var(--blur-standard);
+    backdrop-filter: var(--blur-standard);
+    border: 1px solid var(--edge-dim);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    margin-top: var(--space-6);
+    text-align: center;
+  }
+  .cta-card h2 { color: var(--text); margin-bottom: var(--space-2); }
+  .cta-card p { color: var(--text-muted); max-width: 40rem; margin: 0 auto var(--space-4); }
 
   /* Footer */
   footer.site { border-top: 1px solid var(--border); padding: var(--space-6) 0 var(--space-4); margin-top: var(--space-6); }
@@ -557,7 +577,7 @@
           <p>Five tools. Each one does one thing well.</p>
         </div>
         <div class="bento">
-          <article class="tile wide tall">
+          <article class="tile wide tall tile-voice">
             <div class="tile-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="9" y="2" width="6" height="12" rx="3" />
@@ -589,7 +609,7 @@
               </svg>
             </div>
           </article>
-          <article class="tile">
+          <article class="tile tile-recipes">
             <div class="tile-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 11h18a9 9 0 0 1-18 0z" />
@@ -600,7 +620,7 @@
             <h3>Recipes &amp; cooking mode</h3>
             <p>Ask for a dish. Sunny finds the recipe and reads each step aloud while you cook.</p>
           </article>
-          <article class="tile">
+          <article class="tile tile-meds">
             <div class="tile-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M8.5 8.5 15.5 15.5" />
@@ -611,7 +631,7 @@
             <h3>Medication reminders</h3>
             <p>Set a pill name and time. Sunny speaks up. Big button to mark it taken.</p>
           </article>
-          <article class="tile wide">
+          <article class="tile wide tile-computer">
             <div class="tile-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="2" y="3" width="20" height="14" rx="2" />
@@ -623,7 +643,7 @@
             <h3>Computer help &amp; health</h3>
             <p>Ask "why is my internet slow?" or "how is my battery?" Sunny checks and tells you in plain English.</p>
           </article>
-          <article class="tile">
+          <article class="tile tile-morning">
             <div class="tile-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
@@ -633,6 +653,17 @@
             </div>
             <h3>Morning digest</h3>
             <p>Weather and top headlines, read aloud.</p>
+          </article>
+          <article class="tile tile-safety">
+            <div class="tile-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s6-4 9-4 9 4 9 4" />
+                <path d="M12 22v-6" />
+                <path d="M5 9h14" />
+              </svg>
+            </div>
+            <h3>Safety &amp; privacy</h3>
+            <p>Sunny refuses terminal commands, passwords, and hacking. Every sensitive action asks permission first.</p>
           </article>
         </div>
       </div>
@@ -651,15 +682,15 @@
           <article class="os-card windows" role="listitem">
             <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 20h8"/><path d="M12 4v4"/></svg></div>
             <h3>Windows 10 / 11</h3>
-            <a class="download-btn" href="https://github.com/MT25MB/Sunny/releases/latest/download/Sunny-Setup.exe" download aria-label="Download Windows installer">
+            <a class="download-btn" href="https://github.com/MT25MB/Sunny/releases/latest" aria-label="Download Windows installer">
               <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Download Sunny-Setup.exe
+              Download for Windows
             </a>
             <ol class="install-steps">
               <li>Click the button above. File downloads automatically</li>
               <li>Open <code>Downloads/Sunny-Setup.exe</code></li>
-              <li>If Windows says "Windows protected your PC", click <strong>More info → Run anyway</strong></li>
-              <li>Follow the installer (Next → Next → Finish)</li>
+              <li>If Windows says "Windows protected your PC", click <strong>More info</strong>, then <strong>Run anyway</strong></li>
+              <li>Follow the installer (Next, Next, Finish)</li>
             </ol>
           </article>
 
@@ -667,15 +698,15 @@
           <article class="os-card macos" role="listitem">
             <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 6v6l4 2"/></svg></div>
             <h3>macOS 12+</h3>
-            <a class="download-btn" href="https://github.com/MT25MB/Sunny/releases/latest/download/Sunny-darwin-x64.dmg" download aria-label="Download macOS installer">
+            <a class="download-btn" href="https://github.com/MT25MB/Sunny/releases/latest" aria-label="Download macOS installer">
               <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Download Sunny.dmg
+              Download for macOS
             </a>
             <ol class="install-steps">
               <li>Click the button above. File downloads automatically</li>
               <li>Open <code>Downloads/Sunny-*.dmg</code></li>
               <li>Drag <strong>Sunny</strong> into the <strong>Applications</strong> folder</li>
-              <li>First launch: System Settings → Privacy & Security → Allow Sunny</li>
+              <li>First launch: System Settings - Privacy & Security - Allow Sunny</li>
             </ol>
           </article>
 
@@ -683,9 +714,9 @@
           <article class="os-card linux" role="listitem">
             <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 6v6l4 2"/></svg></div>
             <h3>Linux (Debian / Ubuntu)</h3>
-            <a class="download-btn" href="https://github.com/MT25MB/Sunny/releases/latest/download/sunny_amd64.deb" download aria-label="Download Linux installer">
+            <a class="download-btn" href="https://github.com/MT25MB/Sunny/releases/latest" aria-label="Download Linux installer">
               <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Download sunny.deb
+              Download for Linux
             </a>
             <ol class="install-steps">
               <li>Click the button above. File downloads automatically</li>
@@ -711,9 +742,14 @@
           </figure>
         </div>
 
-        <p class="setup-link">
-          <a href="SETUP.md">Detailed setup guide (permissions, shortcuts, troubleshooting) →</a>
-        </p>
+        <div class="cta-card">
+          <h2>Ready to get started?</h2>
+          <p>Download Sunny from GitHub Releases and install it in two clicks.</p>
+          <div class="cta-actions">
+            <a class="btn btn-primary" href="https://github.com/MT25MB/Sunny/releases/latest">Download Sunny for free</a>
+            <a class="btn btn-ghost" href="SETUP.md">View detailed setup guide</a>
+          </div>
+        </div>
       </div>
     </section>
 
