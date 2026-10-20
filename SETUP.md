@@ -1,19 +1,19 @@
 # Sunny Setup Guide for Caregivers
 
-Sunny is a free, open-source desktop companion for older adults. This guide walks you through installing it on a loved one's computer — no technical skills needed.
+Sunny is a free, open-source desktop companion for older adults. This guide walks you through installing it on a loved one's computer - no technical skills needed.
 
 ---
 
 ## Before You Start
 
 - **Supported systems:** Windows 10/11, macOS 12+, Ubuntu 22.04+ / Debian 12+
-- **No accounts needed** — Sunny works offline after install
-- **No tracking, no ads, no subscriptions** — completely free (MIT license)
+- **No accounts needed** - Sunny works offline after install
+- **No tracking, no ads, no subscriptions** - completely free (MIT license)
 - **Internet helps** with recipes, weather, and news, but basic computer help works without it
 
 ---
 
-## Windows — Step by Step
+## Windows - Step by Step
 
 1. Click **"Download Sunny-Setup.exe"** on the [Sunny landing page](https://mt25mb.github.io/Sunny/#caregivers)
 2. Open the file from your **Downloads** folder
@@ -25,22 +25,22 @@ Sunny is a free, open-source desktop companion for older adults. This guide walk
 
 ### Windows Permissions
 - No special permissions needed on Windows
-- If your antivirus prompts, **allow Sunny** — it needs to see the screen to help
+- If your antivirus prompts, **allow Sunny** - it needs to see the screen to help
 
 ---
 
-## macOS — Step by Step
+## macOS - Step by Step
 
 1. Click **"Download Sunny.dmg"** on the [Sunny landing page](https://mt25mb.github.io/Sunny/#caregivers)
 2. Open the downloaded `.dmg` file
 3. **Drag the Sunny icon** into the **Applications** folder
 3. Press **Cmd + Shift + Space** to open Sunny
-4. **First launch — required permissions:**
+4. **First launch - required permissions:**
    - Open **System Settings → Privacy & Security**
    - Scroll to **Screen Recording** → toggle **Sunny ON**
    - Scroll to **Accessibility** → toggle **Sunny ON**
-   - macOS will ask to quit and reopen Sunny — **do it**
-5. Press **Cmd + Shift + Space** again — Sunny should appear
+   - macOS will ask to quit and reopen Sunny - **do it**
+5. Press **Cmd + Shift + Space** again - Sunny should appear
 
 ### macOS Permissions Explained
 | Permission | Why Sunny Needs It |
@@ -50,7 +50,7 @@ Sunny is a free, open-source desktop companion for older adults. This guide walk
 
 ---
 
-## Linux (Debian / Ubuntu) — Step by Step
+## Linux (Debian / Ubuntu) - Step by Step
 
 1. Click **"Download sunny.deb"** on the [Sunny landing page](https://mt25mb.github.io/Sunny/#caregivers)
 2. Open **Terminal** in your Downloads folder:
@@ -60,7 +60,7 @@ Sunny is a free, open-source desktop companion for older adults. This guide walk
    ```bash
    sudo dpkg -i sunny_*_amd64.deb
    ```
-   (Enter your password when prompted — it won't show as you type)
+   (Enter your password when prompted - it won't show as you type)
 4. Launch **"Sunny"** from your app menu or press **Ctrl + Shift + Space**
 
 ### Linux Notes
@@ -80,11 +80,11 @@ Hold for **1 second** to show/hide Sunny instantly.
 
 ---
 
-## First Run — What to Expect
+## First Run - What to Expect
 
-1. **Onboarding screen** appears — it shows which permissions to grant (macOS only)
-2. **Model download** — Sunny downloads a ~1.2 GB AI model on first use (one-time, takes 1–3 minutes on broadband)
-3. **Welcome message** — Sunny introduces itself and shows computer health
+1. **Onboarding screen** appears - it shows which permissions to grant (macOS only)
+2. **Model download** - Sunny downloads a ~1.2 GB AI model on first use (one-time, takes 1–3 minutes on broadband)
+3. **Welcome message** - Sunny introduces itself and shows computer health
 
 ---
 
@@ -113,9 +113,9 @@ Hold for **1 second** to show/hide Sunny instantly.
 
 ## Getting Help
 
-- **GitHub Issues:** [github.com/MT25MB/Sunny/issues](https://github.com/MT25MB/Sunny/issues) — report bugs or request features
-- **Documentation:** [github.com/MT25MB/Sunny](https://github.com/MT25MB/Sunny) — full README and docs
-- **Privacy:** [Privacy Policy](https://mt25mb.github.io/Sunny/privacy-policy.html) — what data Sunny handles and how
+- **GitHub Issues:** [github.com/MT25MB/Sunny/issues](https://github.com/MT25MB/Sunny/issues) - report bugs or request features
+- **Documentation:** [github.com/MT25MB/Sunny](https://github.com/MT25MB/Sunny) - full README and docs
+- **Privacy:** [Privacy Policy](https://mt25mb.github.io/Sunny/privacy-policy.html) - what data Sunny handles and how
 
 ---
 
@@ -123,7 +123,7 @@ Hold for **1 second** to show/hide Sunny instantly.
 
 - Sunny runs **100% locally** by default (Ollama + on-device Moondream vision model)
 - Optional cloud AI providers (OpenAI, Anthropic, Groq) require explicit opt-in
-- All preferences, API keys, and logs stay on the device — nothing syncs to the cloud
+- All preferences, API keys, and logs stay on the device - nothing syncs to the cloud
 - Source code: [github.com/MT25MB/Sunny](https://github.com/MT25MB/Sunny)
 
 ---
