@@ -75,7 +75,7 @@ export function UpdateToast({ onRestart }: UpdateToastProps) {
       <div className="toast-content">
         <span className="toast-message">
           {downloaded
-            ? `Update v${version} ready — restart to apply`
+            ? `Update v${version} ready. Restart to apply`
             : phase === 'downloading'
               ? `Downloading update v${version}…`
               : `Update v${version} is available`}

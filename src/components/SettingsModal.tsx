@@ -449,7 +449,7 @@ export function SettingsModal({
             </button>
             {!preferences.require_sensitive_confirmation && (
               <p className="settings-warning" role="alert">
-                Sunny will act without asking first — including deleting files, sending
+                Sunny will act without asking first. That includes deleting files, sending
                 messages, and making purchases on the websites you have open. Turn this
                 back on unless you are confident about every task you give it.
               </p>

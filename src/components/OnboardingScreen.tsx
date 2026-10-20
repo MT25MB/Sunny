@@ -168,7 +168,7 @@ export function OnboardingScreen({ onComplete, onSkip }: Props) {
             <h2>{currentPermission.title}</h2>
             <p>{currentPermission.description}</p>
             <div className="onboarding-instructions">
-              <span className="onboarding-instructions-label">How to enable:</span>
+              <span className="onboarding-instructions-label">How to turn on:</span>
               <ol>
                 {currentPermission.instructions.map((instruction, i) => (
                   <li key={i}>{instruction}</li>
@@ -180,9 +180,9 @@ export function OnboardingScreen({ onComplete, onSkip }: Props) {
               onClick={() => togglePermission(currentPermission.id)}
             >
               {checkedPermissions.has(currentPermission.id) ? (
-                <><Check size={16} /> Done, I've enabled it</>
+                <><Check size={16} /> Done, I've turned it on</>
               ) : (
-                <><LockKeyhole size={16} /> I'll enable this now</>
+                <><LockKeyhole size={16} /> I'll turn this on now</>
               )}
             </button>
           </div>

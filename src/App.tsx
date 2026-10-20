@@ -566,9 +566,9 @@ function App() {
                 <button
                   className="icon-btn"
                   onClick={handleToggleHighContrast}
-                  aria-label={highContrast ? "Disable high contrast mode" : "Enable high contrast mode"}
+                  aria-label={highContrast ? "Disable high contrast mode" : "Turn on high contrast mode"}
                   aria-pressed={highContrast}
-                  title={highContrast ? "Disable high contrast" : "Enable high contrast"}
+                  title={highContrast ? "Disable high contrast" : "Turn on high contrast"}
                 >
                   <Contrast size={24} />
                 </button>
@@ -680,7 +680,7 @@ function App() {
                 </div>
 
                 <div className="last-updated" aria-live="polite">
-                  Last updated: {systemStatus ? new Date(systemStatus.timestamp).toLocaleTimeString() : "—"}
+                  Last updated: {systemStatus ? new Date(systemStatus.timestamp).toLocaleTimeString() : "not available"}
                 </div>
               </section>
               <section className="actions-section" aria-labelledby="actions-title">

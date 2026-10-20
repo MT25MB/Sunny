@@ -6,7 +6,7 @@ import { Mic, MicOff, Loader2 } from "lucide-react";
  *
  * Recording is deliberately push-to-talk: the microphone is opened on press
  * and closed on release, so audio exists only while the user is holding the
- * button. Nothing is written to disk — the samples go straight to the main
+ * button. Nothing is written to disk - the samples go straight to the main
  * process for local Whisper transcription and are discarded afterwards.
  */
 interface MicButtonProps {
@@ -75,7 +75,7 @@ export function MicButton({ onTranscript, disabled }: MicButtonProps) {
     chunksRef.current = [];
 
     try {
-      // Decode and resample in the renderer with Web Audio — the main process
+      // Decode and resample in the renderer with Web Audio - the main process
       // should not need an audio codec, and the model wants raw PCM anyway.
       const pcm = await decodeTo16kMono(blob);
       if (!pcm) {
@@ -198,7 +198,7 @@ export function MicButton({ onTranscript, disabled }: MicButtonProps) {
       </button>
       {phase === "recording" && (
         <span className="mic-timer" role="status" aria-live="polite">
-          Recording {seconds}s — release to send
+          Recording {seconds}s. Let go to send
         </span>
       )}
       {busy && (
