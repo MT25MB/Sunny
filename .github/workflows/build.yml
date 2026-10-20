@@ -12,8 +12,8 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'npm'
@@ -36,8 +36,8 @@ jobs:
     # user's machine rather than here.
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'npm'
@@ -65,7 +65,7 @@ jobs:
           Write-Host "Unpacked native modules: $($native.Count)"
           $native | ForEach-Object { Write-Host "  $($_.Name)" }
       - name: Upload installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Sunny-Setup-win32-x64
           path: out/make/squirrel.windows/x64/*.exe

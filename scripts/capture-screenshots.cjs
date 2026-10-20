@@ -93,9 +93,12 @@ async function dismissOnboarding(page) {
     const searchInput = await page.$('.recipe-search-input');
     const searchButton = await page.$('.recipe-search-btn');
     if (searchInput && searchButton) {
-      await searchInput.fill('chicken parmesan');
+      // TheMealDB searches by exact meal name, so 'chicken parmesan'
+      // returns nothing and the app falls back to slow DuckDuckGo
+      // scraping. 'chicken' matches immediately.
+      await searchInput.fill('chicken');
       await searchButton.click();
-      await page.waitForSelector('.recipe-card', { timeout: 15000 });
+      await page.waitForSelector('.recipe-card', { timeout: 30000 });
     }
   } catch (err) {
     console.warn('Recipe search unavailable, skipping cooking mode:', err.message);
