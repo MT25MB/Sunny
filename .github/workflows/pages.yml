@@ -22,8 +22,17 @@ jobs:
       - name: Prepare site
         run: |
           mkdir -p site
-          cp index.html privacy-policy.html terms-of-service.html impressum.html 404.html site/
-          cp -r public site/public
+          cp index.html accessibility.html privacy-policy.html terms-of-service.html impressum.html 404.html site/
+          # robots.txt and sitemap.xml must sit at the site root, not under /public
+          cp public/robots.txt public/sitemap.xml site/
+          # .well-known/security.txt belongs at the root too
+          mkdir -p site/.well-known
+          cp public/.well-known/security.txt site/.well-known/
+          # assets are served from /public
+          mkdir -p site/public
+          cp -r public/assets site/public/assets
+          # stop Jekyll from dropping dot-directories such as .well-known
+          touch site/.nojekyll
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:

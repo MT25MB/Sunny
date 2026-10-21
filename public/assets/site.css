@@ -9,18 +9,20 @@
    ========================================================================== */
 
 :root {
-  --paper: #fbf8f1;
-  --surface: #ffffff;
-  --ink: #1a1f2b;
-  --ink-soft: #555f70;
-  --ink-faint: #636c7e;
-  --rule: #e3daca;
-  --rule-soft: #efe8db;
-  --sun: #c8801a;
-  --sun-ink: #8a5a0f;
-  --focus: #1a56db;
-  --radius-sm: 8px;
-  --radius: 14px;
+  /* Dark theme unified with the Sunny desktop app */
+  --paper: #11161b;
+  --surface: #171d22;
+  --surface-2: #202930;
+  --ink: #f7f9fb;
+  --ink-soft: #93a4aa;
+  --ink-faint: #99a7ad;
+  --rule: rgba(255, 255, 255, 0.11);
+  --rule-soft: rgba(255, 255, 255, 0.07);
+  --sun: #f1a95b;
+  --sun-ink: #f6b86a;
+  --focus: #f6b86a;
+  --radius-sm: 11px;
+  --radius: 20px;
   --measure: 68ch;
   --font-body: "Atkinson Hyperlegible", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
@@ -32,11 +34,16 @@
 body {
   margin: 0;
   font-family: var(--font-body);
-  background: var(--paper);
+  background:
+    radial-gradient(circle at 12% 6%, rgba(55, 104, 109, 0.30), transparent 36%),
+    radial-gradient(circle at 90% 96%, rgba(175, 101, 41, 0.14), transparent 38%),
+    var(--paper);
+  background-attachment: fixed;
   color: var(--ink);
   line-height: 1.7;
   font-size: 1.0625rem;
   -webkit-font-smoothing: antialiased;
+  color-scheme: dark;
 }
 
 /* Visible focus on everything, never removed. */
@@ -58,8 +65,8 @@ body {
   position: absolute;
   left: -9999px;
   top: 0;
-  background: var(--ink);
-  color: #fff;
+  background: var(--sun);
+  color: #17201f;
   padding: 0.75rem 1.25rem;
   z-index: 100;
   font-weight: 700;
@@ -74,7 +81,9 @@ body {
 /* ---------- Header ---------- */
 
 header.site {
-  background: var(--surface);
+  background: rgba(23, 29, 34, 0.92);
+  -webkit-backdrop-filter: blur(40px);
+  backdrop-filter: blur(40px);
   border-bottom: 1px solid var(--rule);
   position: sticky;
   top: 0;
@@ -104,13 +113,15 @@ header.site {
 .brand-mark {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--sun) 0%, #f4b860 100%);
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background: var(--sun);
   display: grid;
   place-items: center;
   font-size: 1.3rem;
-  color: #1d1305;
+  color: #17201f;
   flex-shrink: 0;
+  box-shadow: 0 7px 18px rgba(232, 139, 56, 0.23);
 }
 
 nav.site-nav {
@@ -131,7 +142,8 @@ nav.site-nav a {
 }
 
 nav.site-nav a:hover {
-  background: var(--rule-soft);
+  background: var(--surface-2);
+  color: var(--ink);
 }
 
 /* ---------- Content ---------- */
@@ -268,7 +280,7 @@ table.disclosure td:first-child {
 }
 
 table.disclosure tbody tr:nth-child(even) {
-  background: #fdfbf6;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 /* ---------- Callout ---------- */
@@ -290,7 +302,6 @@ table.disclosure tbody tr:nth-child(even) {
 /* ---------- Footer ---------- */
 
 footer.site {
-  background: var(--surface);
   border-top: 1px solid var(--rule);
   padding: 2.25rem 0;
   margin-top: 2.5rem;

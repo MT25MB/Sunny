@@ -1,0 +1,16 @@
+# Sunny - robots.txt
+# https://mt25mb.github.io/Sunny/
+
+User-agent: *
+Allow: /
+
+# No private or build paths exist on the static site, but block them anyway
+# so a future deploy cannot accidentally expose them.
+Disallow: /node_modules/
+Disallow: /out/
+Disallow: /dist/
+Disallow: /.git/
+Disallow: /app.html
+Disallow: /SETUP.md
+
+Sitemap: https://mt25mb.github.io/Sunny/sitemap.xml

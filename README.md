@@ -40,12 +40,24 @@ A dedicated landing page is available at **<https://mt25mb.github.io/Sunny/>** (
 
 The landing page features:
 
-- **Hero section** with large heading, subheadline, download/CTA buttons, and a mock desktop app showcase
-- **Core Features Grid** showcasing all 5 main features
-- **Senior Accessibility Highlights** with badges (Large Text, High Contrast, Voice Activated, Offline First)
-- **Footer** with GitHub repository link and copyright notice
+- **Hero section** with a large display headline, download buttons, and the app showcase
+- **Feature grid** covering all 6 tools: voice input, recipes and cooking mode, medication reminders, computer help, the morning digest, and safety and privacy
+- **Stats strip** with the numbers that matter: free, works offline, no accounts, three platforms
+- **Caregiver section** with per-platform install steps, app screenshots, and one-click downloads
+- **Accessibility highlights**, a **how it works** walkthrough, and an **FAQ**
 
-The landing page is built as a single self-contained `index.html` file with embedded CSS and JS - ready for GitHub Pages, Vercel, or Netlify deployment.
+The site shares the app's design system: the same dark palette, warm orange accent, Fraunces display type, Atkinson Hyperlegible body text, and the sun mascot. It is one self-contained `index.html` with embedded CSS and no JavaScript, so it deploys to any static host.
+
+### Legal and compliance pages
+
+| Page | What it covers |
+|------|----------------|
+| [Privacy Policy](https://mt25mb.github.io/Sunny/privacy-policy.html) | What data Sunny handles, every third-party service it can contact, GDPR rights, and US state privacy rights |
+| [Terms of Service](https://mt25mb.github.io/Sunny/terms-of-service.html) | MIT licence grant, as-is disclaimer, liability limits, and acceptable use |
+| [Accessibility Statement](https://mt25mb.github.io/Sunny/accessibility.html) | What Sunny supports, known limitations, and how to report a barrier |
+| [Impressum](https://mt25mb.github.io/Sunny/impressum.html) | Provider identification under German law (a placeholder a maintainer must complete) |
+
+The site also ships `robots.txt`, `sitemap.xml`, and `.well-known/security.txt` for search engines and security researchers.
 
 ### Who is Sunny for?
 

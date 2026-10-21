@@ -1187,7 +1187,9 @@ async function searchRecipes(query, maxResults = 5) {
           servings: 4,
           prepTimeMinutes: 15,
           cookTimeMinutes: 30,
-          sourceUrl: meal.strSource || `https://www.themealdb.com/meal/${meal.idMeal}`,
+          sourceUrl: isSafeHttpUrl(meal.strSource)
+            ? meal.strSource
+            : `https://www.themealdb.com/meal/${meal.idMeal}`,
         };
       });
 
@@ -1223,6 +1225,44 @@ function decodeHtmlEntities(text) {
 }
 
 /**
+ * Keep only http/https URLs.
+ *
+ * Recipe links are scraped from a search results page, so the string is
+ * attacker-influenced in the sense that a hostile page could put anything in
+ * an href. A javascript: or file: URL that reached shell.openExternal would be
+ * far worse than a broken recipe, so anything else is dropped here.
+ */
+function isSafeHttpUrl(candidate) {
+  if (typeof candidate !== 'string') return false;
+  try {
+    const parsed = new URL(candidate);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Unwrap a DuckDuckGo redirect link.
+ *
+ * Results point at //duckduckgo.com/l/?uddg=<encoded target>&rut=..., so the
+ * captured href is a wrapper rather than the recipe page. Without this the
+ * domain filter below never sees the real hostname.
+ */
+function unwrapDuckDuckGoUrl(href) {
+  if (typeof href !== 'string') return '';
+  const trimmed = href.trim();
+  if (!trimmed.startsWith('//duckduckgo.com/l/')) return trimmed;
+  try {
+    const parsed = new URL('https:' + trimmed);
+    const target = parsed.searchParams.get('uddg');
+    return target ? decodeURIComponent(target) : trimmed;
+  } catch {
+    return trimmed;
+  }
+}
+
+/**
  * Fallback recipe search using DuckDuckGo HTML scraping (free, no API key).
  * Extracts recipe links from search results.
  */
@@ -1238,27 +1278,26 @@ async function searchDuckDuckGoRecipes(query, maxResults = 5) {
     
     const html = await response.text();
     
-    // Extract result links from DuckDuckGo HTML
-    // Pattern matches <a class="result__url" ...> or similar result links
-    const linkRegex = /<a[^>]*class="[^"]*result__[^"]*"[^>]*href="([^"]+)"[^>]*>([^<]*)<\/a>/gi;
+    // Extract result links from DuckDuckGo HTML.
+    // Only the title anchor is used; the old link and snippet patterns were
+    // never read and only cost a regex compile on every search.
     const titleRegex = /<a[^>]*class="[^"]*result__title[^"]*"[^>]*href="([^"]+)"[^>]*>([^<]*)<\/a>/gi;
-    const snippetRegex = /<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>([^<]*)<\/a>/gi;
-    
+
     const results = [];
     let match;
-    
+
     // Try to find result titles with links
     while ((match = titleRegex.exec(html)) !== null && results.length < maxResults) {
-      const [, url, title] = match;
-      if (url && title && title.trim()) {
-        // Clean up HTML entities
+      const [, rawUrl, title] = match;
+      if (rawUrl && title && title.trim()) {
         const cleanTitle = decodeHtmlEntities(title).trim();
-        const cleanUrl = url.replace(/&amp;/g, '&').trim();
+        const cleanUrl = unwrapDuckDuckGoUrl(decodeHtmlEntities(rawUrl)).trim();
+        if (!isSafeHttpUrl(cleanUrl)) continue;
         
         // Only include if it looks like a recipe URL
         if (cleanTitle.length > 3 && (cleanUrl.includes('recipe') || cleanUrl.includes('food') || cleanUrl.includes('cook') || cleanUrl.includes('meal') || cleanUrl.includes('kitchen') || cleanUrl.includes('allrecipes') || cleanUrl.includes('foodnetwork') || cleanUrl.includes('epicurious') || cleanUrl.includes('thekitchn') || cleanUrl.includes('seriouseats') || cleanUrl.includes('simplyrecipes') || cleanUrl.includes('budgetbytes') || cleanUrl.includes('damndelicious') || cleanUrl.includes('gimmesomeoven') || cleanUrl.includes('sallysbakingaddiction'))) {
           results.push({
-            id: `ddg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            id: `ddg_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
             title: cleanTitle,
             imageUrl: null,
             ingredients: ['Recipe details available at source link'],
@@ -1278,16 +1317,17 @@ async function searchDuckDuckGoRecipes(query, maxResults = 5) {
       while ((match = generalLinkRegex.exec(html)) !== null && results.length < maxResults) {
         const [, url, title] = match;
         if (url && title && title.trim()) {
-          const cleanTitle = title.replace(/&/g, '&').replace(/"/g, '"').replace(/'/g, "'").replace(/</g, '<').replace(/>/g, '>').trim();
-          const cleanUrl = url.replace(/&amp;/g, '&').trim();
-          
+          const cleanTitle = decodeHtmlEntities(title).trim();
+          const cleanUrl = unwrapDuckDuckGoUrl(decodeHtmlEntities(url)).trim();
+          if (!isSafeHttpUrl(cleanUrl)) continue;
+
           // Filter for likely recipe sites
           const recipeDomains = ['allrecipes.com', 'foodnetwork.com', 'epicurious.com', 'thekitchn.com', 'seriouseats.com', 'simplyrecipes.com', 'budgetbytes.com', 'damndelicious.net', 'gimmesomeoven.com', 'sallysbakingaddiction.com', 'kingarthurbaking.com', 'tasty.co', 'delish.com', 'thepioneerwoman.com', 'minimalistbaker.com', 'cookieandkate.com', 'loveandlemons.com', 'pinchofyum.com', 'skinnytaste.com', 'wellplated.com'];
           const isRecipeSite = recipeDomains.some(domain => cleanUrl.includes(domain));
           
           if (isRecipeSite && cleanTitle.length > 5) {
             results.push({
-              id: `ddg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              id: `ddg_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
               title: cleanTitle,
               imageUrl: null,
               ingredients: ['Recipe details available at source link'],
@@ -1395,7 +1435,7 @@ function getWeatherCondition(code) {
 }
 
 async function scheduleMedicationReminder(pillName, timeString) {
-  const id = `med_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const id = `med_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
   const reminder = {
     id,
     pillName,
