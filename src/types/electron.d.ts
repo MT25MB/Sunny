@@ -328,6 +328,11 @@ export interface WindowState {
 export type WindowSizePreset = 'compact' | 'comfortable' | 'large';
 
 export interface WindowControls {
+  /**
+   * True when the OS draws the standard minimise, maximise and close buttons
+   * over the app's own header. Windows only.
+   */
+  readonly nativeTitleBar: boolean;
   /** Hide the window to the system tray. */
   minimizeToTray(): Promise<boolean>;
   /** Toggle visibility. Resolves to the new visible state. */

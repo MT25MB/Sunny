@@ -342,6 +342,13 @@ contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 // ============================================================================
 
 const windowControls = {
+  /**
+   * True when the operating system draws the minimise, maximise and close
+   * buttons over the app's own header. It is a Windows feature, and the
+   * renderer needs to know so it can leave room for them.
+   */
+  nativeTitleBar: process.platform === 'win32',
+
   minimizeToTray: () => ipcRenderer.invoke('sunny:minimize-to-tray'),
   toggleWindow: () => ipcRenderer.invoke('sunny:toggle-window'),
   quitApp: () => ipcRenderer.invoke('sunny:quit-app'),

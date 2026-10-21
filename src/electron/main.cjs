@@ -339,6 +339,18 @@ const RATE_LIMIT_MAX_CALLS = 30;
 const MAX_PAYLOAD_BYTES = 128 * 1024;
 const MAX_LOG_ENTRY_CHARS = 20_000;
 const TOOL_CALL_TIMEOUT_MS = 10_000;
+
+/**
+ * Tools that need longer than the default budget.
+ *
+ * The morning digest reaches three separate services -- a location lookup,
+ * a weather API and an RSS proxy -- and was being killed at ten seconds with
+ * "The get_daily_digest action took too long and was stopped." The other
+ * tools are local and finish in milliseconds, so the default stays tight.
+ */
+const TOOL_TIMEOUTS = {
+  get_daily_digest: 45_000,
+};
 const APP_LAUNCH_TIMEOUT_MS = 10_000;
 const MAX_ACTIONS_PER_BATCH = 30;
 const MAX_TYPED_CHARS = 4000;
@@ -813,15 +825,34 @@ function createWindow() {
     y: initialBounds.y,
     frame: false,
     transparent: false,
+    // The window chrome other applications have: the OS draws the standard
+    // minimise, maximise and close buttons over the top right of the app's
+    // own header, the way Chrome and Edge do on Windows. Without an overlay
+    // the app had to fake those buttons in the header, and they did not
+    // look or behave like the ones everywhere else on the desktop.
+    //
+    // Windows only: the overlay is a Windows feature.
+    ...(process.platform === 'win32'
+      ? {
+          titleBarOverlay: {
+            color: '#131a1f',
+            symbolColor: '#93a4aa',
+            height: 56,
+          },
+        }
+      : {}),
     // Default off: the window used to float above everything, which is
     // rarely what anyone wants. Re-enable from the tray menu or the pin button.
     alwaysOnTop: false,
-    // Not resizable by dragging the edges. The people this app is built for
-    // find edge-dragging fiddly, and one accidental drag can leave the
-    // window unusably small. The size is picked from Settings presets
-    // instead, and those presets scale to the current display.
-    resizable: false,
+    // Resizable, so the standard maximise button in the title bar works.
+    // The minimum size below is what keeps the original promise: the window
+    // can no longer be dragged down to something unusable, which is what
+    // edge-dragging was going to cause for the people this app is built for.
+    resizable: true,
     backgroundColor: '#11161b',
+    // A dragged window must never collapse to nothing.
+    minWidth: windowState.MIN_WIDTH,
+    minHeight: windowState.MIN_HEIGHT,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -1534,16 +1565,85 @@ async function searchDuckDuckGoRecipes(query, maxResults = 5) {
   }
 }
 
-async function getDailyDigest(location = 'auto', newsCount = 5) {
+/**
+ * A fetch that gives up rather than hanging.
+ *
+ * Without this, one unresponsive service holds the whole digest open until
+ * the tool timeout fires, and every request still runs to completion in the
+ * background afterwards.
+ */
+async function fetchWithTimeout(url, ms, label) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
   try {
+    const response = await fetch(url, { signal: controller.signal });
+    return await response.json();
+  } catch (err) {
+    if (err && err.name === 'AbortError') {
+      throw new Error(`${label} did not respond in time.`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** The headlines, which do not depend on where the user is. */
+async function fetchDigestNews(newsCount) {
+  try {
+    const newsData = await fetchWithTimeout(
+      `${NEWS_API}?rss_url=https://feeds.bbci.co.uk/news/rss.xml&api_key=demo&count=${newsCount}`,
+      15_000,
+      'The news service'
+    );
+    if (newsData.items) {
+      // Headlines come from a third-party RSS proxy and are genuinely
+      // untrusted: a compromised feed could otherwise smuggle
+      // instruction-like text into anything Sunny later reads. React escapes
+      // these on render, so this is defence in depth rather than the primary
+      // control.
+      return newsData.items.slice(0, newsCount).map((item) => ({
+        title: sanitizeUntrustedContent(String(item.title || '').slice(0, 200)),
+        summary: sanitizeUntrustedContent(String(item.description || '').replace(/[<>]/g, '').substring(0, 200)),
+        url: item.link,
+      }));
+    }
+  } catch (err) {
+    console.warn('[Digest] News unavailable:', err.message);
+  }
+  return [
+    { title: 'Stay informed with daily updates', summary: 'Check your favorite news source for the latest headlines.', url: '' },
+  ];
+}
+
+/**
+ * The last digest, so a second tap does not fetch it all again.
+ *
+ * @type {{ at: number, value: any }}
+ */
+let digestCache = { at: 0, value: null };
+const DIGEST_CACHE_MS = 15 * 60 * 1000;
+
+async function getDailyDigest(location = 'auto', newsCount = 5) {
+  if (digestCache.value && Date.now() - digestCache.at < DIGEST_CACHE_MS) {
+    return digestCache.value;
+  }
+  return fetchDailyDigest(location, newsCount);
+}
+
+async function fetchDailyDigest(location = 'auto', newsCount = 5) {
+  try {
+    // The headlines do not depend on where the user is, so they are fetched
+    // alongside the location lookup instead of after it.
+    const newsPromise = fetchDigestNews(newsCount);
+
     let latitude = 0;
     let longitude = 0;
     let locationName = 'Your Location';
 
     if (location === 'auto') {
       try {
-        const ipResponse = await fetch('https://ip-api.com/json/');
-        const ipData = await ipResponse.json();
+        const ipData = await fetchWithTimeout('https://ip-api.com/json/', 8_000, 'The location lookup');
         if (ipData.status === 'success') {
           latitude = ipData.lat;
           longitude = ipData.lon;
@@ -1557,8 +1657,7 @@ async function getDailyDigest(location = 'auto', newsCount = 5) {
     }
 
     const weatherUrl = `${OPEN_METEO_API}?latitude=${latitude}&longitude=${longitude}&current_weather=true&timezone=auto`;
-    const weatherResponse = await fetch(weatherUrl);
-    const weatherData = await weatherResponse.json();
+    const weatherData = await fetchWithTimeout(weatherUrl, 8_000, 'The weather service');
 
     const weather = {
       temperature: Math.round(weatherData.current_weather?.temperature || 0),
@@ -1566,34 +1665,15 @@ async function getDailyDigest(location = 'auto', newsCount = 5) {
       location: locationName,
     };
 
-    let news = [];
-    try {
-      const newsResponse = await fetch(`${NEWS_API}?rss_url=https://feeds.bbci.co.uk/news/rss.xml&api_key=demo&count=${newsCount}`);
-      const newsData = await newsResponse.json();
-      
-      if (newsData.items) {
-        // Headlines come from a third-party RSS proxy and are genuinely
-        // untrusted: a compromised feed could otherwise smuggle
-        // instruction-like text into anything Sunny later reads. React escapes
-        // these on render, so this is defence in depth rather than the primary
-        // control.
-        news = newsData.items.slice(0, newsCount).map(item => ({
-          title: sanitizeUntrustedContent(String(item.title || '').slice(0, 200)),
-          summary: sanitizeUntrustedContent(String(item.description || '').replace(/[<>]/g, '').substring(0, 200)),
-          url: item.link,
-        }));
-      }
-    } catch {
-      news = [
-        { title: 'Stay informed with daily updates', summary: 'Check your favorite news source for the latest headlines.', url: '' },
-      ];
-    }
+    const news = await newsPromise;
 
-    return {
+    const result = {
       weather,
       news,
       date: new Date().toISOString().split('T')[0],
     };
+    digestCache = { at: Date.now(), value: result };
+    return result;
   } catch (error) {
     console.error('Daily digest error:', error);
     return {
@@ -1693,7 +1773,7 @@ async function handleExecuteTool(channel, toolName, params) {
   const validated = validateToolParams(name, sanitizedParams);
   return withTimeout(
     runTool(name, validated),
-    TOOL_CALL_TIMEOUT_MS,
+    TOOL_TIMEOUTS[name] ?? TOOL_CALL_TIMEOUT_MS,
     `The "${name}" action took too long and was stopped.`
   );
 }
@@ -1998,23 +2078,9 @@ app.whenReady().then(() => {
     if (action === 'close') mainWindow.close();
   });
 
-  // --- Window controls (frameless window, so the renderer owns the chrome) --
-  ipcMain.handle('sunny:minimize-to-tray', (event) => {
-    assertTrustedSender(event);
-    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.hide();
-    return true;
-  });
-
-  ipcMain.handle('sunny:toggle-window', (event) => {
-    assertTrustedSender(event);
-    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
-      mainWindow.hide();
-      return false;
-    }
-    showMainWindow();
-    return true;
-  });
-
+  // --- Window controls ---------------------------------------------------
+  // Minimise and close are the native title bar buttons now, so there are
+  // no handlers for them here; the tray menu offers the same actions.
   ipcMain.handle('sunny:quit-app', (event) => {
     assertTrustedSender(event);
     isQuitting = true;

@@ -311,17 +311,33 @@ test('window creation installs navigation and window-open guards (H8 regression)
     path.join(__dirname, '..', 'src', 'electron', 'main.cjs'),
     'utf8'
   );
-  const createWindow = mainSrc.match(/function createWindow\(\) \{[\s\S]{0,5000}?\n\}/);
-  assert.ok(createWindow, 'createWindow must exist');
+  // Find the function by matching its braces. A fixed character window
+  // breaks the moment anything is added to the window options, which is how
+  // this assertion started failing on a function that was perfectly fine.
+  const start = mainSrc.indexOf('function createWindow() {');
+  assert.notStrictEqual(start, -1, 'createWindow must exist');
+
+  let depth = 0;
+  let end = -1;
+  for (let i = start; i < mainSrc.length; i += 1) {
+    if (mainSrc[i] === '{') depth += 1;
+    else if (mainSrc[i] === '}') {
+      depth -= 1;
+      if (depth === 0) { end = i; break; }
+    }
+  }
+  assert.notStrictEqual(end, -1, 'createWindow must be closed');
+  const createWindow = mainSrc.slice(start, end);
+
   assert.ok(
-    createWindow[0].includes('setWindowOpenHandler'),
+    createWindow.includes('setWindowOpenHandler'),
     'must handle window.open / target=_blank'
   );
   assert.ok(
-    createWindow[0].includes('will-navigate'),
+    createWindow.includes('will-navigate'),
     'must prevent in-page navigation away from the app'
   );
-  assert.ok(createWindow[0].includes('shell.openExternal'), 'external links must open in the browser');
+  assert.ok(createWindow.includes('shell.openExternal'), 'external links must open in the browser');
 });
 
 test('battery status is read per platform rather than hardcoded null (H7 regression)', () => {
@@ -363,8 +379,11 @@ test('high-contrast state is applied as a CSS class (H2 regression)', () => {
     require('node:path').join(__dirname, '..', 'src', 'App.tsx'),
     'utf8'
   );
+  // The className is written over several lines, so the source is
+  // normalised before it is matched.
+  const normalised = appSrc.replace(/\s+/g, ' ');
   assert.ok(
-    /className=\{`app-shell \$\{highContrast \? 'high-contrast' : ''\}`\}/.test(appSrc),
+    /className=\{`app-shell \$\{highContrast \? 'high-contrast' : ''\}/.test(normalised),
     'app-shell must receive the high-contrast class when toggled'
   );
 });
@@ -874,9 +893,11 @@ test('frameless window has a tray and window controls', () => {
   assert.ok(/app\.quit\(\)/.test(src), 'Quit must be reachable');
 
   // Each control needs a main-process handler.
+  //
+  // There is no handler for minimise or close: the native title bar draws
+  // those buttons, and the tray menu offers the same actions. What has to
+  // exist is the path that quits for real, and the always-on-top pair.
   for (const channel of [
-    'sunny:minimize-to-tray',
-    'sunny:toggle-window',
     'sunny:quit-app',
     'sunny:set-always-on-top',
     'sunny:get-always-on-top',
@@ -918,9 +939,30 @@ test('renderer exposes window chrome and a draggable title bar', () => {
   }
 
   // The renderer must render the controls, not just declare handlers.
-  assert.ok(/handleMinimizeToTray/.test(appSrc), 'minimize-to-tray button must be wired');
-  assert.ok(/window-btn-close/.test(appSrc), 'a close button must be rendered');
+  //
+  // Minimise, maximise and close are no longer drawn by the app: the OS
+  // draws them over the top right of the header, the way Chrome and Edge do
+  // on Windows. The app keeps the controls that are its own -- the pin and
+  // the fill toggle.
   assert.ok(/handleToggleAlwaysOnTop/.test(appSrc), 'always-on-top must be toggleable');
+  assert.ok(/handleToggleWindowFilled/.test(appSrc), 'the fill toggle must be wired');
+
+  const mainSrc = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'electron', 'main.cjs'),
+    'utf8'
+  );
+  assert.ok(
+    /titleBarOverlay/.test(mainSrc),
+    'the native window buttons must be enabled with titleBarOverlay'
+  );
+  assert.ok(
+    /process\.platform === 'win32'/.test(mainSrc),
+    'the title bar overlay is a Windows feature and must be guarded'
+  );
+  assert.ok(
+    /minWidth:\s*windowState\.MIN_WIDTH/.test(mainSrc),
+    'a resizable window must still have a minimum size'
+  );
 });
 
 test('clarification-level preference gates the ambiguity check', () => {

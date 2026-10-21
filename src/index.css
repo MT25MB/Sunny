@@ -636,6 +636,8 @@ textarea::placeholder { color: #65747b; }
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* The right padding leaves room for the minimise, maximise and close
+     buttons the OS draws over the header on Windows. */
   padding: 1.5rem 2rem;
   border-bottom: 2px solid #2a353b;
   background: #131a1f;
@@ -853,13 +855,20 @@ textarea::placeholder { color: #65747b; }
 /* Status Grid */
 .status-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  /* min(100%, 160px): a track may never be wider than the grid itself. The
+     old fixed 160px floor meant that on a narrow window two columns needed
+     more room than the panel had, and the cards ran past its right border. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
   gap: 1rem;
 }
 
 .status-item {
   display: flex;
   align-items: center;
+  /* Lets the card shrink below the width of its content, so a long value
+     such as an ethernet adapter name is clipped rather than pushing the
+     card wider. */
+  min-width: 0;
   gap: 1rem;
   padding: 1.25rem;
   border: 2px solid;
@@ -1394,6 +1403,13 @@ textarea::placeholder { color: #65747b; }
 .recipe-search-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* The OS draws the standard minimise, maximise and close buttons over the
+   top right of the header on Windows. Reserve room for them so the app's own
+   buttons are not hidden underneath. */
+.app-shell.native-titlebar .app-header {
+  padding-right: 9.5rem;
 }
 
 /* --- Voice input ------------------------------------------------------- */

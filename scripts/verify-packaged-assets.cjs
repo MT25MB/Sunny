@@ -164,6 +164,20 @@ function referencedAssetsFromBundle(bundleSource) {
 }
 
 /**
+ * Normalises the paths asar.listPackage() returns.
+ *
+ * listPackage() uses the host separator, so on Windows the entries come back
+ * as "\dist\assets\index-XXX.js". Comparing those against POSIX paths fails
+ * silently -- the check then reports "no renderer bundle found" about a
+ * perfectly good package.
+ */
+function normaliseAsarEntries(entries) {
+  return new Set(
+    entries.map((entry) => '/' + entry.replace(/\\/g, '/').replace(/^\/+/, ''))
+  );
+}
+
+/**
  * Every asset the built renderer references must be inside the packaged asar.
  */
 function checkPackagedApp(appDir) {
@@ -180,7 +194,7 @@ function checkPackagedApp(appDir) {
   }
 
   const asar = require('@electron/asar');
-  const entries = new Set(asar.listPackage(asarPath));
+  const entries = normaliseAsarEntries(asar.listPackage(asarPath));
 
   // Find the renderer's JS chunk inside the asar and read it.
   const bundleEntry = [...entries].find(
@@ -191,7 +205,10 @@ function checkPackagedApp(appDir) {
     return;
   }
 
-  const bundle = asar.extractFile(asarPath, bundleEntry.replace(/^\//, ''));
+  const bundle = asar.extractFile(
+    asarPath,
+    bundleEntry.replace(/^\//, '').split('/').join(path.sep)
+  );
   const refs = referencedAssetsFromBundle(bundle.toString('utf8'));
   notes.push('packaged renderer references ' + refs.size + ' asset(s)');
 
@@ -235,7 +252,7 @@ function findPackagedApp() {
 // Main
 // ---------------------------------------------------------------------------
 
-(async () => {
+async function main() {
   await checkImportsAreNotIgnored();
 
   let appDir = process.argv[2];
@@ -257,7 +274,13 @@ function findPackagedApp() {
     process.exit(1);
   }
   console.log('\nAll referenced assets are present and not excluded from the package.');
-})().catch((err) => {
-  console.error('verify-packaged-assets failed:', err && err.message);
-  process.exit(1);
-});
+}
+
+module.exports = { normaliseAsarEntries, referencedAssetsFromBundle };
+
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('verify-packaged-assets failed:', err && err.message);
+    process.exit(1);
+  });
+}

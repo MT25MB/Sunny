@@ -26,6 +26,7 @@ Sunny is a free, open-source desktop companion for older adults. This guide walk
 ### Windows Permissions
 - No special permissions needed on Windows
 - If your antivirus prompts, **allow Sunny** - it needs to see the screen to help
+- If Windows Security blocks Sunny's updater, see **"Windows blocked the update"** below
 
 ---
 
@@ -98,6 +99,43 @@ Hold for **1 second** to show/hide Sunny instantly.
 | **"Model not downloaded" error** | Open Sunny → Settings → click **Initialize Model** → wait for download |
 | **Sunny won't start after macOS update** | Re-grant Screen Recording and Accessibility permissions in System Settings |
 | **Linux: "command not found" after install** | Log out and back in, or run `source ~/.bashrc` |
+| **Windows Security: "Protected memory access blocked"** | See **"Windows blocked the update"** below |
+
+---
+
+## Windows blocked the update
+
+Sometimes Windows Security stops Sunny updating itself. You may see a
+notification saying **"Protected memory access blocked"** or **"Your
+administrator has blocked this action"**, naming a file called `Update.exe`.
+
+This is not a virus and nothing is wrong with the computer. It is
+**Controlled Folder Access**, the ransomware protection that is switched on
+in some versions of Windows. It stops any program that is not on its
+allow-list from writing to important folders, and the small updater Sunny
+downloads to install new versions is not on that list.
+
+**To let Sunny update itself:**
+
+1. Open **Windows Security** (right-click the shield icon in the taskbar)
+2. Go to **Virus & threat protection → Protection settings**
+3. Under **Ransomware protection**, choose **Manage ransomware protection**
+4. Choose **Controlled folder access** → turn it **off**
+5. Restart Sunny
+
+If you would rather leave that protection on, add Sunny to the allow-list
+instead: in the same **Controlled folder access** window, choose **Allow an
+app**, and point it at Sunny's `Update.exe` inside
+`%LOCALAPPDATA%\Sunny\app-<version>\` in the folder bar.
+
+Either way is safe. Turning Controlled Folder Access off is a personal
+choice about how paranoid you want the machine to be; adding one program to
+the allow-list keeps the protection and lets Sunny update itself.
+
+> **Note for developers:** signing the installer and the updater removes most
+> of these warnings. The release workflow already has a
+> [SignPath.io](https://signpath.io) block ready to switch on for open-source
+> projects.
 
 ---
 

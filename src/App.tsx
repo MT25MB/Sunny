@@ -28,10 +28,8 @@ import {
   Settings,
   RotateCcw,
   Pin,
-  Minus,
   Maximize2,
   Minimize2,
-  X,
 } from "lucide-react";
 import { sunnyBrain, type ChatMessage } from "@/renderer/services/sunnyBrain";
 import type { SystemStatus, Recipe, DailyDigest } from "@/types/electron";
@@ -79,6 +77,11 @@ function App() {
   const [medicationReminders, setMedicationReminders] = useState<Array<{ id: string; pillName: string; timeString: string; enabled: boolean; lastTaken?: string; triggeredAt?: string }>>([]);
   const [medModal, setMedModal] = useState<{ open: boolean; pillName: string; timeString: string }>({ open: false, pillName: "", timeString: "" });
   const [dailyDigest, setDailyDigest] = useState<DailyDigest | null>(null);
+  // The digest has its own error. The shared `error` state is rendered
+  // inside the System Health card, so a digest failure used to appear
+  // above the battery and Wi-Fi readings, where it looked like a
+  // problem with the computer rather than with the news.
+  const [digestError, setDigestError] = useState<string | null>(null);
   const [isFetchingDigest, setIsFetchingDigest] = useState(false);
   const [recipeSearchQuery, setRecipeSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Recipe[]>([]);
@@ -236,14 +239,6 @@ function App() {
     void window.windowControls?.toggleWindowFilled().then((filled) => {
       if (typeof filled === "boolean") setWindowFilled(filled);
     });
-  }, []);
-
-  const handleMinimizeToTray = useCallback(() => {
-    void window.windowControls?.minimizeToTray();
-  }, []);
-
-  const handleToggleWindow = useCallback(() => {
-    void window.windowControls?.toggleWindow();
   }, []);
 
   const handleToggleAlwaysOnTop = useCallback(() => {
@@ -516,13 +511,13 @@ function App() {
 
   const handleFetchDailyDigest = useCallback(async () => {
     setIsFetchingDigest(true);
+    setDigestError(null);
     try {
       const digest = await sunnyBrain.getDailyDigest();
       setDailyDigest(digest);
       expandSection("digest");
     } catch (e) {
-      const message = describeError(e);
-      setError(message);
+      setDigestError(describeError(e));
     } finally {
       setIsFetchingDigest(false);
     }
@@ -534,8 +529,7 @@ function App() {
       await sunnyBrain.speakDailyDigest();
       sunnyBrain.addMessage("assistant", "Morning digest spoken aloud.");
     } catch (e) {
-      const message = describeError(e);
-      setError(message);
+      setDigestError(describeError(e));
     }
   }, [dailyDigest, describeError]);
 
@@ -611,7 +605,11 @@ function App() {
       )}
       {
         <>
-          <div className={`app-shell ${highContrast ? 'high-contrast' : ''}`}>
+          <div
+            className={`app-shell ${highContrast ? 'high-contrast' : ''}${
+              window.windowControls?.nativeTitleBar ? ' native-titlebar' : ''
+            }`}
+          >
             <header className="app-header" role="banner">
               <div className="header-left">
                 <img src={mascot} alt="Sunny logo" className="app-logo" />
@@ -658,22 +656,6 @@ function App() {
                   title={windowFilled ? "Restore window size" : "Fill the screen"}
                 >
                   {windowFilled ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
-                </button>
-                <button
-                  className="icon-btn window-btn"
-                  onClick={handleMinimizeToTray}
-                  aria-label="Hide Sunny to the system tray"
-                  title="Hide to system tray"
-                >
-                  <Minus size={20} />
-                </button>
-                <button
-                  className="icon-btn window-btn window-btn-close"
-                  onClick={handleToggleWindow}
-                  aria-label="Hide Sunny"
-                  title="Hide to system tray"
-                >
-                  <X size={20} />
                 </button>
               </div>
             </header>
@@ -1076,6 +1058,19 @@ function App() {
                 onToggle={() => toggleSection("digest")}
               >
                 <div className="digest-content">
+                  {digestError && (
+                    <div className="error-banner" role="alert">
+                      <AlertTriangle size={20} />
+                      <span>{digestError}</span>
+                      <button
+                        className="retry-btn"
+                        onClick={handleFetchDailyDigest}
+                        disabled={isFetchingDigest}
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  )}
                   {dailyDigest ? (
                     <div className="digest-display">
                       <div className="digest-weather">
