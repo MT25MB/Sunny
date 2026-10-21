@@ -333,10 +333,6 @@ export interface WindowControls {
    * over the app's own header. Windows only.
    */
   readonly nativeTitleBar: boolean;
-  /** Hide the window to the system tray. */
-  minimizeToTray(): Promise<boolean>;
-  /** Toggle visibility. Resolves to the new visible state. */
-  toggleWindow(): Promise<boolean>;
   /** Fully quit the app (bypasses close-to-tray). */
   quitApp(): Promise<boolean>;
   /** Pin the window above all others. */

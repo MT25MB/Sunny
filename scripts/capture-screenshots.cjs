@@ -16,6 +16,35 @@ async function wait(ms) {
 }
 
 /**
+ * Opens one of the app's collapsible sections.
+ *
+ * The window is small, so most sections start folded away. Anything inside a
+ * closed section is present in the DOM but not visible, which means a search
+ * box cannot be typed into and a dialog that renders inside one never
+ * becomes visible. The capture has to open a section before it can use what
+ * is inside it.
+ */
+async function openSection(page, id) {
+  const toggle = await page.$('#' + id + '-toggle');
+  if (!toggle) {
+    console.warn('No toggle found for section:', id);
+    return false;
+  }
+  if ((await toggle.getAttribute('aria-expanded')) === 'true') return true;
+
+  await toggle.click();
+  await page.waitForFunction(
+    (sectionId) => {
+      const button = document.querySelector('#' + sectionId + '-toggle');
+      return Boolean(button) && button.getAttribute('aria-expanded') === 'true';
+    },
+    id,
+    { timeout: 5000 }
+  );
+  return true;
+}
+
+/**
  * Returns the app's window.
  *
  * Playwright only exposes Browser.pages() for browsers it launched itself.
@@ -90,6 +119,7 @@ async function dismissOnboarding(page) {
   // Find first recipe card and click "Start Cooking". Recipe cards only
   // exist after a search, so try one and carry on if the network is down.
   try {
+    await openSection(page, 'recipes');
     const searchInput = await page.$('.recipe-search-input');
     const searchButton = await page.$('.recipe-search-btn');
     if (searchInput && searchButton) {
@@ -122,6 +152,10 @@ async function dismissOnboarding(page) {
   }
 
   // ---- 3. Medication Reminder Modal ----
+  // The Add Reminder button sits in the section header so it stays reachable
+  // while the section is closed, but the dialog it opens is inside the
+  // panel, so the section has to be open before the dialog can show.
+  await openSection(page, 'medication');
   const addBtn = await page.$('button:has-text("Add Reminder")');
   if (addBtn) {
     await addBtn.click();

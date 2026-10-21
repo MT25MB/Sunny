@@ -123,6 +123,31 @@ test('screenshot workflow can push its commit from a tag checkout', () => {
   );
 });
 
+test('the capture script opens the sections it interacts with', () => {
+  // The app folds most of its sections away, so the search box and the
+  // medication dialog are in the DOM but not visible. The capture has to
+  // open a section before it can use what is inside it -- without that the
+  // job failed on a five second wait for a dialog nobody could see.
+  const capture = fs.readFileSync(
+    path.join(REPO, 'scripts', 'capture-screenshots.cjs'),
+    'utf8'
+  );
+
+  assert.ok(/async function openSection/.test(capture), 'must have an openSection helper');
+  assert.ok(
+    /openSection\(page, 'recipes'\)/.test(capture),
+    'the recipes section must be opened before searching'
+  );
+  assert.ok(
+    /openSection\(page, 'medication'\)/.test(capture),
+    'the medication section must be opened before the dialog can show'
+  );
+  assert.ok(
+    /aria-expanded/.test(capture),
+    'the helper must work from the section header\'s aria-expanded state'
+  );
+});
+
 test('the release waits for every platform before publishing', () => {
   // Creating the release from inside one matrix leg meant the download ran
   // while the other legs were still uploading, so the release was published

@@ -349,8 +349,6 @@ const windowControls = {
    */
   nativeTitleBar: process.platform === 'win32',
 
-  minimizeToTray: () => ipcRenderer.invoke('sunny:minimize-to-tray'),
-  toggleWindow: () => ipcRenderer.invoke('sunny:toggle-window'),
   quitApp: () => ipcRenderer.invoke('sunny:quit-app'),
   setAlwaysOnTop: (value) => ipcRenderer.invoke('sunny:set-always-on-top', value),
   getAlwaysOnTop: () => ipcRenderer.invoke('sunny:get-always-on-top'),

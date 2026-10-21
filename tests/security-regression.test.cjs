@@ -934,8 +934,21 @@ test('renderer exposes window chrome and a draggable title bar', () => {
     'header controls must opt out of the drag region'
   );
 
-  for (const fn of ['minimizeToTray', 'toggleWindow', 'quitApp', 'setAlwaysOnTop']) {
+  // Minimise and close are the native title bar buttons now, so the app no
+  // longer offers its own. What the renderer still needs is the way to quit
+  // for real and the always-on-top toggle.
+  for (const fn of ['quitApp', 'setAlwaysOnTop']) {
     assert.ok(preload.includes(fn), `${fn} must be exposed on windowControls`);
+  }
+  // The removed ones must be gone, not merely unused: an exposed method
+  // whose channel has no handler rejects at runtime.
+  // Match the method name exactly: "toggleWindow" is a substring of
+  // "toggleWindowFilled", which is still there on purpose.
+  for (const fn of ['minimizeToTray', 'toggleWindow']) {
+    assert.ok(
+      !preload.includes(fn + ':'),
+      `${fn} must not be exposed; the native title bar provides it`
+    );
   }
 
   // The renderer must render the controls, not just declare handlers.

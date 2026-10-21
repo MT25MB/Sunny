@@ -279,6 +279,12 @@ async function confirmSensitiveOperation(operation, description) {
  */
 function withSecurityConfirmation(operation, description, handler) {
   return async (event, ...args) => {
+    // Every one of these operations is renderer-initiated, so the request
+    // has to come from our own window. Without this check a compromised
+    // renderer could ask for a stored API key, capture the screen, or clear
+    // the debug logs. The check lives here rather than in each handler so
+    // that a new operation cannot forget it.
+    assertTrustedSender(event);
     // Check if this operation requires confirmation
     if (SENSITIVE_OPERATIONS.has(operation)) {
       const confirmed = await confirmSensitiveOperation(operation, description);
@@ -1617,12 +1623,17 @@ async function fetchDigestNews(newsCount) {
 }
 
 /**
- * The last digest, so a second tap does not fetch it all again.
+ * The last digest, so a double-clicked button does not fire two sets of
+ * requests at three services each.
+ *
+ * A minute, not longer: the button says "Fetch Morning Digest", and someone
+ * pressing it again expects fresh headlines rather than the ones from a
+ * quarter of an hour ago.
  *
  * @type {{ at: number, value: any }}
  */
 let digestCache = { at: 0, value: null };
-const DIGEST_CACHE_MS = 15 * 60 * 1000;
+const DIGEST_CACHE_MS = 60 * 1000;
 
 async function getDailyDigest(location = 'auto', newsCount = 5) {
   if (digestCache.value && Date.now() - digestCache.at < DIGEST_CACHE_MS) {
@@ -1767,6 +1778,11 @@ async function handleExecuteTool(channel, toolName, params) {
   const name = requireString(toolName, 'toolName');
   if (!SUNNY_TOOLS.includes(name)) {
     throw new Error(`Unknown tool: ${name}. Available tools: ${SUNNY_TOOLS.join(', ')}`);
+  }
+  // The two tools that reach the network get their own budget, so a
+  // renderer stuck in a loop cannot keep asking a third-party API.
+  if (name === 'search_recipe' || name === 'get_daily_digest') {
+    rateLimit('sunny:' + name);
   }
   // Sanitize all input parameters to prevent command injection
   const sanitizedParams = deepSanitize(params === undefined ? {} : params);
