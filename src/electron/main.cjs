@@ -1,10 +1,11 @@
-const { app, BrowserWindow, Menu, Tray, desktopCapturer, globalShortcut, ipcMain, nativeImage, safeStorage, session, shell, dialog } = require('electron');
+const { app, BrowserWindow, Menu, Tray, desktopCapturer, globalShortcut, ipcMain, nativeImage, safeStorage, screen, session, shell, dialog } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
 const { pathToFileURL } = require('node:url');
 const inference = require('./inference.cjs');
 const speech = require('./speech.cjs');
+const windowState = require('./window-state.cjs');
 const { getCredentialPath: resolveCredentialPath } = require('./credential-path.cjs');
 const { interceptAction, sanitizeUntrustedContent, checkParameterAmbiguity, DESTRUCTIVE_TEXT_PATTERN } = require('../main/security/interceptor.cjs');
 
@@ -80,6 +81,7 @@ const SENSITIVE_OPERATIONS = new Set([
  *   brain_model: string,
  *   ollama_endpoint: string,
  *   voice_enabled: boolean,
+ *   remember_window_position: boolean,
  * }} */
 const runtimePreferences = {
   require_sensitive_confirmation: true,
@@ -90,6 +92,7 @@ const runtimePreferences = {
   brain_model: 'moondream2',
   ollama_endpoint: 'http://localhost:11434',
   voice_enabled: true,
+  remember_window_position: true,
 };
 
 /** Only these keys are accepted, and only with these value shapes. */
@@ -102,6 +105,7 @@ const PREFERENCE_VALIDATORS = {
   brain_model: (v) => typeof v === 'string' && v.length > 0 && v.length <= 64,
   ollama_endpoint: (v) => typeof v === 'string' && /^https?:\/\/[^\s]+$/i.test(v) && v.length <= 300,
   voice_enabled: (v) => typeof v === 'boolean',
+  remember_window_position: (v) => typeof v === 'boolean',
 };
 
 function applyPreferenceUpdates(patch) {
@@ -112,6 +116,10 @@ function applyPreferenceUpdates(patch) {
     // from the renderer, so it must not accept arbitrary state.
     if (!validate || !validate(value)) continue;
     runtimePreferences[key] = value;
+    // The window preference decides where the window opens on the next
+    // launch, and the window is placed before the renderer can send this
+    // value again. Writing it out now is what makes it take effect.
+    if (key === 'remember_window_position') persistWindowState();
   }
   return runtimePreferences;
 }
@@ -572,6 +580,13 @@ function createTray() {
       label: 'Hide to tray',
       click: () => mainWindow && mainWindow.hide(),
     },
+    {
+      label: 'Move to bottom right',
+      click: () => {
+        resetWindowPosition();
+        showMainWindow();
+      },
+    },
     { type: 'separator' },
     {
       label: 'Always on top',
@@ -629,23 +644,183 @@ function showMainWindow() {
   mainWindow.focus();
 }
 
+// ============================================================================
+// Window geometry
+// ============================================================================
+
+/** Debounce handle for persisting the window rectangle. */
+let windowStateSaveTimer = null;
+
+/** The size preset the user last chose, so "Fill screen" can be undone. */
+let currentSizePreset = 'comfortable';
+
+/**
+ * The usable area of the display that best contains `bounds`. Falls back to
+ * the primary display when there is nothing to match against.
+ *
+ * `workArea` is used rather than the raw display bounds because it already
+ * excludes the Windows taskbar and the macOS dock - a window sized against
+ * the raw bounds would end up half-hidden under the taskbar.
+ */
+function getWorkAreaFor(bounds) {
+  const display = bounds
+    ? screen.getDisplayMatching(bounds)
+    : screen.getPrimaryDisplay();
+  return display.workArea;
+}
+
+/**
+ * Decides where the window opens and how big it is.
+ *
+ * On a first run (or when the monitor the window was last on has gone away)
+ * it opens in the bottom-right corner of the primary display. Otherwise the
+ * remembered rectangle is restored, clamped to the display it lands on so it
+ * can never open larger than the screen or entirely off it.
+ */
+function resolveInitialWindowBounds() {
+  // The "remember" flag is read from disk rather than from the renderer's
+  // copy of the preference: the window is placed before the renderer has
+  // loaded, so runtimePreferences would still hold its default here.
+  const saved = windowState.load();
+  const remember = saved ? saved.remember !== false : true;
+
+  if (remember && saved) {
+    const area = getWorkAreaFor({ x: saved.x, y: saved.y, width: saved.width, height: saved.height });
+
+    // How much of the saved window still lands on this display? A monitor
+    // that has since been unplugged would otherwise leave the window
+    // completely off-screen with no way to reach it.
+    const visibleWidth = Math.max(
+      0,
+      Math.min(saved.x + saved.width, area.x + area.width) - Math.max(saved.x, area.x),
+    );
+    const visibleHeight = Math.max(
+      0,
+      Math.min(saved.y + saved.height, area.y + area.height) - Math.max(saved.y, area.y),
+    );
+
+    if (
+      visibleWidth >= windowState.MIN_VISIBLE_WIDTH &&
+      visibleHeight >= windowState.MIN_VISIBLE_HEIGHT
+    ) {
+      const width = Math.min(saved.width, area.width);
+      const height = Math.min(saved.height, area.height);
+      const x = Math.min(Math.max(saved.x, area.x), area.x + area.width - width);
+      const y = Math.min(Math.max(saved.y, area.y), area.y + area.height - height);
+      currentSizePreset = saved.preset || 'comfortable';
+      return { x, y, width, height };
+    }
+  }
+
+  // First run: bottom-right of the primary display.
+  const area = screen.getPrimaryDisplay().workArea;
+  const { width, height } = windowState.computeSizeForArea(area, currentSizePreset);
+  const { x, y } = windowState.anchorBottomRight(area, width, height);
+  return { x, y, width, height };
+}
+
+/** Writes the current rectangle to disk, so it survives a restart. */
+function persistWindowState() {
+  const remember = runtimePreferences.remember_window_position;
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    // No window yet, but the "remember" preference still has to reach disk:
+    // it decides where the window opens on the next launch.
+    windowState.save({
+      x: 0, y: 0, width: 0, height: 0,
+      preset: currentSizePreset,
+      maximized: false,
+      remember,
+    });
+    return;
+  }
+  const bounds = mainWindow.getBounds();
+  windowState.save({
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+    preset: currentSizePreset,
+    maximized: isWindowFilled(),
+    remember: runtimePreferences.remember_window_position,
+  });
+}
+
+/** Persists the rectangle a moment after it settles. */
+function scheduleWindowStateSave() {
+  if (windowStateSaveTimer) clearTimeout(windowStateSaveTimer);
+  windowStateSaveTimer = setTimeout(() => {
+    windowStateSaveTimer = null;
+    persistWindowState();
+  }, 400);
+  if (typeof windowStateSaveTimer.unref === 'function') windowStateSaveTimer.unref();
+}
+
+/** True when the window covers its display's work area. */
+function isWindowFilled() {
+  if (!mainWindow || mainWindow.isDestroyed()) return false;
+  const bounds = mainWindow.getBounds();
+  const area = getWorkAreaFor(bounds);
+  return (
+    Math.abs(bounds.width - area.width) <= 2 && Math.abs(bounds.height - area.height) <= 2
+  );
+}
+
+/**
+ * Applies one of the Settings size presets to the window, re-anchoring it
+ * to the bottom-right of the display it is currently on so it never ends up
+ * half off-screen.
+ */
+function applyWindowPreset(presetName) {
+  if (!mainWindow || mainWindow.isDestroyed()) return null;
+  if (!Object.prototype.hasOwnProperty.call(windowState.SIZE_PRESETS, presetName)) return null;
+
+  currentSizePreset = presetName;
+  const bounds = mainWindow.getBounds();
+  const area = getWorkAreaFor(bounds);
+  const { width, height } = windowState.computeSizeForArea(area, presetName);
+  const { x, y } = windowState.anchorBottomRight(area, width, height);
+  mainWindow.setBounds({ x, y, width, height });
+  persistWindowState();
+  return { width, height, x, y };
+}
+
+/** Puts the window back in the bottom-right corner of its current display. */
+function resetWindowPosition() {
+  if (!mainWindow || mainWindow.isDestroyed()) return null;
+  const bounds = mainWindow.getBounds();
+  const area = getWorkAreaFor(bounds);
+  const { x, y } = windowState.anchorBottomRight(area, bounds.width, bounds.height);
+  mainWindow.setPosition(x, y);
+  persistWindowState();
+  return { x, y };
+}
+
 function createWindow() {
   // Enable remote debugging port for Playwright screenshot capture in CI
   if (process.env.CAPTURE_SCREENSHOTS === 'true') {
     app.commandLine.appendSwitch('remote-debugging-port', '9222');
   }
 
+  // The size is derived from the display rather than hard-coded, so Sunny
+  // fits whatever screen it lands on - an old 1024x768 panel and a 4K monitor
+  // both get a sensible window.
+  const initialBounds = resolveInitialWindowBounds();
+
   mainWindow = new BrowserWindow({
-    width: 520,
-    height: 760,
-    minWidth: 360,
-    minHeight: 620,
+    width: initialBounds.width,
+    height: initialBounds.height,
+    x: initialBounds.x,
+    y: initialBounds.y,
     frame: false,
     transparent: false,
     // Default off: the window used to float above everything, which is
     // rarely what anyone wants. Re-enable from the tray menu or the pin button.
     alwaysOnTop: false,
-    resizable: true,
+    // Not resizable by dragging the edges. The people this app is built for
+    // find edge-dragging fiddly, and one accidental drag can leave the
+    // window unusably small. The size is picked from Settings presets
+    // instead, and those presets scale to the current display.
+    resizable: false,
     backgroundColor: '#11161b',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -689,6 +864,16 @@ function createWindow() {
 
   // Pause status polling when window is hidden to save useless network probes
   // Emit window-visibility-change for renderer subscription
+  // Remember where the window was left. Moving is debounced because a drag
+  // fires 'move' continuously; resizing only happens through the Settings
+  // presets, but it is debounced the same way for safety.
+  mainWindow.on('move', () => {
+    scheduleWindowStateSave();
+  });
+  mainWindow.on('resize', () => {
+    scheduleWindowStateSave();
+  });
+
   mainWindow.on('hide', () => {
     if (statusEmitterTimer) {
       clearInterval(statusEmitterTimer);
@@ -1849,6 +2034,62 @@ app.whenReady().then(() => {
     return !!(mainWindow && !mainWindow.isDestroyed() && mainWindow.isAlwaysOnTop());
   });
 
+  // --- Window size and placement ----------------------------------------
+  // The window is not edge-resizable; these handlers are the only way its
+  // size changes. Every preset is computed against the work area of the
+  // display the window is on, so the same setting behaves sensibly on an
+  // old laptop panel and on a large monitor alike.
+  ipcMain.handle('sunny:get-window-state', (event) => {
+    assertTrustedSender(event);
+    if (!mainWindow || mainWindow.isDestroyed()) return null;
+    const bounds = mainWindow.getBounds();
+    return {
+      ...bounds,
+      preset: currentSizePreset,
+      filled: isWindowFilled(),
+    };
+  });
+
+  ipcMain.handle('sunny:set-window-preset', (event, preset) => {
+    assertTrustedSender(event);
+    rateLimit('sunny:set-window-preset');
+    return applyWindowPreset(preset);
+  });
+
+  ipcMain.handle('sunny:reset-window-position', (event) => {
+    assertTrustedSender(event);
+    rateLimit('sunny:reset-window-position');
+    return resetWindowPosition();
+  });
+
+  // "Fill the screen" is done with setBounds rather than Electron's
+  // maximize(), because a non-resizable window cannot be maximised
+  // reliably across platforms.
+  ipcMain.handle('sunny:toggle-window-filled', (event) => {
+    assertTrustedSender(event);
+    if (!mainWindow || mainWindow.isDestroyed()) return false;
+    if (isWindowFilled()) {
+      const area = getWorkAreaFor(mainWindow.getBounds());
+      const { width, height } = windowState.computeSizeForArea(area, currentSizePreset);
+      const { x, y } = windowState.anchorBottomRight(area, width, height);
+      mainWindow.setBounds({ x, y, width, height });
+    } else {
+      const area = getWorkAreaFor(mainWindow.getBounds());
+      mainWindow.setBounds({ x: area.x, y: area.y, width: area.width, height: area.height });
+    }
+    persistWindowState();
+    const filled = isWindowFilled();
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('sunny:window-filled-changed', filled);
+    }
+    return filled;
+  });
+
+  ipcMain.handle('sunny:get-window-filled', (event) => {
+    assertTrustedSender(event);
+    return isWindowFilled();
+  });
+
   // --- Voice input -------------------------------------------------------
   // Audio is captured and resampled to 16 kHz mono in the renderer, then
   // structured-cloned across as a Float32Array. Transcription is local (see
@@ -2107,6 +2348,13 @@ app.on('activate', () => {
 app.on('before-quit', () => {
   isQuitting = true;
   stopStatusBroadcast();
+  // Final flush: the debounced save may not have fired yet, and losing the
+  // remembered position here would undo the whole point of storing it.
+  if (windowStateSaveTimer) {
+    clearTimeout(windowStateSaveTimer);
+    windowStateSaveTimer = null;
+  }
+  persistWindowState();
   globalShortcut.unregisterAll();
   if (trayIcon) {
     trayIcon.destroy();

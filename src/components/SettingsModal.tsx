@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Brain, Check, CircleHelp, Download, Eye, EyeOff, FileText, Gauge,
-  Loader2, LockKeyhole, Mic, Plug, RefreshCw, RotateCcw, ShieldCheck,
-  Trash2, Wifi, X,
+  Loader2, LockKeyhole, Mic, Monitor, Plug, RefreshCw, RotateCcw,
+  ShieldCheck, Trash2, Wifi, X,
 } from 'lucide-react';
 import {
   type BrainProviderType,
@@ -18,6 +18,7 @@ import {
   type CredentialKey,
 } from '@/lib/credential-store';
 import type { ModelStatus } from '@/vite-env';
+import type { WindowSizePreset } from '@/types/electron';
 
 type ProviderConfig = {
   value: BrainProviderType;
@@ -73,6 +74,18 @@ const clarificationLevelOptions: { value: ClarificationLevel; label: string; det
   { value: 'destructive-only', label: 'Only risky requests', detail: 'Sunny only asks before destructive or dangerous actions.' },
 ];
 
+/**
+ * The window cannot be resized by dragging its edges, so these presets are
+ * the only way to change its size. Each one is computed against the usable
+ * area of the display the window is on, so the same choice behaves well on
+ * an old panel and on a large monitor.
+ */
+const WINDOW_SIZE_OPTIONS: { value: WindowSizePreset; label: string; detail: string }[] = [
+  { value: 'compact', label: 'Small', detail: 'A little box in the corner' },
+  { value: 'comfortable', label: 'Comfortable', detail: 'Fits most screens nicely' },
+  { value: 'large', label: 'Large', detail: 'More room for the activity log' },
+];
+
 type TestState = 'idle' | 'testing' | 'success' | 'error';
 type TestResult = { state: TestState; message: string };
 
@@ -115,6 +128,7 @@ export function SettingsModal({
   });
   const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
   const [saveState, setSaveState] = useState<'idle' | 'saved'>('idle');
+  const [windowPreset, setWindowPreset] = useState<WindowSizePreset>('comfortable');
   const [checkState, setCheckState] = useState<'idle' | 'checking' | 'available' | 'up-to-date' | 'error'>('idle');
 
   const activeConfig = PROVIDER_CONFIGS.find((p) => p.value === preferences.brain_provider) ?? PROVIDER_CONFIGS[0];
@@ -133,6 +147,24 @@ export function SettingsModal({
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  // Read the live window state when the drawer opens so the right preset is
+  // marked as selected.
+  useEffect(() => {
+    if (!open) return;
+    void window.windowControls?.getWindowState().then((state) => {
+      if (state?.preset) setWindowPreset(state.preset);
+    });
+  }, [open]);
+
+  const handleWindowPreset = useCallback((preset: WindowSizePreset) => {
+    setWindowPreset(preset);
+    void window.windowControls?.setWindowPreset(preset);
+  }, []);
+
+  const handleResetWindowPosition = useCallback(() => {
+    void window.windowControls?.resetWindowPosition();
+  }, []);
 
   // Focus management + Escape to close
   useEffect(() => {
@@ -432,6 +464,37 @@ export function SettingsModal({
                 </button>
               ))}
             </div>
+          </section>
+
+          {/* Window size and placement */}
+          <section className="settings-section">
+            <div className="settings-section-title">
+              <Monitor size={18} />
+              <span><strong>Window size</strong><small>Sunny opens in the bottom right. Pick how big it should be.</small></span>
+            </div>
+            <div className="speed-options">
+              {WINDOW_SIZE_OPTIONS.map((option) => (
+                <button
+                  className={`speed-option ${windowPreset === option.value ? 'selected' : ''}`}
+                  key={option.value}
+                  onClick={() => handleWindowPreset(option.value)}
+                >
+                  <span>{option.label}</span>
+                  <small>{option.detail}</small>
+                  {windowPreset === option.value && <Check size={16} />}
+                </button>
+              ))}
+            </div>
+            <button className="toggle-row" onClick={handleResetWindowPosition}>
+              <span>Move the window back to the bottom right</span>
+            </button>
+            <button
+              className={`toggle-row ${preferences.remember_window_position ? 'enabled' : ''}`}
+              onClick={() => onUpdate({ remember_window_position: !preferences.remember_window_position })}
+            >
+              <span>Remember the window size and position</span>
+              <span className="toggle"><span /></span>
+            </button>
           </section>
 
           {/* Safety Confirmations */}

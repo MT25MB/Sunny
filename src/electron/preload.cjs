@@ -352,6 +352,24 @@ const windowControls = {
     ipcRenderer.on('sunny:always-on-top-changed', handler);
     return () => ipcRenderer.removeListener('sunny:always-on-top-changed', handler);
   },
+
+  /**
+   * The window cannot be resized by dragging its edges; the size is chosen
+   * from Settings presets. These expose the current geometry and the
+   * controls that change it.
+   */
+  getWindowState: () => ipcRenderer.invoke('sunny:get-window-state'),
+  setWindowPreset: (preset) => ipcRenderer.invoke('sunny:set-window-preset', preset),
+  resetWindowPosition: () => ipcRenderer.invoke('sunny:reset-window-position'),
+
+  /** Toggle between filling the screen and the current preset size. */
+  toggleWindowFilled: () => ipcRenderer.invoke('sunny:toggle-window-filled'),
+  isWindowFilled: () => ipcRenderer.invoke('sunny:get-window-filled'),
+  onWindowFilledChanged: (callback) => {
+    const handler = (_event, value) => callback(value);
+    ipcRenderer.on('sunny:window-filled-changed', handler);
+    return () => ipcRenderer.removeListener('sunny:window-filled-changed', handler);
+  },
 };
 
 contextBridge.exposeInMainWorld('windowControls', windowControls);

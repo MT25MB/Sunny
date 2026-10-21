@@ -12,6 +12,8 @@ export type SunnyPreferences = {
   clarification_level: ClarificationLevel;
   ollama_endpoint: string;
   has_completed_onboarding: boolean;
+  /** Remember the window's size and position between launches. */
+  remember_window_position: boolean;
 };
 
 export const defaultPreferences: SunnyPreferences = {
@@ -24,6 +26,7 @@ export const defaultPreferences: SunnyPreferences = {
   clarification_level: 'all',
   ollama_endpoint: 'http://localhost:11434',
   has_completed_onboarding: false,
+  remember_window_position: true,
 };
 
 const STORAGE_KEY = 'sunny_preferences_v1';

@@ -29,6 +29,8 @@ import {
   RotateCcw,
   Pin,
   Minus,
+  Maximize2,
+  Minimize2,
   X,
 } from "lucide-react";
 import { sunnyBrain, type ChatMessage } from "@/renderer/services/sunnyBrain";
@@ -47,6 +49,14 @@ import {
   defaultPreferences,
   type SunnyPreferences,
 } from "@/lib/local-preferences";
+import CollapsibleSection from "@/components/CollapsibleSection";
+import {
+  defaultSectionState,
+  loadSectionState,
+  saveSectionState,
+  type SectionId,
+  type SectionState,
+} from "@/lib/section-state";
 import mascot from "/assets/mascot.png";
 // WebP keeps these illustrations ~7x smaller than the PNG fallback and is
 // supported natively by the Chromium engine Electron ships.
@@ -74,6 +84,8 @@ function App() {
   const [searchResults, setSearchResults] = useState<Recipe[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [modelStatus, setModelStatus] = useState<ModelStatus | null>(null);
+  const [openSections, setOpenSections] = useState<SectionState>(defaultSectionState);
+  const [windowFilled, setWindowFilled] = useState(false);
   const [modelError, setModelError] = useState<string | null>(null);
   const [debugLogCount, setDebugLogCount] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
@@ -87,6 +99,15 @@ function App() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = window.windowControls?.onWindowFilledChanged?.((filled) => {
+      setWindowFilled(filled);
+    });
+    return () => {
+      unsubscribe?.();
+    };
+  }, []);
+
   const statusUnsubscribeRef = useRef<(() => void) | null>(null);
   const messagesUnsubscribeRef = useRef<(() => void) | null>(null);
   const medicationUnsubscribeRef = useRef<(() => void) | null>(null);
@@ -96,6 +117,7 @@ function App() {
   const loadPreferences = useCallback(async () => {
     const prefs = loadLocalPreferences();
     setPreferences(prefs);
+    setOpenSections(loadSectionState());
     // Re-assert them in the main process: it holds no persisted copy, so a
     // restart would otherwise silently reset every setting to its default.
     void window.electronAPI?.setPreferences?.(prefs);
@@ -188,6 +210,34 @@ function App() {
   // The window is frameless, so these route the custom title bar's buttons.
   // Each is guarded because the renderer also runs in a plain browser during
   // UI work, where windowControls does not exist.
+  // Sections fold away so the small window stays usable. Which ones are open
+  // is remembered, so the app reopens the way it was left.
+  const toggleSection = useCallback((id: SectionId) => {
+    setOpenSections((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      saveSectionState(next);
+      return next;
+    });
+  }, []);
+
+  // Used when something happens that the user needs to see: a reminder
+  // firing, a digest arriving, a recipe being chosen. Folding a section
+  // closed must never hide a result the user just asked for.
+  const expandSection = useCallback((id: SectionId) => {
+    setOpenSections((prev) => {
+      if (prev[id]) return prev;
+      const next = { ...prev, [id]: true };
+      saveSectionState(next);
+      return next;
+    });
+  }, []);
+
+  const handleToggleWindowFilled = useCallback(() => {
+    void window.windowControls?.toggleWindowFilled().then((filled) => {
+      if (typeof filled === "boolean") setWindowFilled(filled);
+    });
+  }, []);
+
   const handleMinimizeToTray = useCallback(() => {
     void window.windowControls?.minimizeToTray();
   }, []);
@@ -277,6 +327,7 @@ function App() {
         return [...prev, reminder];
       });
       sunnyBrain.addMessage("system", `\u{1F48A} Medication Reminder: Time to take ${reminder.pillName}!`);
+      expandSection("medication");
       sunnyBrain.speakNotification(`Time to take your ${reminder.pillName}!`, "high", 2);
     });
 
@@ -331,7 +382,7 @@ function App() {
       cookingStepUnsubscribeRef.current?.();
       sunnyBrain.stopStatusPolling();
     };
-  }, [scrollToBottom]);
+  }, [scrollToBottom, expandSection]);
 
 
   const describeError = useCallback((err: unknown): string => {
@@ -393,10 +444,11 @@ function App() {
   }, [recipeSearchQuery, describeError]);
 
   const handleSelectRecipe = useCallback((recipe: Recipe) => {
+    expandSection("recipes");
     setCookingMode({ recipe, currentStep: 0 });
     sunnyBrain.addMessage("assistant", `Starting cooking mode for ${recipe.title}. Step 1 of ${recipe.instructions.length}: ${recipe.instructions[0]}`);
     sunnyBrain.speakNotification(`Starting cooking mode for ${recipe.title}. Step 1: ${recipe.instructions[0]}`, "normal", 1);
-  }, []);
+  }, [expandSection]);
 
   const handleNextStep = useCallback(() => {
     if (!cookingMode) return;
@@ -467,13 +519,14 @@ function App() {
     try {
       const digest = await sunnyBrain.getDailyDigest();
       setDailyDigest(digest);
+      expandSection("digest");
     } catch (e) {
       const message = describeError(e);
       setError(message);
     } finally {
       setIsFetchingDigest(false);
     }
-  }, [describeError]);
+  }, [describeError, expandSection]);
 
   const handleSpeakDailyDigest = useCallback(async () => {
     if (!dailyDigest) return;
@@ -598,6 +651,15 @@ function App() {
                   <Pin size={20} />
                 </button>
                 <button
+                  className={`icon-btn window-btn${windowFilled ? " active" : ""}`}
+                  onClick={handleToggleWindowFilled}
+                  aria-label={windowFilled ? "Restore the Sunny window size" : "Make Sunny fill the screen"}
+                  aria-pressed={windowFilled}
+                  title={windowFilled ? "Restore window size" : "Fill the screen"}
+                >
+                  {windowFilled ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+                </button>
+                <button
                   className="icon-btn window-btn"
                   onClick={handleMinimizeToTray}
                   aria-label="Hide Sunny to the system tray"
@@ -631,10 +693,14 @@ function App() {
                   </div>
                 </div>
               )}
-              <section className="health-card" aria-labelledby="health-title">
-                <h2 id="health-title" className="section-title">
-                  <Shield size={20} /> System Health
-                </h2>
+                            <CollapsibleSection
+                id="system-health"
+                className="health-card"
+                title="System Health"
+                icon={<Shield size={20} />}
+                open={openSections["system-health"]}
+                onToggle={() => toggleSection("system-health")}
+              >
 
                 {isLoading && (
                   <div className="loading-state" aria-live="polite">
@@ -687,9 +753,15 @@ function App() {
                 <div className="last-updated" aria-live="polite">
                   Last updated: {systemStatus ? new Date(systemStatus.timestamp).toLocaleTimeString() : "not available"}
                 </div>
-              </section>
-              <section className="actions-section" aria-labelledby="actions-title">
-                <h2 id="actions-title" className="section-title">Quick Actions</h2>
+              </CollapsibleSection>
+                            <CollapsibleSection
+                id="quick-actions"
+                className="actions-section"
+                title="Quick Actions"
+                icon={<Sun size={20} />}
+                open={openSections["quick-actions"]}
+                onToggle={() => toggleSection("quick-actions")}
+              >
                 <div className="action-grid">
                   <ActionButton
                     icon={<RefreshCw size={28} />}
@@ -722,14 +794,17 @@ function App() {
                     variant="secondary"
                   />
                 </div>
-              </section>
+              </CollapsibleSection>
 
-              <section className="recipe-section" aria-labelledby="recipe-title">
-                <div className="section-header">
-                  <h2 id="recipe-title" className="section-title">
-                    <Utensils size={20} /> Recipes & Cooking
-                  </h2>
-                </div>
+                            <CollapsibleSection
+                id="recipes"
+                className="recipe-section"
+                title="Recipes & Cooking"
+                icon={<Utensils size={20} />}
+                mascotSrc={mascotChef}
+                open={openSections.recipes}
+                onToggle={() => toggleSection("recipes")}
+              >
                 <form onSubmit={handleRecipeSearchSubmit} className="recipe-search-form">
                   <input
                     type="text"
@@ -796,7 +871,7 @@ function App() {
                     </p>
                   </div>
                 )}
-              </section>
+              </CollapsibleSection>
               {cookingMode && (
                 <div className="cooking-mode-overlay" role="dialog" aria-modal="true" aria-labelledby="cooking-title">
                   <div className="cooking-mode-content">
@@ -875,15 +950,20 @@ function App() {
                 </div>
               )}
 
-              <section className="medication-section" aria-labelledby="medication-title">
-                <div className="section-header">
-                  <h2 id="medication-title" className="section-title">
-                    <Pill size={20} /> Medication Reminders
-                  </h2>
+                            <CollapsibleSection
+                id="medication"
+                className="medication-section"
+                title="Medication Reminders"
+                icon={<Pill size={20} />}
+                mascotSrc={mascotPills}
+                open={openSections.medication}
+                onToggle={() => toggleSection("medication")}
+                headerExtra={
                   <button className="add-medication-btn" onClick={() => setMedModal({ open: true, pillName: "", timeString: "" })}>
                     <Plus size={20} /> Add Reminder
                   </button>
-                </div>
+                }
+              >
 
                 {medModal.open && (
                   <div className="med-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="med-modal-title">
@@ -985,13 +1065,16 @@ function App() {
                     ))
                   )}
                 </div>
-              </section>
-              <section className="digest-section" aria-labelledby="digest-title">
-                <div className="section-header">
-                  <h2 id="digest-title" className="section-title">
-                    <Newspaper size={20} /> Morning Digest
-                  </h2>
-                </div>
+              </CollapsibleSection>
+                            <CollapsibleSection
+                id="digest"
+                className="digest-section"
+                title="Morning Digest"
+                icon={<Newspaper size={20} />}
+                mascotSrc={mascotNewspaper}
+                open={openSections.digest}
+                onToggle={() => toggleSection("digest")}
+              >
                 <div className="digest-content">
                   {dailyDigest ? (
                     <div className="digest-display">
@@ -1055,15 +1138,17 @@ function App() {
                     </button>
                   )}
                 </div>
-              </section>
+              </CollapsibleSection>
 
               {showChat && (
-                <section className="chat-section" aria-labelledby="chat-title">
-                  <div className="chat-header">
-                    <h2 id="chat-title" className="section-title">
-                      <MessageSquare size={20} /> Activity Log
-                    </h2>
-                  </div>
+                                <CollapsibleSection
+                  id="activity"
+                  className="chat-section"
+                  title="Activity Log"
+                  icon={<MessageSquare size={20} />}
+                  open={openSections.activity}
+                  onToggle={() => toggleSection("activity")}
+                >
                   <div className="chat-messages" role="log" aria-live="polite" aria-label="Conversation history">
                     {messages.length === 0 ? (
                       <p className="chat-empty">No activity yet. Press a button above to start.</p>
@@ -1074,7 +1159,7 @@ function App() {
                     )}
                     <div ref={chatEndRef} />
                   </div>
-                </section>
+                </CollapsibleSection>
               )}
 
               <Footer />
