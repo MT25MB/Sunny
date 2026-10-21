@@ -61,7 +61,10 @@ const SENSITIVE_OPERATIONS = new Set([
   'write_debug_log',      // Debug logging
   'clear_debug_logs',     // Clearing debug logs
   'export_debug_logs',    // Exporting debug logs
-  'transcribe_speech',    // Local speech-to-text
+  // Voice input is deliberately not here. Holding the microphone button and
+  // letting go is the consent; asking again with a modal dialog every time
+  // would make the feature unusable. The transcript never leaves the
+  // machine, and the sender is still checked.
 ]);
 
 /**

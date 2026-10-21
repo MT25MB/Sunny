@@ -62,7 +62,13 @@ jobs:
           # Wait for app to be ready (model load + window)
           sleep 10
           node ../../scripts/capture-screenshots.cjs
-          kill $APP_PID
+          # Measure what is actually on screen: every piece of text against
+          # the background it really sits on, and whether anything overflows
+          # its panel. The stylesheet cannot be checked on its own, because
+          # text that inherits its colour can be invisible against a light
+          # panel without anything in the source saying so.
+          node ../../scripts/check-rendering.cjs
+          kill $APP_PID || true
 
       - name: Commit screenshots
         # This workflow is triggered by a tag push, so the checkout is a

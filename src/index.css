@@ -91,7 +91,7 @@ textarea::placeholder { color: #65747b; }
 .task-panel, .approval-panel { margin-top: 4px; padding: 17px; border: 1px solid #3d494e; border-radius: 15px; background: rgba(8, 13, 16, .25); }.task-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }.task-heading h2, .approval-copy h2 { margin: 5px 0 0; color: #f0f4f2; font-size: 17px; line-height: 1.35; }.task-meta { display: flex; gap: 12px; margin-top: 13px; color: #87979c; font: 500 10px 'Atkinson Hyperlegible', ui-monospace, 'SF Mono', Menlo, monospace; }.task-meta span { gap: 5px; }.stop-button { gap: 6px; min-height: 30px; padding: 0 10px; color: #eeaa9f; border: 1px solid rgba(227,135,120,.4); border-radius: 8px; background: rgba(227,135,120,.08); font-size: 11px; font-weight: 700; }.stop-button:hover { background: rgba(227,135,120,.18); }
 .steps-list { display: flex; flex-direction: column; gap: 7px; margin: 17px 0 0; padding: 0; list-style: none; }.task-step { display: flex; align-items: center; gap: 10px; min-height: 50px; padding: 8px 10px; color: #819097; border: 1px solid transparent; border-radius: 10px; }.task-step.active { color: #e9d2af; border-color: rgba(241,181,104,.35); background: rgba(241,181,104,.08); }.task-step.done { color: #9bcbb9; }.step-number { width: 26px; height: 26px; display: grid; place-items: center; flex: 0 0 auto; color: #7b8b91; border: 1px solid #4a585e; border-radius: 8px; }.done .step-number { color: #8bd4b3; border-color: #589e82; background: rgba(113,210,164,.1); }.active .step-number { color: #f1b568; border-color: #b8824c; }.task-step strong, .task-step small { display: block; }.task-step strong { color: inherit; font-size: 15px; }.task-step small { margin-top: 3px; color: #728187; font-size: 12px; }.step-state { margin-left: auto; color: #f1b568; font: 500 9px 'Atkinson Hyperlegible', ui-monospace, 'SF Mono', Menlo, monospace; text-transform: uppercase; }.step-spinner { width: 11px; height: 11px; border: 2px solid #f1b568; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }.task-error { margin: 13px 0 0; color: #eaa499; font-size: 15px; }.full-button { width: 100%; margin-top: 12px; }
 .approval-panel { display: grid; grid-template-columns: 43px 1fr; gap: 13px; align-items: start; border-color: rgba(241,181,104,.38); background: linear-gradient(145deg, rgba(241,181,104,.11), rgba(255,255,255,.02)); }.approval-icon { width: 43px; height: 43px; display: grid; place-items: center; color: #1b2526; border-radius: 12px; background: #f1b568; }.approval-copy p:not(.panel-kicker) { margin: 7px 0 0; color: #a7b4b5; font-size: 14px; line-height: 1.45; }.approval-note { display: flex; align-items: center; gap: 5px; margin-top: 10px; color: #86bbab; font: 500 10px 'Atkinson Hyperlegible', ui-monospace, 'SF Mono', Menlo, monospace; }.approval-actions { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 3px; }.approval-actions .primary-button, .approval-actions .secondary-button { min-height: 38px; }
-.privacy-note { gap: 6px; margin-top: 26px; color: #708087; font: 10px 'Atkinson Hyperlegible', ui-monospace, 'SF Mono', Menlo, monospace; }.privacy-note button { gap: 4px; margin-left: auto; padding: 0; color: #9daaad; background: transparent; font: inherit; }.privacy-note button:hover { color: #f1b568; }
+.privacy-note { gap: 6px; margin-top: 26px; color: #8a979d; font: 10px 'Atkinson Hyperlegible', ui-monospace, 'SF Mono', Menlo, monospace; }.privacy-note button { gap: 4px; margin-left: auto; padding: 0; color: #9daaad; background: transparent; font: inherit; }.privacy-note button:hover { color: #f1b568; }
 .drawer-backdrop { position: fixed; inset: 0; z-index: 10; display: flex; justify-content: flex-end; background: rgba(4,7,9,.62); backdrop-filter: blur(5px); }.settings-drawer { width: min(100%, 390px); overflow: auto; padding: 26px 24px; border-left: 1px solid rgba(255,255,255,.12); background: #1b2328; box-shadow: -18px 0 50px rgba(0,0,0,.3); animation: slide-in .25s ease-out; }.drawer-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; }.drawer-header h2 { margin: 7px 0 0; font: 800 23px 'Fraunces', serif; letter-spacing: -.04em; }.setting-group { padding: 19px 0; border-top: 1px solid rgba(255,255,255,.08); }.setting-title { gap: 11px; color: #f1b568; }.setting-title > span { display: block; }.setting-title strong, .setting-title small { display: block; }.setting-title strong { color: #e0e7e6; font-size: 15px; }.setting-title small { max-width: 280px; margin-top: 4px; color: #829298; font-size: 13px; line-height: 1.4; }.speed-options { display: flex; flex-direction: column; gap: 7px; margin-top: 14px; }.speed-option { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 11px 36px 11px 12px; color: #c4cece; border: 1px solid #3a474d; border-radius: 10px; background: #202a30; text-align: left; }.speed-option:hover, .speed-option.selected { border-color: #c48b54; background: rgba(241,181,104,.08); }.speed-option span { font-weight: 700; font-size: 14px; }.speed-option small { color: #829197; font-size: 12px; }.speed-option svg { position: absolute; top: 15px; right: 12px; color: #f1b568; }.toggle-row { justify-content: space-between; width: 100%; margin-top: 14px; padding: 12px 12px; color: #aebbbc; border: 1px solid #3a474d; border-radius: 10px; background: #202a30; text-align: left; font-size: 14px; }.toggle { width: 30px; height: 18px; padding: 3px; border-radius: 99px; background: #4a575d; transition: .2s; }.toggle span { display: block; width: 12px; height: 12px; border-radius: 50%; background: #a4b0b2; transition: .2s; }.toggle-row.enabled .toggle { background: #c28a53; }.toggle-row.enabled .toggle span { transform: translateX(12px); background: #fff4df; }.drawer-footer { justify-content: space-between; gap: 10px; padding-top: 22px; color: #718188; font: 10px 'Atkinson Hyperlegible', ui-monospace, 'SF Mono', Menlo, monospace; }.drawer-footer .secondary-button { min-height: 34px; padding: 0 11px; font-size: 11px; }
 
 /* Emergency STOP button */
@@ -244,7 +244,7 @@ textarea::placeholder { color: #65747b; }
 .progress-bar-track { height: 10px; border-radius: 99px; background: #2a353b; overflow: hidden; }
 .progress-bar-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #77b9d5, #71d2a4); transition: width .4s ease; }
 .model-overlay-pct { margin: 8px 0 0; color: #77b9d5; font: 600 13px 'Atkinson Hyperlegible', ui-monospace, 'SF Mono', Menlo, monospace; }
-.model-overlay-note { margin: 6px 0 0; color: #708087; font: 10px/1.4 'Atkinson Hyperlegible', ui-monospace, 'SF Mono', Menlo, monospace; }
+.model-overlay-note { margin: 6px 0 0; color: #8a979d; font: 10px/1.4 'Atkinson Hyperlegible', ui-monospace, 'SF Mono', Menlo, monospace; }
 
 /* Clarification panel */
 .clarify-panel { margin-top: 4px; padding: 20px; border: 1px solid rgba(119,185,213,.28); border-radius: 16px; background: linear-gradient(145deg, rgba(77,139,168,.1), rgba(255,255,255,.02)); }
@@ -290,7 +290,7 @@ textarea::placeholder { color: #65747b; }
 .log-dot-injection-detected { background: #e28778; }
 .log-dot-clarified { background: #77b9d5; }
 .log-text { flex: 1; color: #b8c5c6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.log-time { flex: 0 0 auto; color: #708087; font: 500 9px 'Atkinson Hyperlegible', ui-monospace, 'SF Mono', Menlo, monospace; }
+.log-time { flex: 0 0 auto; color: #8a979d; font: 500 9px 'Atkinson Hyperlegible', ui-monospace, 'SF Mono', Menlo, monospace; }
 
 /* Log controls in settings */
 .log-controls { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
@@ -306,7 +306,7 @@ textarea::placeholder { color: #65747b; }
 .model-status-downloading { background: #77b9d5; box-shadow: 0 0 8px rgba(119,185,213,.6); animation: pulse 1s ease-in-out infinite; }
 .model-status-loading { background: #f1b568; box-shadow: 0 0 8px rgba(241,181,104,.6); animation: pulse 1s ease-in-out infinite; }
 .model-status-error { background: #e28778; }
-.model-status-not-downloaded { background: #708087; }
+.model-status-not-downloaded { background: #8a979d; }
 
 /* API key input */
 .api-key-input { width: 100%; margin-top: 12px; padding: 11px 14px; color: #f3f5f5; border: 1px solid #3a464c; border-radius: 10px; outline: 0; background: #131a1f; font-size: 13px; }
@@ -932,7 +932,7 @@ textarea::placeholder { color: #65747b; }
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid rgba(255,255,255,0.08);
-  color: #708087;
+  color: #8a979d;
   font: 500 0.75rem 'Atkinson Hyperlegible', ui-monospace, 'SF Mono', Menlo, monospace;
   text-align: right;
 }
@@ -1022,17 +1022,16 @@ textarea::placeholder { color: #65747b; }
 .btn-label {
   font: 700 1rem 'Fraunces', serif;
   color: #f7f9fb;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Wrap rather than truncate. A button that says "Speak Status A..." is
+     worse than one that says "Speak Status Aloud" over two lines, and the
+     nowrap text was also what made the grid wider than its panel. */
+  overflow-wrap: anywhere;
 }
 
 .btn-desc {
   color: #829298;
   font: 500 0.8125rem 'Atkinson Hyperlegible', system-ui, sans-serif;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .btn-spinner {
@@ -1073,7 +1072,7 @@ textarea::placeholder { color: #65747b; }
 
 .chat-empty {
   text-align: center;
-  color: #708087;
+  color: #8a979d;
   font: 500 0.9375rem 'Atkinson Hyperlegible', system-ui, sans-serif;
   padding: 2rem;
 }
@@ -1156,7 +1155,7 @@ textarea::placeholder { color: #65747b; }
 }
 
 .msg-time {
-  color: #708087;
+  color: #8a979d;
   font: 500 0.6875rem 'Atkinson Hyperlegible', ui-monospace, 'SF Mono', Menlo, monospace;
   align-self: flex-end;
 }
@@ -1166,7 +1165,7 @@ textarea::placeholder { color: #65747b; }
   padding: 1.5rem 2rem;
   border-top: 1px solid rgba(255,255,255,0.06);
   text-align: center;
-  color: #708087;
+  color: #8a979d;
   font: 500 0.75rem 'Atkinson Hyperlegible', ui-monospace, 'SF Mono', Menlo, monospace;
 }
 
@@ -1175,7 +1174,7 @@ textarea::placeholder { color: #65747b; }
   margin-top: 2rem;
   padding: 1.25rem 1.5rem;
   border-top: 1px solid rgba(255,255,255,0.06);
-  color: #708087;
+  color: #8a979d;
   font-size: 0.8rem;
 }
 .footer-container {
@@ -1212,7 +1211,7 @@ textarea::placeholder { color: #65747b; }
   cursor: pointer;
 }
 .footer-quit:hover, .footer-quit:focus-visible { color: #e09a90; }
-.footer-note { width: 100%; margin: 0; font-size: 0.7rem; color: #5d6b72; }
+.footer-note { width: 100%; margin: 0; font-size: 0.7rem; color: #859299; }
 
 /* Error boundary (src/components/ErrorBoundary.tsx) */
 .error-boundary {
@@ -1275,6 +1274,39 @@ textarea::placeholder { color: #65747b; }
 .offline-note { margin: 0.9rem 0 0; text-align: center; color: #8d9aa0; font-size: 0.75rem; }
 
 /* Responsive */
+@media (max-width: 520px) {
+  /* The search form needs a line each on a small window. */
+  .recipe-search-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .recipe-search-input {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+  .recipe-search-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .mic-wrapper {
+    justify-content: center;
+  }
+
+  /* The section title and the button beside it do not fit on one line in
+     a narrow window. Squeezing them left the title in a box about fifty
+     pixels wide and broke the words in half -- "Medi / catio / n". The
+     title takes the line and the button goes underneath it. */
+  .collapsible-header {
+    flex-wrap: wrap;
+  }
+  .collapsible-toggle {
+    flex: 1 0 100%;
+  }
+  .collapsible-header > .add-medication-btn {
+    margin-left: auto;
+  }
+}
+
 @media (max-width: 600px) {
   .app-main {
     padding: 1rem;
@@ -1353,10 +1385,19 @@ textarea::placeholder { color: #65747b; }
   display: flex;
   gap: 0.75rem;
   margin-bottom: 1.5rem;
+  /* On a narrow window the search box, the button and the microphone do
+     not fit on one line. Wrapping keeps all three reachable instead of
+     letting them run off the side of the panel -- the form was 167px
+     wider than the panel at 360px, which pushed the microphone button
+     out of the window entirely. */
+  flex-wrap: wrap;
 }
 
 .recipe-search-input {
   flex: 1;
+  /* A text input keeps the width it was born with unless it is allowed
+     to shrink, and that width is wider than a small window. */
+  min-width: 0;
   padding: 0.875rem 1rem;
   font-size: 1rem;
   font-family: inherit;
@@ -1419,6 +1460,7 @@ textarea::placeholder { color: #65747b; }
   align-items: center;
   gap: 0.625rem;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 .mic-btn {
@@ -1849,7 +1891,7 @@ textarea::placeholder { color: #65747b; }
 .section-mascot-caption {
   margin: 0;
   max-width: 34rem;
-  color: #708087;
+  color: #8a979d;
   font: 500 0.9375rem/1.55 'Atkinson Hyperlegible', system-ui, sans-serif;
 }
 
@@ -2110,7 +2152,7 @@ textarea::placeholder { color: #65747b; }
 
 .no-news {
   text-align: center;
-  color: #708087;
+  color: #8a979d;
   padding: 2rem;
   font-weight: 500;
 }
@@ -2326,6 +2368,12 @@ textarea::placeholder { color: #65747b; }
 }
 .med-modal {
   background: #fff;
+  /* The dialog is a light panel while the rest of the app is dark, so its
+     text has to be set here. Left unset, the heading and the field labels
+     inherited the app's light text colour and measured 1.11:1 and 1.57:1
+     against white -- invisible. Form controls were fine only because the
+     browser gives buttons and inputs a dark default. */
+  color: #1a2226;
   border-radius: 16px;
   padding: 1.5rem;
   width: 100%;
@@ -2335,11 +2383,13 @@ textarea::placeholder { color: #65747b; }
   flex-direction: column;
   gap: 1rem;
 }
-.med-modal h3 { margin: 0; font-size: 1.25rem; font-weight: 800; }
-.med-modal label { display: flex; flex-direction: column; gap: .4rem; font-weight: 700; font-size: .95rem; }
+.med-modal h3 { margin: 0; font-size: 1.25rem; font-weight: 800; color: #16202a; }
+.med-modal label { display: flex; flex-direction: column; gap: .4rem; font-weight: 700; font-size: .95rem; color: #3c4a52; }
 .med-modal input {
   padding: .6rem .8rem; border: 2px solid #e6dcc8; border-radius: 10px; font: inherit; font-size: 1rem;
+  color: #1a2226; background: #fff;
 }
+.med-modal input::placeholder { color: #7d8a90; }
 .med-modal-actions { display: flex; gap: .75rem; justify-content: flex-end; }
 
 /* Update Toast */
@@ -2499,6 +2549,10 @@ textarea::placeholder { color: #65747b; }
   flex: 1 1 auto;
   min-width: 0;
   padding: 0.25rem 0;
+  /* A button with no background of its own is painted with the browser's
+     light grey default, which put the amber section titles on a light bar at
+     1.58:1. The header is a dark panel, so the button has to be transparent. */
+  background: transparent;
   color: #f1b568;
   font: 700 1.125rem 'Fraunces', serif;
   text-align: left;
@@ -2519,7 +2573,11 @@ textarea::placeholder { color: #65747b; }
 .collapsible-title {
   flex: 1 1 auto;
   min-width: 0;
-  overflow-wrap: anywhere;
+  /* Break a word only when it cannot fit on a line of its own. With
+     "anywhere" the title was cut mid-word -- "Medi / catio / n" -- because
+     the section header has a button beside it and the title was left
+     almost no room. */
+  overflow-wrap: break-word;
 }
 
 .collapsible-chevron {
