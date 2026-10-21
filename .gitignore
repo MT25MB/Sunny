@@ -27,6 +27,7 @@ out/
 # on one machine, where it silently rotted.
 verify*
 !scripts/verify-model.cjs
+!scripts/verify-packaged-assets.cjs
 *:Zone.Identifier
 
 # One-off image optimisation scratch (PIL palettes, comparison renders).

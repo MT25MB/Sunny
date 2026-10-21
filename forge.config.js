@@ -109,7 +109,15 @@ export default {
       // @font-face rules pointing at /assets/fonts/*.woff2, so removing them
       // silently drops every glyph in the app.
       /^\/dist\/assets\/sunny-hero\.jpg$/,
-      /^\/dist\/assets\/sunny-mascot-/,
+      // The renderer imports the chef, pills and newspaper mascots
+      // (src/App.tsx), and Vite emits their hashed copies into dist/assets.
+      // The old "sunny-mascot-" rule matched those hashed names too, so the
+      // packaged app shipped without them and the app showed broken images.
+      // Only the copies nothing points at are excluded now: the tea and wave
+      // mascots, and the raw duplicates Vite copies out of public/ next to
+      // its own hashed versions.
+      /^\/dist\/assets\/sunny-mascot-(tea|wave)\./,
+      /^\/dist\/assets\/sunny-mascot-(chef|pills|newspaper)\.(png|webp)$/,
       /^\/dist\/assets\/site\.css$/,
     ],
   },

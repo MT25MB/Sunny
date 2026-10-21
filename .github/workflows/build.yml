@@ -46,6 +46,8 @@ jobs:
         run: npm run build
       - name: Package installer
         run: npx electron-forge make --platform win32 --arch x64
+      - name: Verify packaged assets
+        run: node scripts/verify-packaged-assets.cjs
       - name: Verify native deps were unpacked
         shell: pwsh
         run: |

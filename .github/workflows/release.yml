@@ -70,6 +70,12 @@ jobs:
        #     # optional: add timestamp server for LTPS
        #     timestamp_server: 'http://timestamp.digicert.com'
 
+      - name: Verify packaged assets
+        # A green build says the bundler succeeded; it says nothing about
+        # what survived packaging. This is what caught the images being
+        # deleted by an ignore rule while the app still built cleanly.
+        run: node scripts/verify-packaged-assets.cjs
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v7
         with:
