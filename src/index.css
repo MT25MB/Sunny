@@ -1541,7 +1541,11 @@ textarea::placeholder { color: #65747b; }
 
 .recipe-results {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  /* The min() caps the track at the width of the panel. Without it the
+     cards were laid out 300 pixels wide even in a narrower window, and
+     they hung over the right edge of the panel -- which is what the
+     compact window size in Settings produces. */
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
   gap: 1rem;
 }
 

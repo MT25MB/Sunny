@@ -188,6 +188,20 @@ test('a narrow window stacks the search form', () => {
   );
 });
 
+test('the recipe cards fit inside their panel', () => {
+  // The results grid asked for columns of at least 300 pixels. In a
+  // narrower window the cards were still laid out that wide and hung over
+  // the right edge of the panel -- which is what the compact window size
+  // in Settings produces. Capping the track at the panel's own width is
+  // what stops it.
+  const results = rule('.recipe-results');
+  assert.ok(results, '.recipe-results must exist');
+  assert.ok(
+    /minmax\(min\(300px,\s*100%\),\s*1fr\)/.test(results),
+    '.recipe-results must cap its column at the width of the panel'
+  );
+});
+
 test('the section titles break at word boundaries', () => {
   // "Medication Reminders" was cut as "Medi / catio / n" because the title
   // was told it could break anywhere, and the section header has a button
