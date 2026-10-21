@@ -302,11 +302,21 @@ function withSecurityConfirmation(operation, description, handler) {
 
 /**
  * Dangerous shell metacharacters / sequences that could enable command
- * injection. Only actual command-substitution and chaining syntax is
- * removed — a bare `&` is left alone so benign queries like
- * "mac & cheese" keep working.
+ * injection. Command substitution and the *chained* operators are removed;
+ * a single &, | or ; is left alone, so ordinary text like "mac & cheese",
+ * "salt | pepper" and "sugar; cream" survives.
+ *
+ * That is a deliberate trade. None of these parameters reaches a shell, a
+ * file path or a command line — the only process execution in the app is
+ * execFile with a fixed executable and an argument array — so a lone
+ * metacharacter cannot do anything here. Stripping them bought nothing and
+ * cost real searches, because a recipe query for "salt | pepper" came back
+ * as "salt  pepper". The code already kept a bare & for the same reason.
+ *
+ * If a parameter is ever passed to a shell, it must not be through this
+ * function: build the argument array instead.
  */
-const DANGEROUS_CHARS_REGEX = /`|\$\{|\$\(|;|&&|\|\||\|/g;
+const DANGEROUS_CHARS_REGEX = /`|\$\{|\$\(|&&|\|\|/g;
 
 /**
  * Sanitizes a string by removing dangerous shell characters.

@@ -340,6 +340,46 @@ test('window creation installs navigation and window-open guards (H8 regression)
   assert.ok(createWindow.includes('shell.openExternal'), 'external links must open in the browser');
 });
 
+test('the input sanitizer preserves metacharacters used in ordinary text', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const mainSrc = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'electron', 'main.cjs'),
+    'utf8'
+  );
+
+  // Read the actual pattern out of the source and exercise it, rather than
+  // asserting that some text happens to be present.
+  const declared = mainSrc.match(/const DANGEROUS_CHARS_REGEX = \/(.*)\/g;/);
+  assert.ok(declared, 'the sanitizer pattern must be declared');
+  // The pattern is read without its delimiters and the trailing g, because
+  // new RegExp('...') treats a slash and a g as literal text.
+  const pattern = new RegExp(declared[1], 'g');
+  const strip = (text) => text.replace(pattern, '');
+
+  // A single metacharacter in prose is not command chaining. The sanitizer
+  // already kept "&" for "mac & cheese"; "|" and ";" are the same case, and
+  // stripping them meant a recipe search for "salt | pepper" came back as
+  // "salt  pepper".
+  for (const text of ['mac & cheese', 'salt | pepper', 'sugar; cream', "don't stop"]) {
+    assert.strictEqual(strip(text), text, `"${text}" must survive intact`);
+  }
+
+  // Command substitution and the chained operators still go.
+  for (const text of ['rm -rf / && curl evil', 'a || b', '`whoami`', '$(id)', '${HOME}']) {
+    assert.notStrictEqual(strip(text), text, `"${text}" must be cleaned`);
+  }
+
+  // A single & | or ; survives. None of these parameters reaches a shell or
+  // a command line -- the only process execution is execFile with a fixed
+  // executable and an argument array -- so a lone metacharacter is inert,
+  // and removing it only corrupted real input. If a parameter ever does
+  // reach a shell it must be built as an argument array, not through this.
+  for (const text of ['x; rm -rf /', 'a | b', 'a & b']) {
+    assert.strictEqual(strip(text), text, `"${text}" is inert here and must survive`);
+  }
+});
+
 test('battery status is read per platform rather than hardcoded null (H7 regression)', () => {
   const fs = require('node:fs');
   const path = require('node:path');
