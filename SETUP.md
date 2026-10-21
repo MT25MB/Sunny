@@ -20,6 +20,8 @@ Sunny is a free, open-source desktop companion for older adults. This guide walk
 3. If Windows shows **"Windows protected your PC"**:
    - Click **More info**
    - Click **Run anyway**
+   - This warning only appears for builds that are not code signed. Newer
+     builds are signed, and Windows recognises them without asking.
 4. Follow the installer: **Next → Next → Finish** (defaults are fine)
 5. Press **Ctrl + Shift + Space** anytime to open Sunny
 

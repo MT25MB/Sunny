@@ -54,21 +54,53 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
        # ------------------------------------------------------------------
-       # OPTIONAL: SignPath.io free code signing for open source
-       # Uncomment and configure if you want to sign Windows installers
-       # to avoid SmartScreen "Windows protected your PC" warning.
-       # See https://signpath.io/ for setup instructions.
+       # Code signing with SignPath (free for open source).
+       #
+       # A signed installer stops Windows SmartScreen from warning the
+       # person installing it, and stops Defender treating the updater as
+       # unknown. The step is skipped unless the organisation variable is
+       # set, because until the project has a certificate, a signing policy
+       # and the Foundation's approval the request is rejected and the
+       # release would fail. Until then the unsigned installer is published.
        # ------------------------------------------------------------------
-       # - name: Sign Windows installer with SignPath
-       #   if: runner.os == 'Windows'
-       #   uses: SignPath/signpath-action@v2
-       #   with:
-       #     project_id: ${{ secrets.SIGNPATH_PROJECT_ID }}
-       #     project_key: ${{ secrets.SIGNPATH_PROJECT_KEY }}
-       #     # artifacts must be specified relative to workspace root
-       #     artifacts: 'out/make/**/*.exe'
-       #     # optional: add timestamp server for LTPS
-       #     timestamp_server: 'http://timestamp.digicert.com'
+      - name: Upload unsigned installer
+        id: upload-unsigned
+        if: runner.os == 'Windows' && vars.SIGNPATH_ORGANIZATION_ID != ''
+        uses: actions/upload-artifact@v4
+        with:
+          # Deliberately not "sunny-*": the publish job downloads every
+          # artifact matching that pattern, and the unsigned installer
+          # must not end up in the release.
+          name: win-unsigned
+          path: out/make/**/${{ matrix.installer }}
+          if-no-files-found: error
+
+      - name: Sign the installer
+        id: sign
+        if: runner.os == 'Windows' && vars.SIGNPATH_ORGANIZATION_ID != ''
+        # A signing failure must not stop the release. If SignPath rejects the
+        # request, the step is marked failed but the unsigned installer is
+        # published instead, and the failure is still visible in the log.
+        continue-on-error: true
+        uses: signpath/github-action-submit-signing-request@v3
+        env:
+          SIGNPATH_SIGNING_POLICY_SLUG: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG || 'release-signing' }}
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ env.SIGNPATH_SIGNING_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed-installer
+
+      - name: Upload signed installer
+        if: steps.sign.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: signed-installer/
+          if-no-files-found: error
 
       - name: Verify packaged assets
         # A green build says the bundler succeeded; it says nothing about
@@ -77,6 +109,10 @@ jobs:
         run: node scripts/verify-packaged-assets.cjs
 
       - name: Upload Artifacts
+        # Skipped when the installer was signed: the signed copy is uploaded
+        # under the same artifact name, and two uploads with one name in a
+        # single run is an error.
+        if: steps.sign.outcome != 'success'
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact_name }}
