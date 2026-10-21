@@ -57,7 +57,6 @@
 
     /* Success - matches app */
     --success: #71d2a4;
-    --success-soft: rgba(113, 210, 164, 0.14);
 
     /* Inverted band (CTA) - light surface on dark page */
     --band: #faf6ef;
@@ -283,8 +282,8 @@
   .tile-meds { grid-column: 2; grid-row: 2; }
   .tile-computer { grid-column: 3; grid-row: 1; }
   .tile-morning { grid-column: 3; grid-row: 2; }
-  .tile-safety { grid-column: 1 / 3; grid-row: 3; }
-  .tile-preview { grid-column: 3; grid-row: 3; }
+  .tile-safety { grid-column: 1; grid-row: 3; }
+  .tile-preview { grid-column: 2 / 4; grid-row: 3; }
   .tile {
     background: var(--material-raised);
     -webkit-backdrop-filter: var(--blur-standard);
@@ -308,12 +307,27 @@
   .tile-voice p { max-width: 34ch; }
   .tile .tile-art { margin-top: auto; border-radius: var(--radius-sm); overflow: hidden; }
   .tile .tile-art svg { display: block; width: 100%; height: auto; }
+  /* Compact checklist used on the wider safety card */
+  .tile-list { list-style: none; margin: .25rem 0 0; padding: 0; }
+  .tile-list li {
+    position: relative; padding-left: 1.5rem; margin-bottom: .4rem;
+    font-size: .9rem; color: var(--text-muted); line-height: 1.5;
+  }
+  .tile-list li::before {
+    content: ""; position: absolute; left: 0; top: .45em;
+    width: .45rem; height: .45rem; border-radius: 50%;
+    background: var(--brand);
+  }
 
-  /* Live preview card - real app screenshot, framed like the app */
-  .tile-preview { padding: 0; overflow: hidden; }
+  /* Live preview card - real app screenshot, framed like the app.
+     The screenshots are 520x720 portrait, so the crop is landscape from the
+     top, which is where the health panel lives. The image is taken out of
+     flow so it fills the card without driving the row height, and the
+     min-height stops it collapsing when the sibling card is short. */
+  .tile-preview { padding: 0; overflow: hidden; margin: 0; position: relative; min-height: 300px; }
   .tile-preview img {
-    width: 100%; height: 100%; object-fit: cover; object-position: top left;
-    border-radius: 0;
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; object-position: top center; border-radius: 0;
   }
   .tile-preview figcaption {
     position: absolute; inset: auto 0 0 0;
@@ -332,10 +346,8 @@
     display: block; font-family: "Fraunces", Georgia, serif; font-size: 1.75rem;
     font-weight: 600; color: var(--brand); line-height: 1.1; margin-bottom: .35rem;
   }
-  .stat-success strong { color: var(--success); }
-  .stat-success span { color: var(--text-soft); }
-  .stat-success { background: var(--success-soft); border-radius: var(--radius-sm); padding: .75rem 1rem; margin: -.75rem -1rem; }
   .stat span { font-size: .875rem; color: var(--text-muted); }
+  .stat-good strong { color: var(--success); }
 
   /* Accessibility band - sunk material, hairline rules */
   .principles {
@@ -435,7 +447,7 @@
   .footer-brand img { width: 44px; height: 44px; border-radius: var(--radius-sm); object-fit: cover; }
   .footer-brand strong { font-family: "Fraunces", serif; font-size: 1.2rem; display: block; }
   .footer-brand small { color: var(--text-soft); font-size: .85rem; }
-  .footer-col h4 {
+  .footer-col h3 {
     font-size: var(--fs-micro); font-weight: 500; color: var(--text-soft);
     margin-bottom: .8rem; font-family: "Atkinson Hyperlegible", sans-serif;
     letter-spacing: 0.14em; text-transform: uppercase;
@@ -458,12 +470,19 @@
     .hero-grid { grid-template-columns: 1fr; }
     .hero-art { aspect-ratio: 1376 / 768; max-width: 520px; margin: 0 auto; }
     .bento { grid-template-columns: repeat(2, 1fr); }
-    .bento .wide, .bento > * { grid-column: span 1; }
+    /* Both axes must reset. The per-tile grid-column and grid-row rules have
+       the same specificity as a bare .tile selector, so the more specific
+       .bento > .tile form is used to guarantee the reset wins. */
+    .bento > .tile { grid-column: span 1; grid-row: span 1; }
+    .bento > .tile-preview { grid-column: 1 / -1; min-height: 260px; }
     .principles-grid { grid-template-columns: repeat(2, 1fr); }
+    .stats { grid-template-columns: repeat(2, 1fr); row-gap: var(--space-4); }
     .footer-grid { grid-template-columns: 1fr 1fr; }
   }
   @media (max-width: 600px) {
     .bento { grid-template-columns: 1fr; }
+    .bento > .tile { grid-column: span 1; grid-row: span 1; }
+    .bento > .tile-preview { grid-column: 1 / -1; }
     .principles-grid { grid-template-columns: 1fr; }
     .footer-grid { grid-template-columns: 1fr; }
     .site-header-inner { flex-direction: column; align-items: stretch; }
@@ -473,6 +492,7 @@
   @media (max-width: 420px) {
     :root { --space-7: 3.5rem; --space-6: 2.5rem; }
     .hero-actions .btn, .cta-actions .btn { width: 100%; justify-content: center; }
+    .stats { grid-template-columns: 1fr; }
   }
 
   /* Animations - hero entrance only; everything else responds to the user */
@@ -621,7 +641,7 @@
         <div class="section-head">
           <span class="kicker">What Sunny does</span>
           <h2>Six tools. Each one does one thing well.</h2>
-          <p>No accounts, no setup, no subscription. Download it and it works.</p>
+          <p>No accounts, no setup, no subscription. Once it is installed, Sunny works with no internet connection at all.</p>
         </div>
         <div class="bento">
           <article class="tile tile-voice">
@@ -748,13 +768,18 @@
           <article class="tile tile-safety">
             <div class="tile-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 22s6-4 9-4 9 4 9 4" />
-                <path d="M12 22v-6" />
-                <path d="M5 9h14" />
+                <path d="M12 2.5 4.5 5v6.2c0 4.6 3.1 8.8 7.5 10.3 4.4-1.5 7.5-5.7 7.5-10.3V5L12 2.5Z" />
+                <path d="m9 12 2.2 2.2L15.5 10" />
               </svg>
             </div>
             <h3>Safety &amp; privacy</h3>
-            <p>Sunny refuses terminal commands, passwords, and hacking. Every sensitive action asks permission first, and screen text is screened for hidden instructions before it reaches the model.</p>
+            <p>Sunny asks before anything irreversible, and it screens what is on your screen for hidden instructions before the model ever sees it.</p>
+            <ul class="tile-list">
+              <li>Blocks terminal commands and shell access</li>
+              <li>Refuses password and credential entry</li>
+              <li>Stops prompt injection hidden in web pages</li>
+              <li>Keeps your data on your own computer</li>
+            </ul>
           </article>
           <figure class="tile tile-preview">
             <img src="public/assets/screenshots/system-health.png" alt="Sunny's system health panel showing battery, Wi-Fi, internet, processor and memory status" loading="lazy" width="880" height="560" />
@@ -767,13 +792,13 @@
             <strong>100%</strong>
             <span>Free and MIT licensed</span>
           </div>
-          <div class="stat stat-success">
-            <strong>Offline</strong>
-            <span>Runs with no internet at all</span>
-          </div>
-          <div class="stat">
+          <div class="stat stat-good">
             <strong>0</strong>
             <span>Accounts, ads, or tracking</span>
+          </div>
+          <div class="stat stat-good">
+            <strong>0</strong>
+            <span>Cookies or trackers</span>
           </div>
           <div class="stat">
             <strong>3</strong>
@@ -797,7 +822,7 @@
           <article class="os-card windows" role="listitem">
             <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 20h8"/><path d="M12 4v4"/></svg></div>
             <h3>Windows 10 / 11</h3>
-            <a class="download-btn" href="https://github.com/MT25MB/Sunny/releases/latest" aria-label="Download Windows installer">
+            <a class="download-btn" href="https://github.com/MT25MB/Sunny/releases/latest">
               <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Download for Windows
             </a>
@@ -813,7 +838,7 @@
           <article class="os-card macos" role="listitem">
             <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 6v6l4 2"/></svg></div>
             <h3>macOS 12+</h3>
-            <a class="download-btn" href="https://github.com/MT25MB/Sunny/releases/latest" aria-label="Download macOS installer">
+            <a class="download-btn" href="https://github.com/MT25MB/Sunny/releases/latest">
               <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Download for macOS
             </a>
@@ -829,7 +854,7 @@
           <article class="os-card linux" role="listitem">
             <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 6v6l4 2"/></svg></div>
             <h3>Linux (Debian / Ubuntu)</h3>
-            <a class="download-btn" href="https://github.com/MT25MB/Sunny/releases/latest" aria-label="Download Linux installer">
+            <a class="download-btn" href="https://github.com/MT25MB/Sunny/releases/latest">
               <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Download for Linux
             </a>
@@ -997,14 +1022,14 @@
           </div>
         </div>
         <div class="footer-col">
-          <h4>Product</h4>
+          <h3>Product</h3>
           <a href="#features">Features</a>
           <a href="#principles">Accessibility</a>
           <a href="#how">How it works</a>
           <a href="https://github.com/MT25MB/Sunny/releases">Download</a>
         </div>
         <div class="footer-col">
-          <h4>Project</h4>
+          <h3>Project</h3>
           <a href="https://github.com/MT25MB/Sunny">GitHub</a>
           <a href="https://github.com/MT25MB/Sunny/blob/main/README.md">README</a>
           <a href="privacy-policy.html">Privacy Policy</a>
