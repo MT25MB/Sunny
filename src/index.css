@@ -1783,11 +1783,64 @@ textarea::placeholder { color: #65747b; }
   gap: 0.75rem;
 }
 
-.medication-empty {
+/* Mascot illustrations that fill a section's empty state. Decorative only:
+   the section heading already names the feature, so the image carries no
+   information a screen-reader user would miss. */
+.section-mascot-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem 2rem 2rem;
   text-align: center;
+}
+
+.section-mascot {
+  width: 150px;
+  height: 150px;
+  object-fit: contain;
+  opacity: 0.95;
+  filter: drop-shadow(0 10px 24px rgba(232, 139, 56, 0.22));
+}
+
+.section-mascot-caption {
+  margin: 0;
+  max-width: 34rem;
   color: #708087;
-  padding: 2rem;
-  font-weight: 500;
+  font: 500 0.9375rem/1.55 'Atkinson Hyperlegible', system-ui, sans-serif;
+}
+
+/* High contrast strips decorative colour, so dim the illustration rather
+   than hiding it outright — the caption carries the meaning either way. */
+.app-shell.high-contrast .section-mascot {
+  opacity: 0.45;
+  filter: none;
+}
+
+.app-shell.high-contrast .section-mascot-caption {
+  color: #e8eef0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .section-mascot {
+    animation: mascot-float 6s ease-in-out infinite;
+  }
+}
+
+@keyframes mascot-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section-mascot {
+    animation: none;
+  }
 }
 
 .medication-card {
@@ -2010,8 +2063,7 @@ textarea::placeholder { color: #65747b; }
   margin: 0.375rem 0 0;
 }
 
-.no-news,
-.digest-empty {
+.no-news {
   text-align: center;
   color: #708087;
   padding: 2rem;

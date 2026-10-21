@@ -48,6 +48,11 @@ import {
   type SunnyPreferences,
 } from "@/lib/local-preferences";
 import mascot from "/assets/mascot.png";
+// WebP keeps these illustrations ~7x smaller than the PNG fallback and is
+// supported natively by the Chromium engine Electron ships.
+import mascotChef from "/assets/sunny-mascot-chef.webp";
+import mascotPills from "/assets/sunny-mascot-pills.webp";
+import mascotNewspaper from "/assets/sunny-mascot-newspaper.webp";
 
 const POLL_INTERVAL = 30000;
 
@@ -775,6 +780,22 @@ function App() {
                     ))}
                   </div>
                 )}
+
+                {searchResults.length === 0 && (
+                  <div className="section-mascot-hint">
+                    <img
+                      src={mascotChef}
+                      alt=""
+                      className="section-mascot"
+                      aria-hidden="true"
+                      width={512}
+                      height={512}
+                    />
+                    <p className="section-mascot-caption">
+                      Search for a recipe and Sunny will read every step out loud, one giant screen at a time.
+                    </p>
+                  </div>
+                )}
               </section>
               {cookingMode && (
                 <div className="cooking-mode-overlay" role="dialog" aria-modal="true" aria-labelledby="cooking-title">
@@ -913,7 +934,19 @@ function App() {
 
                 <div className="medication-list" role="list" aria-label="Medication reminders">
                   {medicationReminders.length === 0 ? (
-                    <p className="medication-empty">No medication reminders set. Add one above.</p>
+                    <div className="section-mascot-hint">
+                      <img
+                        src={mascotPills}
+                        alt=""
+                        className="section-mascot"
+                        aria-hidden="true"
+                        width={512}
+                        height={512}
+                      />
+                      <p className="section-mascot-caption">
+                        No medication reminders set yet. Add one above and Sunny will call it out loud at the right time.
+                      </p>
+                    </div>
                   ) : (
                     medicationReminders.map((reminder) => (
                       <article key={reminder.id} className={`medication-card ${reminder.enabled ? "active" : "taken"}`} role="listitem">
@@ -989,7 +1022,19 @@ function App() {
                       </div>
                     </div>
                   ) : (
-                    <p className="digest-empty">Press the button below to fetch your morning digest.</p>
+                    <div className="section-mascot-hint">
+                      <img
+                        src={mascotNewspaper}
+                        alt=""
+                        className="section-mascot"
+                        aria-hidden="true"
+                        width={512}
+                        height={512}
+                      />
+                      <p className="section-mascot-caption">
+                        Press the button below and Sunny will bring you today&apos;s weather and the top headlines.
+                      </p>
+                    </div>
                   )}
                 </div>
                 <div className="digest-actions">

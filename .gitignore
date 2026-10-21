@@ -28,3 +28,9 @@ out/
 verify*
 !scripts/verify-model.cjs
 *:Zone.Identifier
+
+# One-off image optimisation scratch (PIL palettes, comparison renders).
+# These are personal tooling at the repo root, not part of the app. The
+# project itself is JS/TS, so no root-level Python is expected to ship.
+/*.py
+/_imgtest/

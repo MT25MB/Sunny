@@ -303,6 +303,18 @@
   .tile .tile-icon svg { width: 22px; height: 22px; }
   .tile p { color: var(--text-muted); font-size: .95rem; }
   .tile h3 { font-size: 1.1875rem; }
+  /* Mascot illustration pinned to the bottom of the tile. Decorative: the
+     heading and copy already carry the meaning for assistive tech. The
+     <picture> element wraps a WebP source with a PNG fallback, so the sizing
+     lives on the wrapper and the inner <img> just fills it. */
+  .tile .tile-mascot {
+    margin-top: auto; align-self: flex-end;
+    width: 104px; height: 104px;
+    opacity: .92;
+    filter: drop-shadow(0 8px 18px rgba(232, 139, 56, .22));
+    pointer-events: none;
+  }
+  .tile .tile-mascot img { display: block; width: 100%; height: 100%; object-fit: contain; }
   /* Voice card spans two rows, so it gets a wider measure and a taller art block */
   .tile-voice p { max-width: 34ch; }
   .tile .tile-art { margin-top: auto; border-radius: var(--radius-sm); overflow: hidden; }
@@ -483,6 +495,9 @@
     .bento { grid-template-columns: 1fr; }
     .bento > .tile { grid-column: span 1; grid-row: span 1; }
     .bento > .tile-preview { grid-column: 1 / -1; }
+    /* Tiles stack full-width on phones, so the mascot sits beside the copy
+       instead of claiming a row of its own. */
+    .tile .tile-mascot { width: 84px; height: 84px; }
     .principles-grid { grid-template-columns: 1fr; }
     .footer-grid { grid-template-columns: 1fr; }
     .site-header-inner { flex-direction: column; align-items: stretch; }
@@ -730,6 +745,10 @@
             </div>
             <h3>Recipes &amp; cooking mode</h3>
             <p>Ask for a dish. Sunny finds the recipe and reads each step aloud while you cook.</p>
+            <picture class="tile-mascot">
+              <source srcset="public/assets/sunny-mascot-chef.webp" type="image/webp" />
+              <img src="public/assets/sunny-mascot-chef.png" alt="" aria-hidden="true" width="319" height="423" loading="lazy" decoding="async" />
+            </picture>
           </article>
           <article class="tile tile-meds">
             <div class="tile-icon" aria-hidden="true">
@@ -741,6 +760,10 @@
             </div>
             <h3>Medication reminders</h3>
             <p>Set a pill name and time. Sunny speaks up. Big button to mark it taken.</p>
+            <picture class="tile-mascot">
+              <source srcset="public/assets/sunny-mascot-pills.webp" type="image/webp" />
+              <img src="public/assets/sunny-mascot-pills.png" alt="" aria-hidden="true" width="356" height="392" loading="lazy" decoding="async" />
+            </picture>
           </article>
           <article class="tile tile-computer">
             <div class="tile-icon" aria-hidden="true">
@@ -764,6 +787,10 @@
             </div>
             <h3>Morning digest</h3>
             <p>Weather and top headlines, read aloud.</p>
+            <picture class="tile-mascot">
+              <source srcset="public/assets/sunny-mascot-newspaper.webp" type="image/webp" />
+              <img src="public/assets/sunny-mascot-newspaper.png" alt="" aria-hidden="true" width="412" height="397" loading="lazy" decoding="async" />
+            </picture>
           </article>
           <article class="tile tile-safety">
             <div class="tile-icon" aria-hidden="true">
