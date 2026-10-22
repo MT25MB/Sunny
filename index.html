@@ -20,7 +20,10 @@
   <meta name="twitter:title" content="Sunny Accessible AI Desktop Companion for Older Adults" />
   <meta name="twitter:description" content="Sunny is a free, accessible AI desktop assistant that helps older adults with daily tasks, medication reminders, recipes, and computer help using voice and text." />
   <meta name="twitter:image" content="https://mt25mb.github.io/Sunny/public/assets/mascot.png" />
-  <link rel="icon" href="public/assets/mascot.png" />
+  <link rel="icon" href="public/assets/favicon.png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="public/assets/apple-touch-icon.png" />
+  <link rel="preload" href="public/assets/fonts/fraunces-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="public/assets/fonts/atkinson-hyperlegible-latin-400.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="public/assets/fonts.css" />
   <title>Sunny Accessible AI Desktop Companion for Older Adults</title>
 
@@ -125,7 +128,7 @@
   }
   body {
     margin: 0;
-    font-family: "Atkinson Hyperlegible", system-ui, sans-serif;
+    font-family: "Atkinson Hyperlegible", "Atkinson Fallback", system-ui, sans-serif;
     background:
       radial-gradient(circle at 15% 8%, var(--bg-glow-1), transparent 38%),
       radial-gradient(circle at 88% 94%, var(--bg-glow-2), transparent 40%),
@@ -137,9 +140,9 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
-  h1 { font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: var(--fs-display); letter-spacing: -0.035em; line-height: 1.0; margin: 0; text-wrap: balance; }
-  h2 { font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: var(--fs-h2); letter-spacing: -0.025em; line-height: 1.08; margin: 0; text-wrap: balance; }
-  h3, h4 { font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: var(--fs-h3); letter-spacing: -0.01em; line-height: 1.2; margin: 0; }
+  h1 { font-family: "Fraunces", "Fraunces Fallback", Georgia, serif; font-weight: 600; font-size: var(--fs-display); letter-spacing: -0.035em; line-height: 1.0; margin: 0; text-wrap: balance; }
+  h2 { font-family: "Fraunces", "Fraunces Fallback", Georgia, serif; font-weight: 600; font-size: var(--fs-h2); letter-spacing: -0.025em; line-height: 1.08; margin: 0; text-wrap: balance; }
+  h3, h4 { font-family: "Fraunces", "Fraunces Fallback", Georgia, serif; font-weight: 600; font-size: var(--fs-h3); letter-spacing: -0.01em; line-height: 1.2; margin: 0; }
   p { margin: 0; max-width: var(--measure); text-wrap: pretty; }
   a { color: inherit; }
   img { max-width: 100%; display: block; }
@@ -175,9 +178,11 @@
   .site-header-inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 0; }
   .brand { display: flex; align-items: center; gap: .7rem; text-decoration: none; color: var(--text); font-weight: 700; }
   .brand-mark {
-    width: 40px; height: 40px; border-radius: var(--radius-sm); object-fit: cover;
+    display: grid; place-items: center; flex: 0 0 auto;
+    width: 40px; height: 40px; border-radius: var(--radius-sm);
     box-shadow: 0 7px 18px rgba(232, 139, 56, 0.23);
   }
+  .brand-mark img { display: block; width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
   .brand-text small { display: block; font-size: var(--fs-micro); font-weight: 500; color: var(--text-soft); letter-spacing: 0.12em; text-transform: uppercase; }
   nav.site-nav { display: flex; gap: .25rem; flex-wrap: wrap; }
   nav.site-nav a {
@@ -230,6 +235,7 @@
     border: 1px solid var(--border);
     box-shadow: var(--shadow-lg), 0 0 90px rgba(241, 169, 91, 0.14);
   }
+  .hero-art picture { display: block; width: 100%; height: 100%; }
   .hero-art img { width: 100%; height: 100%; object-fit: cover; }
   .hero-art::after {
     content: ""; position: absolute; inset: 0;
@@ -283,7 +289,6 @@
   .tile-computer { grid-column: 3; grid-row: 1; }
   .tile-morning { grid-column: 3; grid-row: 2; }
   .tile-safety { grid-column: 1; grid-row: 3; }
-  .tile-preview { grid-column: 2 / 4; grid-row: 3; }
   .tile {
     background: var(--material-raised);
     -webkit-backdrop-filter: var(--blur-standard);
@@ -331,22 +336,37 @@
     background: var(--brand);
   }
 
-  /* Live preview card - real app screenshot, framed like the app.
-     The screenshots are 520x720 portrait, so the crop is landscape from the
-     top, which is where the health panel lives. The image is taken out of
-     flow so it fills the card without driving the row height, and the
-     min-height stops it collapsing when the sibling card is short. */
-  .tile-preview { padding: 0; overflow: hidden; margin: 0; position: relative; min-height: 300px; }
-  .tile-preview img {
-    position: absolute; inset: 0; width: 100%; height: 100%;
-    object-fit: cover; object-position: top center; border-radius: 0;
+  /* Live app preview. The app window is a tall shape and the tile is a
+     wide one, so the window keeps the screenshot's own aspect ratio
+     and sits beside the copy instead of being cropped to fit. */
+  .tile-preview {
+    grid-column: 2 / 4; grid-row: 3;
+    padding: 0; overflow: hidden; margin: 0; position: relative;
+    display: grid; grid-template-columns: 1fr auto; align-items: center;
   }
-  .tile-preview figcaption {
-    position: absolute; inset: auto 0 0 0;
-    padding: .75rem 1rem; font-size: .8125rem; font-weight: 600; color: var(--text);
-    background: linear-gradient(180deg, transparent, rgba(17, 22, 27, 0.92) 40%);
+  .preview-caption {
+    position: static; inset: auto; padding: 1.75rem 1.5rem 1.75rem 1.75rem;
+    display: flex; flex-direction: column; align-items: flex-start; gap: .55rem;
+    background: none; text-align: left;
   }
-  .tile-preview { position: relative; }
+  .preview-caption strong {
+    font-family: "Fraunces", "Fraunces Fallback", Georgia, serif;
+    font-size: 1.5rem; font-weight: 600; line-height: 1.18; color: var(--text);
+  }
+  .preview-text { font-size: .95rem; color: var(--text-muted); max-width: 30ch; }
+  .preview-window {
+    align-self: center; width: 300px; aspect-ratio: 640 / 778;
+    overflow: hidden; border-left: 1px solid var(--edge-dim);
+    /* The app's own window background, so any letterbox left by a capture
+       of a different size blends into the screenshot instead of showing
+       as a seam. */
+    background: #0d1114;
+  }
+  .preview-window picture { display: block; width: 100%; height: 100%; }
+  .preview-window img {
+    display: block; width: 100%; height: 100%;
+    object-fit: contain; object-position: top center; border-radius: 0;
+  }
 
   /* Stats strip */
   .stats {
@@ -355,7 +375,7 @@
     border-top: 1px solid var(--edge-dim);
   }
   .stat strong {
-    display: block; font-family: "Fraunces", Georgia, serif; font-size: 1.75rem;
+    display: block; font-family: "Fraunces", "Fraunces Fallback", Georgia, serif; font-size: 1.75rem;
     font-weight: 600; color: var(--brand); line-height: 1.1; margin-bottom: .35rem;
   }
   .stat span { font-size: .875rem; color: var(--text-muted); }
@@ -387,7 +407,7 @@
   .t-step { display: flex; gap: 1.5rem; padding: 1.5rem 0; position: relative; }
   .t-num {
     flex-shrink: 0; width: 54px; height: 54px; border-radius: 50%;
-    background: var(--brand); color: #17201f; font-family: "Fraunces", serif; font-size: 1.4rem; font-weight: 700;
+    background: var(--brand); color: #17201f; font-family: "Fraunces", "Fraunces Fallback", serif; font-size: 1.4rem; font-weight: 700;
     display: grid; place-items: center; position: relative; z-index: 1; box-shadow: 0 0 0 6px var(--bg);
   }
   .t-body h3 { margin-bottom: .3rem; }
@@ -456,12 +476,13 @@
   footer.site { border-top: 1px solid var(--edge-dim); padding: var(--space-6) 0 var(--space-4); margin-top: var(--space-6); }
   .footer-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: var(--space-4); }
   .footer-brand { display: flex; align-items: center; gap: .8rem; }
-  .footer-brand img { width: 44px; height: 44px; border-radius: var(--radius-sm); object-fit: cover; }
-  .footer-brand strong { font-family: "Fraunces", serif; font-size: 1.2rem; display: block; }
+  .footer-mark { display: block; flex: 0 0 auto; width: 44px; height: 44px; border-radius: var(--radius-sm); }
+  .footer-brand img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
+  .footer-brand strong { font-family: "Fraunces", "Fraunces Fallback", serif; font-size: 1.2rem; display: block; }
   .footer-brand small { color: var(--text-soft); font-size: .85rem; }
   .footer-col h3 {
     font-size: var(--fs-micro); font-weight: 500; color: var(--text-soft);
-    margin-bottom: .8rem; font-family: "Atkinson Hyperlegible", sans-serif;
+    margin-bottom: .8rem; font-family: "Atkinson Hyperlegible", "Atkinson Fallback", sans-serif;
     letter-spacing: 0.14em; text-transform: uppercase;
   }
   .footer-col a {
@@ -486,7 +507,7 @@
        the same specificity as a bare .tile selector, so the more specific
        .bento > .tile form is used to guarantee the reset wins. */
     .bento > .tile { grid-column: span 1; grid-row: span 1; }
-    .bento > .tile-preview { grid-column: 1 / -1; min-height: 260px; }
+    .bento > .tile-preview { grid-column: 1 / -1; }
     .principles-grid { grid-template-columns: repeat(2, 1fr); }
     .stats { grid-template-columns: repeat(2, 1fr); row-gap: var(--space-4); }
     .footer-grid { grid-template-columns: 1fr 1fr; }
@@ -498,6 +519,9 @@
     /* Tiles stack full-width on phones, so the mascot sits beside the copy
        instead of claiming a row of its own. */
     .tile .tile-mascot { width: 84px; height: 84px; }
+    .tile-preview { grid-template-columns: 1fr; }
+    .preview-window { width: 100%; max-width: 320px; margin: 0 auto; border-left: 0; border-top: 1px solid var(--edge-dim); }
+    .preview-caption { padding: 1.5rem 1.5rem 1rem; }
     .principles-grid { grid-template-columns: 1fr; }
     .footer-grid { grid-template-columns: 1fr; }
     .site-header-inner { flex-direction: column; align-items: stretch; }
@@ -531,7 +555,11 @@
   .section-lead { font-size: var(--fs-lead); color: var(--text-muted); max-width: 600px; margin: 0 auto; }
   .section-header .kicker { text-align: center; }
 
-  .os-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: var(--space-6); }
+  .os-cards {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;
+    margin: 0 0 var(--space-6); padding: 0; list-style: none;
+  }
+  .os-cards > li { list-style: none; }
   .os-card {
     background: var(--material-raised);
     -webkit-backdrop-filter: var(--blur-standard);
@@ -576,13 +604,14 @@
   .install-steps code {
     background: var(--material-raised); padding: 0.125rem 0.375rem;
     border-radius: var(--radius-sm); font-size: 0.85em; color: var(--brand);
-    font-family: "Atkinson Hyperlegible", monospace;
+    font-family: "Atkinson Hyperlegible", "Atkinson Fallback", monospace;
   }
 
   .screenshots-row {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem;
-    margin-top: var(--space-5); margin-bottom: var(--space-4);
+    margin: var(--space-5) 0 var(--space-4); padding: 0; list-style: none;
   }
+  .screenshots-row > li { list-style: none; min-width: 0; }
   .screenshot-card { margin: 0; }
   .screenshot-card img {
     width: 100%; height: auto; aspect-ratio: 16/10; object-fit: cover;
@@ -614,7 +643,10 @@
   <header class="site">
     <div class="container site-header-inner">
       <a class="brand" href="#top">
-        <img class="brand-mark" src="public/assets/mascot.png" alt="" width="40" height="40" />
+        <picture class="brand-mark">
+          <source srcset="public/assets/sunny-logo.webp" type="image/webp" />
+          <img src="public/assets/sunny-logo.png" alt="" width="96" height="96" />
+        </picture>
         <span class="brand-text">
           Sunny
           <small>Desktop companion</small>
@@ -645,7 +677,10 @@
           <p class="hero-note">Available for Windows, macOS, and Linux. Works on screens as small as a phone.</p>
         </div>
         <div class="hero-art">
-          <img src="public/assets/sunny-hero.jpg" alt="Sunny, a friendly AI desktop companion helping older adults" width="1376" height="768" loading="eager" decoding="async" />
+          <picture>
+            <source srcset="public/assets/sunny-hero.webp" type="image/webp" />
+            <img src="public/assets/sunny-hero.jpg" alt="Sunny, a friendly AI desktop companion helping older adults" width="1200" height="670" loading="eager" decoding="async" />
+          </picture>
         </div>
       </div>
     </section>
@@ -747,7 +782,7 @@
             <p>Ask for a dish. Sunny finds the recipe and reads each step aloud while you cook.</p>
             <picture class="tile-mascot">
               <source srcset="public/assets/sunny-mascot-chef.webp" type="image/webp" />
-              <img src="public/assets/sunny-mascot-chef.png" alt="" aria-hidden="true" width="319" height="423" loading="lazy" decoding="async" />
+              <img src="public/assets/sunny-mascot-chef.png" alt="" aria-hidden="true" width="181" height="240" loading="lazy" decoding="async" />
             </picture>
           </article>
           <article class="tile tile-meds">
@@ -762,7 +797,7 @@
             <p>Set a pill name and time. Sunny speaks up. Big button to mark it taken.</p>
             <picture class="tile-mascot">
               <source srcset="public/assets/sunny-mascot-pills.webp" type="image/webp" />
-              <img src="public/assets/sunny-mascot-pills.png" alt="" aria-hidden="true" width="356" height="392" loading="lazy" decoding="async" />
+              <img src="public/assets/sunny-mascot-pills.png" alt="" aria-hidden="true" width="218" height="240" loading="lazy" decoding="async" />
             </picture>
           </article>
           <article class="tile tile-computer">
@@ -789,7 +824,7 @@
             <p>Weather and top headlines, read aloud.</p>
             <picture class="tile-mascot">
               <source srcset="public/assets/sunny-mascot-newspaper.webp" type="image/webp" />
-              <img src="public/assets/sunny-mascot-newspaper.png" alt="" aria-hidden="true" width="412" height="397" loading="lazy" decoding="async" />
+              <img src="public/assets/sunny-mascot-newspaper.png" alt="" aria-hidden="true" width="240" height="231" loading="lazy" decoding="async" />
             </picture>
           </article>
           <article class="tile tile-safety">
@@ -809,8 +844,17 @@
             </ul>
           </article>
           <figure class="tile tile-preview">
-            <img src="public/assets/screenshots/system-health.png" alt="Sunny's system health panel showing battery, Wi-Fi, internet, processor and memory status" loading="lazy" width="880" height="560" />
-            <figcaption>One glance. Is everything alright?</figcaption>
+            <figcaption class="preview-caption">
+              <span class="kicker">Live preview</span>
+              <strong>One glance. Is everything alright?</strong>
+              <span class="preview-text">Battery, Wi-Fi, internet, processor and memory, all on one screen.</span>
+            </figcaption>
+            <div class="preview-window">
+              <picture>
+                <source srcset="public/assets/screenshots/system-health.webp" type="image/webp" />
+                <img src="public/assets/screenshots/system-health.png" alt="Sunny's system health panel showing battery, Wi-Fi, internet, processor and memory status" loading="lazy" width="640" height="778" />
+              </picture>
+            </div>
           </figure>
         </div>
 
@@ -844,9 +888,9 @@
           <p class="section-lead">Three steps. No technical skills needed. Sunny runs entirely offline after install.</p>
         </header>
 
-        <div class="os-cards" role="list" aria-label="Download options by operating system">
+        <ul class="os-cards" aria-label="Download options by operating system">
           <!-- Windows -->
-          <article class="os-card windows" role="listitem">
+          <li class="os-card windows">
             <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 20h8"/><path d="M12 4v4"/></svg></div>
             <h3>Windows 10 / 11</h3>
             <a class="download-btn" href="https://github.com/MT25MB/Sunny/releases/latest/download/Sunny-Setup.exe">
@@ -859,10 +903,10 @@
               <li>If Windows says "Windows protected your PC", click <strong>More info</strong>, then <strong>Run anyway</strong></li>
               <li>Follow the installer (Next, Next, Finish)</li>
             </ol>
-          </article>
+          </li>
 
           <!-- macOS -->
-          <article class="os-card macos" role="listitem">
+          <li class="os-card macos">
             <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 6v6l4 2"/></svg></div>
             <h3>macOS 12+</h3>
             <a class="download-btn" href="https://github.com/MT25MB/Sunny/releases/latest/download/Sunny.dmg">
@@ -875,10 +919,10 @@
               <li>Drag <strong>Sunny</strong> into the <strong>Applications</strong> folder</li>
               <li>First launch: System Settings - Privacy & Security - Allow Sunny</li>
             </ol>
-          </article>
+          </li>
 
           <!-- Linux -->
-          <article class="os-card linux" role="listitem">
+          <li class="os-card linux">
             <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 6v6l4 2"/></svg></div>
             <h3>Linux (Debian / Ubuntu)</h3>
             <a class="download-btn" href="https://github.com/MT25MB/Sunny/releases/latest/download/Sunny-Linux-amd64.deb">
@@ -891,23 +935,23 @@
               <li>Run: <code>sudo dpkg -i Sunny-Linux-amd64.deb</code></li>
               <li>Launch "Sunny" from app menu</li>
             </ol>
-          </article>
-        </div>
+          </li>
+        </ul>
 
-        <div class="screenshots-row" role="list" aria-label="Sunny screenshots">
-          <figure class="screenshot-card" role="listitem">
+        <ul class="screenshots-row" aria-label="Sunny screenshots">
+          <li><figure class="screenshot-card">
             <img src="public/assets/screenshots/cooking-mode.svg" alt="Cooking mode: large step text, big Previous/Next/Read Aloud buttons" loading="lazy" />
             <figcaption>Cooking Mode - one step at a time, huge buttons</figcaption>
-          </figure>
-          <figure class="screenshot-card" role="listitem">
+          </figure></li>
+          <li><figure class="screenshot-card">
             <img src="public/assets/screenshots/medication-reminder.svg" alt="Medication reminder card with large 'I Took My Medicine' button" loading="lazy" />
             <figcaption>Medication Reminder - one-tap confirmation</figcaption>
-          </figure>
-          <figure class="screenshot-card" role="listitem">
+          </figure></li>
+          <li><figure class="screenshot-card">
             <img src="public/assets/screenshots/system-health.svg" alt="System health dashboard with battery, Wi-Fi, CPU, memory status" loading="lazy" />
             <figcaption>System Health - at-a-glance computer check</figcaption>
-          </figure>
-        </div>
+          </figure></li>
+        </ul>
 
         <div class="cta-card">
           <span class="kicker">Next step</span>
@@ -1042,7 +1086,10 @@
     <div class="container">
       <div class="footer-grid">
         <div class="footer-brand">
-          <img src="public/assets/mascot.png" alt="" width="44" height="44" />
+          <picture class="footer-mark">
+            <source srcset="public/assets/sunny-logo.webp" type="image/webp" />
+            <img src="public/assets/sunny-logo.png" alt="" width="96" height="96" />
+          </picture>
           <div>
             <strong>Sunny</strong>
             <small>Desktop companion for older adults</small>

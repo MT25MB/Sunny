@@ -15,7 +15,10 @@
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="Terms of Service Sunny Desktop Companion" />
   <meta name="twitter:description" content="Terms of Service for Sunny, the free open-source desktop companion: MIT licence grant, as-is disclaimer, limitation of liability, and acceptable use." />
-  <link rel="icon" href="public/assets/mascot.png" />
+  <link rel="icon" href="public/assets/favicon.png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="public/assets/apple-touch-icon.png" />
+  <link rel="preload" href="public/assets/fonts/fraunces-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="public/assets/fonts/atkinson-hyperlegible-latin-400.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="public/assets/fonts.css" />
   <link rel="stylesheet" href="public/assets/site.css" />
   <title>Terms of Service | Sunny Desktop Companion</title>
@@ -25,7 +28,10 @@
   <header class="site">
     <div class="container site-header-inner">
       <a class="brand" href="index.html">
-        <img class="brand-mark" src="public/assets/mascot.png" alt="" width="40" height="40" />
+        <picture class="brand-mark">
+          <source srcset="public/assets/sunny-logo.webp" type="image/webp" />
+          <img src="public/assets/sunny-logo.png" alt="" width="96" height="96" />
+        </picture>
         <span>Sunny</span>
       </a>
       <nav class="site-nav" aria-label="Main navigation">
@@ -85,7 +91,10 @@
       <div class="footer-grid">
         <div>
           <a class="brand" href="index.html">
-            <img class="brand-mark" src="public/assets/mascot.png" alt="" width="40" height="40" />
+            <picture class="brand-mark">
+          <source srcset="public/assets/sunny-logo.webp" type="image/webp" />
+          <img src="public/assets/sunny-logo.png" alt="" width="96" height="96" />
+        </picture>
             <span>Sunny <small>Desktop Companion</small></span>
           </a>
         </div>

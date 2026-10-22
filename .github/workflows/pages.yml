@@ -24,10 +24,10 @@ jobs:
           mkdir -p site
           cp index.html accessibility.html privacy-policy.html terms-of-service.html impressum.html 404.html site/
           # robots.txt and sitemap.xml must sit at the site root, not under /public
-          cp public/robots.txt public/sitemap.xml site/
+          cp robots.txt sitemap.xml site/
           # .well-known/security.txt belongs at the root too
           mkdir -p site/.well-known
-          cp public/.well-known/security.txt site/.well-known/
+          cp .well-known/security.txt site/.well-known/
           # assets are served from /public
           mkdir -p site/public
           cp -r public/assets site/public/assets
