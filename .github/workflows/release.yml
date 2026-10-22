@@ -143,6 +143,21 @@ jobs:
           path: out/make/
           merge-multiple: true
 
+      - name: Name the Linux package after its system
+        # The .deb carried only a version number, which said nothing about
+        # which operating system it was for. Someone on Windows picked it
+        # from the release page by mistake and could not open it. The
+        # landing page links to this name directly, so it has to be the
+        # same on every release.
+        run: |
+          set -euo pipefail
+          deb=$(find out/make -name '*.deb' -print -quit)
+          if [ -z "$deb" ]; then
+            echo "No Linux package was downloaded." >&2
+            exit 1
+          fi
+          mv "$deb" out/make/Sunny-Linux-amd64.deb
+
       - name: Create Release
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
@@ -150,7 +165,7 @@ jobs:
           files: |
             out/make/**/*.exe
             out/make/**/*.dmg
-            out/make/**/*.deb
+            out/make/Sunny-Linux-amd64.deb
           draft: false
           prerelease: false
         env:
