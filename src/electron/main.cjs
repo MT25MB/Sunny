@@ -41,6 +41,30 @@ process.on('unhandledRejection', (reason) => {
 });
 
 // ============================================================================
+// One copy at a time
+// ============================================================================
+// Clicking the app's icon again has to bring the window that is already
+// running back to the front. Without this, the second launch starts a
+// second instance with a second window, and the person clicking the icon
+// sees nothing happen -- the window they want belongs to the copy already
+// sitting in the tray.
+//
+// It matters here because closing the window hides it to the tray rather
+// than quitting. That is deliberate: an app for older adults must not
+// vanish when someone presses the X. But it means the icon in the taskbar
+// has to be a way back in, and a second instance was not that.
+const isPrimaryInstance = app.requestSingleInstanceLock();
+
+if (!isPrimaryInstance) {
+  // Another copy already owns the window. This one has nothing to do.
+  app.exit(0);
+} else {
+  app.on('second-instance', () => {
+    showMainWindow();
+  });
+}
+
+// ============================================================================
 // Security Interlocks — System Confirmation for Sensitive Operations
 // ============================================================================
 
