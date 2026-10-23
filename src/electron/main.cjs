@@ -1707,10 +1707,19 @@ async function fetchDailyDigest(location = 'auto', newsCount = 5) {
     const weatherUrl = `${OPEN_METEO_API}?latitude=${latitude}&longitude=${longitude}&current_weather=true&timezone=auto`;
     const weatherData = await fetchWithTimeout(weatherUrl, 8_000, 'The weather service');
 
+    const current = weatherData.current_weather || {};
+    const daily = weatherData.daily || {};
     const weather = {
-      temperature: Math.round(weatherData.current_weather?.temperature || 0),
-      condition: getWeatherCondition(weatherData.current_weather?.weathercode || 0),
+      temperature: Math.round(current?.temperature || 0),
+      condition: getWeatherCondition(current?.weathercode || 0),
       location: locationName,
+      humidity: current?.relativehumidity_2m ?? undefined,
+      windSpeed: current?.windspeed_10m ?? undefined,
+      feelsLike: current?.apparent_temperature ?? undefined,
+      high: daily?.temperature_2m_max ? Math.round(daily.temperature_2m_max[0]) : undefined,
+      low: daily?.temperature_2m_min ? Math.round(daily.temperature_2m_min[0]) : undefined,
+      sunrise: daily?.sunrise ? daily.sunrise[0] : undefined,
+      sunset: daily?.sunset ? daily.sunset[0] : undefined,
     };
 
     const news = await newsPromise;

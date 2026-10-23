@@ -2115,6 +2115,35 @@ textarea::placeholder { color: #65747b; }
   color: #829298;
 }
 
+.weather-feels {
+  margin-top: 0.5rem;
+  color: #93a4aa;
+  font-size: 1rem;
+  font-style: italic;
+}
+
+.weather-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.weather-detail {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #93a4aa;
+  font-size: 0.875rem;
+}
+
+.detail-label {
+  color: #7d8a90;
+  font-weight: 600;
+}
+
 .news-list {
   list-style: none;
   padding: 0;

@@ -129,6 +129,13 @@ export interface DailyDigest {
     temperature: number;
     condition: string;
     location: string;
+    humidity?: number;           // percentage
+    windSpeed?: number;          // km/h
+    feelsLike?: number;          // °C
+    high?: number;               // daily high °C
+    low?: number;                // daily low °C
+    sunrise?: string;            // ISO time
+    sunset?: string;             // ISO time
   };
   news: Array<{
     title: string;

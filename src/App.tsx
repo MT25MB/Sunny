@@ -1118,6 +1118,23 @@ function App() {
                           <span className="condition">{dailyDigest.weather.condition}</span>
                         </p>
                         <p className="weather-location">{dailyDigest.weather.location}</p>
+                        {dailyDigest.weather.feelsLike !== undefined && (
+                          <p className="weather-feels">Feels like {dailyDigest.weather.feelsLike}°C</p>
+                        )}
+                        <div className="weather-details">
+                          {dailyDigest.weather.humidity !== undefined && (
+                            <span className="weather-detail"><span className="detail-label">Humidity:</span> {dailyDigest.weather.humidity}%</span>
+                          )}
+                          {dailyDigest.weather.windSpeed !== undefined && (
+                            <span className="weather-detail"><span className="detail-label">Wind:</span> {dailyDigest.weather.windSpeed} km/h</span>
+                          )}
+                          {dailyDigest.weather.high !== undefined && dailyDigest.weather.low !== undefined && (
+                            <span className="weather-detail"><span className="detail-label">High/Low:</span> {dailyDigest.weather.high}°C / {dailyDigest.weather.low}°C</span>
+                          )}
+                          {dailyDigest.weather.sunrise && dailyDigest.weather.sunset && (
+                            <span className="weather-detail"><span className="detail-label">Sunrise/Sunset:</span> {new Date(dailyDigest.weather.sunrise).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})} / {new Date(dailyDigest.weather.sunset).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</span>
+                          )}
+                        </div>
                       </div>
                       <div className="digest-news">
                         <h3><Newspaper size={18} /> Top News</h3>
