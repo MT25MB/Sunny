@@ -141,6 +141,9 @@ export interface DailyDigest {
     title: string;
     summary: string;
     url: string;
+    source?: string;           // source name (e.g., "BBC News")
+    imageUrl?: string;         // thumbnail image URL
+    publishedAt?: string;      // ISO timestamp
   }>;
   date: string;
 }

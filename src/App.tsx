@@ -1140,12 +1140,25 @@ function App() {
                         <h3><Newspaper size={18} /> Top News</h3>
                         {dailyDigest.news.length > 0 ? (
                           <ul className="news-list">
-                            {dailyDigest.news.slice(0, 3).map((item, index) => (
+                            {dailyDigest.news.slice(0, 5).map((item, index) => (
                               <li key={index} className="news-item">
-                                <a href={item.url} target="_blank" rel="noopener noreferrer" className="news-title">
-                                  {item.title}
-                                </a>
-                                {item.summary && <p className="news-summary">{item.summary}</p>}
+                                {item.imageUrl && (
+                                  <img src={item.imageUrl} alt="" className="news-image" loading="lazy" />
+                                )}
+                                <div className="news-content">
+                                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="news-title">
+                                    {item.title}
+                                  </a>
+                                  {item.source && (
+                                    <span className="news-source">{item.source}</span>
+                                  )}
+                                  {item.publishedAt && (
+                                    <time className="news-date" dateTime={item.publishedAt}>
+                                      {new Date(item.publishedAt).toLocaleDateString(undefined, {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'})}
+                                    </time>
+                                  )}
+                                  {item.summary && <p className="news-summary">{item.summary}</p>}
+                                </div>
                               </li>
                             ))}
                           </ul>

@@ -1649,6 +1649,9 @@ async function fetchDigestNews(newsCount) {
         title: sanitizeUntrustedContent(String(item.title || '').slice(0, 200)),
         summary: sanitizeUntrustedContent(String(item.description || '').replace(/[<>]/g, '').substring(0, 200)),
         url: item.link,
+        source: item.source?.name || item.author || item.publisher || 'Unknown',
+        imageUrl: item.thumbnail || item.enclosure?.url || item.image || item.media_thumbnail?.[0]?.url,
+        publishedAt: item.pubDate || item.published || item.created,
       }));
     }
   } catch (err) {
@@ -1723,6 +1726,7 @@ async function fetchDailyDigest(location = 'auto', newsCount = 5) {
     };
 
     const news = await newsPromise;
+    // Already passed newsCount via closure
 
     const result = {
       weather,
