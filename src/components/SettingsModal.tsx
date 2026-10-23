@@ -130,6 +130,7 @@ export function SettingsModal({
   const [saveState, setSaveState] = useState<'idle' | 'saved'>('idle');
   const [windowPreset, setWindowPreset] = useState<WindowSizePreset>('comfortable');
   const [checkState, setCheckState] = useState<'idle' | 'checking' | 'available' | 'up-to-date' | 'error'>('idle');
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
   const activeConfig = PROVIDER_CONFIGS.find((p) => p.value === preferences.brain_provider) ?? PROVIDER_CONFIGS[0];
 
@@ -247,6 +248,8 @@ export function SettingsModal({
       }
     } catch (err) {
       console.error('Update check failed:', err);
+      const message = err instanceof Error ? err.message : 'Failed to check for updates. Please try again.';
+      setUpdateError(message);
       setCheckState('error');
     }
   }, []);
@@ -596,7 +599,7 @@ export function SettingsModal({
                 )}
               </button>
               {checkState === 'error' && (
-                <span className="update-error">Failed to check for updates</span>
+                <span className="update-error">{updateError || 'Failed to check for updates. Please try again.'}</span>
               )}
               {checkState === 'available' && (
                 <button className="update-download-button" onClick={handleDownloadUpdate}>

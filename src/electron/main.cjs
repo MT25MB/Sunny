@@ -1955,13 +1955,27 @@ app.whenReady().then(() => {
       ipcMain.handle('sunny:check-for-updates', async (event) => {
         assertTrustedSender(event);
         rateLimit('sunny:check-for-updates');
-        try {
-          const result = await autoUpdater.checkForUpdates();
-          return { success: true, updateInfo: result?.updateInfo };
-        } catch (err) {
-          log.error('Manual update check failed:', err);
-          return { success: false, error: err.message };
+
+        const maxRetries = 3;
+        const retryDelayMs = 2000;
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            const result = await autoUpdater.checkForUpdates();
+            return { success: true, updateInfo: result?.updateInfo };
+          } catch (err) {
+            log.warn('Manual update check failed (attempt ' + attempt + '/' + maxRetries + '):', err.message);
+
+            if (attempt === maxRetries) {
+              log.error('Manual update check failed after ' + maxRetries + ' attempts:', err.message);
+              return { success: false, error: err.message, retryable: true };
+            }
+
+            await new Promise(resolve => setTimeout(resolve, retryDelayMs * attempt));
+          }
         }
+
+        return { success: false, error: 'All retry attempts failed', retryable: true };
       });
 
       // Start the download the user explicitly asked for in the toast.
