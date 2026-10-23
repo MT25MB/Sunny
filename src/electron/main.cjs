@@ -2128,6 +2128,7 @@ app.whenReady().then(() => {
     if (!mainWindow) return;
     if (action === 'hide') mainWindow.hide();
     if (action === 'show') mainWindow.show();
+    if (action === 'minimize') mainWindow.minimize();
     if (action === 'close') mainWindow.close();
   });
 

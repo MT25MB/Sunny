@@ -335,6 +335,10 @@ export interface WindowControls {
   readonly nativeTitleBar: boolean;
   /** Fully quit the app (bypasses close-to-tray). */
   quitApp(): Promise<boolean>;
+  /** Minimize the window to the taskbar. */
+  minimizeWindow(): Promise<void>;
+  /** Close the window (hides to tray on this app). */
+  closeWindow(): Promise<void>;
   /** Pin the window above all others. */
   setAlwaysOnTop(value: boolean): Promise<boolean>;
   /** Current always-on-top state. */

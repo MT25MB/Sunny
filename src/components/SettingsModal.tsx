@@ -279,7 +279,7 @@ export function SettingsModal({
             <p className="panel-kicker">Sunny settings</p>
             <h2>Make Sunny feel right</h2>
           </div>
-          <button className="icon-button" data-autofocus onClick={onClose} aria-label="Close settings">
+          <button type="button" className="icon-button" data-autofocus onClick={onClose} aria-label="Close settings">
             <X size={19} />
           </button>
         </div>

@@ -75,7 +75,7 @@ function App() {
   const [highContrast, setHighContrast] = useState(false);
   const [cookingMode, setCookingMode] = useState<{ recipe: Recipe; currentStep: number } | null>(null);
   const [medicationReminders, setMedicationReminders] = useState<Array<{ id: string; pillName: string; timeString: string; enabled: boolean; lastTaken?: string; triggeredAt?: string }>>([]);
-  const [medModal, setMedModal] = useState<{ open: boolean; pillName: string; timeString: string }>({ open: false, pillName: "", timeString: "" });
+  const [medModal, setMedModal] = useState<{ open: boolean; pillName: string; timeString: string; error: string | null }>({ open: false, pillName: "", timeString: "", error: null });
   const [dailyDigest, setDailyDigest] = useState<DailyDigest | null>(null);
   // The digest has its own error. The shared `error` state is rendered
   // inside the System Health card, so a digest failure used to appear
@@ -86,6 +86,7 @@ function App() {
   const [recipeSearchQuery, setRecipeSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Recipe[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [recipeSearchError, setRecipeSearchError] = useState<string | null>(null);
   const [modelStatus, setModelStatus] = useState<ModelStatus | null>(null);
   const [openSections, setOpenSections] = useState<SectionState>(defaultSectionState);
   const [windowFilled, setWindowFilled] = useState(false);
@@ -244,6 +245,14 @@ function App() {
   const handleToggleAlwaysOnTop = useCallback(() => {
     void window.windowControls?.setAlwaysOnTop(!alwaysOnTop).then(setAlwaysOnTop);
   }, [alwaysOnTop]);
+
+  const handleMinimizeWindow = useCallback(() => {
+    void window.windowControls?.minimizeWindow?.();
+  }, []);
+
+  const handleCloseWindow = useCallback(() => {
+    void window.windowControls?.closeWindow?.();
+  }, []);
 
   // Reflect always-on-top changes made from the tray menu.
   useEffect(() => {
@@ -427,12 +436,13 @@ function App() {
   const handleSearchRecipe = useCallback(async () => {
     if (!recipeSearchQuery.trim()) return;
     setIsSearching(true);
+    setRecipeSearchError(null);
     try {
       const result = await sunnyBrain.fetchVerifiedRecipe(recipeSearchQuery, 5);
       setSearchResults(result.recipes);
     } catch (e) {
       const message = describeError(e);
-      setError(message);
+      setRecipeSearchError(message);
     } finally {
       setIsSearching(false);
     }
@@ -478,13 +488,15 @@ function App() {
 
 
   const handleScheduleMedication = useCallback(async (pillName: string, timeString: string) => {
+    setMedModal((m) => ({ ...m, error: null }));
     try {
       await sunnyBrain.scheduleMedicationReminder(pillName, timeString);
       sunnyBrain.addMessage("assistant", `Medication reminder set for ${pillName} at ${timeString}.`);
       sunnyBrain.speakNotification(`Medication reminder set for ${pillName} at ${timeString}.`, "normal", 1);
+      setMedModal({ open: false, pillName: "", timeString: "", error: null });
     } catch (e) {
       const message = describeError(e);
-      setError(message);
+      setMedModal((m) => ({ ...m, error: message }));
     }
   }, [describeError]);
 
@@ -657,6 +669,26 @@ function App() {
                 >
                   {windowFilled ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
                 </button>
+                {window.windowControls?.nativeTitleBar ? null : (
+                  <>
+                    <button
+                      className="icon-btn window-btn window-btn-minimize"
+                      onClick={handleMinimizeWindow}
+                      aria-label="Minimize Sunny"
+                      title="Minimize"
+                    >
+                      <Minimize2 size={20} />
+                    </button>
+                    <button
+                      className="icon-btn window-btn window-btn-close"
+                      onClick={handleCloseWindow}
+                      aria-label="Close Sunny"
+                      title="Close"
+                    >
+                      <XCircle size={20} />
+                    </button>
+                  </>
+                )}
               </div>
             </header>
             <main className="app-main" role="main">
@@ -802,8 +834,12 @@ function App() {
                     className="recipe-search-btn"
                     disabled={isSearching || !recipeSearchQuery.trim()}
                   >
-                    <Search size={20} /> {isSearching ? "Searching..." : "Search"}
+                    <Search size={20} />
+                    {isSearching ? "Searching\u2026" : "Search"}
                   </button>
+                  {recipeSearchError && (
+                    <span className="recipe-search-error">{recipeSearchError}</span>
+                  )}
                   {preferences.voice_enabled && (
                     <MicButton
                       disabled={isSearching}
@@ -941,7 +977,7 @@ function App() {
                 open={openSections.medication}
                 onToggle={() => toggleSection("medication")}
                 headerExtra={
-                  <button className="add-medication-btn" onClick={() => setMedModal({ open: true, pillName: "", timeString: "" })}>
+                  <button className="add-medication-btn" onClick={() => setMedModal({ open: true, pillName: "", timeString: "", error: null })}>
                     <Plus size={20} /> Add Reminder
                   </button>
                 }
@@ -956,7 +992,7 @@ function App() {
                         <input
                           type="text"
                           value={medModal.pillName}
-                          onChange={(e) => setMedModal((m) => ({ ...m, pillName: e.target.value }))}
+                          onChange={(e) => setMedModal((m) => ({ ...m, pillName: e.target.value, error: null }))}
                           placeholder="e.g. Vitamin D"
                         />
                       </label>
@@ -965,12 +1001,15 @@ function App() {
                         <input
                           type="text"
                           value={medModal.timeString}
-                          onChange={(e) => setMedModal((m) => ({ ...m, timeString: e.target.value }))}
+                          onChange={(e) => setMedModal((m) => ({ ...m, timeString: e.target.value, error: null }))}
                           placeholder="08:30"
                         />
                       </label>
+                      {medModal.error && (
+                        <span className="med-modal-error">{medModal.error}</span>
+                      )}
                       <div className="med-modal-actions">
-                        <button className="medication-btn" onClick={() => setMedModal({ open: false, pillName: "", timeString: "" })}>
+                        <button className="medication-btn" onClick={() => setMedModal({ open: false, pillName: "", timeString: "", error: null })}>
                           Cancel
                         </button>
                         <button
@@ -984,7 +1023,6 @@ function App() {
                               return;
                             }
                             handleScheduleMedication(name, time);
-                            setMedModal({ open: false, pillName: "", timeString: "" });
                           }}
                         >
                           Save
