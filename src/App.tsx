@@ -30,6 +30,7 @@ import {
   Pin,
   Maximize2,
   Minimize2,
+  Send,
 } from "lucide-react";
 import { sunnyBrain, type ChatMessage } from "@/renderer/services/sunnyBrain";
 import type { SystemStatus, Recipe, DailyDigest } from "@/types/electron";
@@ -97,6 +98,8 @@ function App() {
   const [preferences, setPreferences] = useState<SunnyPreferences>(defaultPreferences);
   const [alwaysOnTop, setAlwaysOnTop] = useState(false);
   const [autoCheckUpdates, setAutoCheckUpdates] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [isProcessingChat, setIsProcessingChat] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -534,6 +537,47 @@ function App() {
       setIsFetchingDigest(false);
     }
   }, [describeError, expandSection]);
+
+  const handleChatSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim() || isProcessingChat) return;
+    
+    const input = chatInput.trim();
+    setChatInput("");
+    setIsProcessingChat(true);
+    
+    // Add user message to chat
+    sunnyBrain.addMessage("user", input);
+    
+    try {
+      // Use the decide_action tool to interpret the command
+      const result = await sunnyBrain.invokeTool("decide_action", { prompt: input });
+      
+      if (result.success && result.result) {
+        const decision = result.result as { response?: string; actions?: Array<{type: string}> };
+        const actions = decision.actions;
+        if (Array.isArray(actions) && actions.length > 0) {
+          // Execute the actions
+          const execResult = await sunnyBrain.invokeTool("execute_actions", { actions });
+          if (execResult.success) {
+            sunnyBrain.addMessage("assistant", "Completed: " + actions.map(a => a.type).join(", "));
+          } else {
+            sunnyBrain.addMessage("system", "Execution failed: " + execResult.error);
+          }
+        } else {
+          // No actions to execute, just respond
+          sunnyBrain.addMessage("assistant", decision.response || "Done.");
+        }
+      } else {
+        sunnyBrain.addMessage("system", "Could not understand: " + (result.error || "Unknown error"));
+      }
+    } catch (e) {
+      const message = describeError(e);
+      sunnyBrain.addMessage("system", "Error: " + message);
+    } finally {
+      setIsProcessingChat(false);
+    }
+  }, [describeError]);
 
   const handleSpeakDailyDigest = useCallback(async () => {
     if (!dailyDigest) return;
@@ -1222,6 +1266,25 @@ function App() {
                     )}
                     <div ref={chatEndRef} />
                   </div>
+                  <form onSubmit={handleChatSubmit} className="chat-input-form">
+                    <input
+                      type="text"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      placeholder='Type a command (e.g., "open calculator") or ask a question...'
+                      className="chat-input"
+                      disabled={isProcessingChat}
+                      aria-label="Chat input"
+                    />
+                    <button
+                      type="submit"
+                      className="chat-send-btn"
+                      disabled={!chatInput.trim() || isProcessingChat}
+                      aria-label="Send command"
+                    >
+                      <Send size={18} />
+                    </button>
+                  </form>
                 </CollapsibleSection>
               )}
 
