@@ -78,7 +78,8 @@ function excludedBy(rules, name) {
 }
 
 async function loadIgnoreRules() {
-  const url = 'file://' + FORGE_CONFIG.split(path.sep).join('/');
+  const { pathToFileURL } = require('node:url');
+  const url = pathToFileURL(FORGE_CONFIG).href;
   const mod = await import(url);
   return (mod.default.packagerConfig.ignore || []).filter((r) => r instanceof RegExp);
 }
@@ -126,8 +127,8 @@ test('the check catches the rule that caused the broken images', () => {
   );
   for (const name of caught) {
     assert.ok(
-      /sunny-mascot-(chef|pills|newspaper)/.test(name),
-      'the caught asset should be one of the three section mascots: ' + name
+      /sunny-mascot-(chef|pills|newspaper|microphone|stethoscope|magnifying)/.test(name),
+      'the caught asset should be one of the six section mascots: ' + name
     );
   }
 });

@@ -62,6 +62,9 @@ import mascot from "/assets/mascot.png";
 import mascotChef from "/assets/sunny-mascot-chef.webp";
 import mascotPills from "/assets/sunny-mascot-pills.webp";
 import mascotNewspaper from "/assets/sunny-mascot-newspaper.webp";
+import mascotMicrophone from "/assets/sunny-mascot-microphone.webp";
+import mascotStethoscope from "/assets/sunny-mascot-stethoscope.webp";
+import mascotMagnifying from "/assets/sunny-mascot-magnifying.webp";
 
 const POLL_INTERVAL = 30000;
 
@@ -756,6 +759,7 @@ function App() {
                 className="health-card"
                 title="System Health"
                 icon={<Shield size={20} />}
+                mascotSrc={mascotStethoscope}
                 open={openSections["system-health"]}
                 onToggle={() => toggleSection("system-health")}
               >
@@ -817,6 +821,7 @@ function App() {
                 className="actions-section"
                 title="Quick Actions"
                 icon={<Sun size={20} />}
+                mascotSrc={mascotMicrophone}
                 open={openSections["quick-actions"]}
                 onToggle={() => toggleSection("quick-actions")}
               >
@@ -1253,6 +1258,7 @@ function App() {
                   className="chat-section"
                   title="Activity Log"
                   icon={<MessageSquare size={20} />}
+                  mascotSrc={mascotMagnifying}
                   open={openSections.activity}
                   onToggle={() => toggleSection("activity")}
                 >
