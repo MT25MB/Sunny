@@ -67,5 +67,8 @@
   },
   "optionalDependencies": {
     "@electron-forge/maker-deb": "^8.0.1"
+  },
+  "overrides": {
+    "file-type": "^21.3.1"
   }
 }
