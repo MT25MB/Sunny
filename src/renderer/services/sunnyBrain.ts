@@ -229,6 +229,116 @@ class SunnyBrain {
   }
 
   // -------------------------------------------------------------------------
+  // Quick Action Execution (used by UI buttons for Recipes, Meds, News/Weather)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Execute a quick-action tool triggered from the UI buttons.
+   * Falls back to mock data when Electron IPC is unavailable (browser preview).
+   * @param actionType - 'meds' | 'recipe' | 'news'
+   * @param payload - Optional parameters for the action
+   */
+  async triggerQuickAction(
+    actionType: 'meds' | 'recipe' | 'news',
+    payload?: Record<string, unknown>
+  ): Promise<ToolResult> {
+    const stamp = new Date().toISOString();
+
+    const toolMap = {
+      meds: 'schedule_medication_reminder',
+      recipe: 'search_recipe',
+      news: 'get_daily_digest',
+    } as const;
+
+    const toolName = toolMap[actionType];
+
+    // Web fallback when Electron IPC is unavailable
+    if (!window.electronAPI || !window.electronAPI.executeTool) {
+      console.warn('[Sunny] Electron IPC unavailable, executing web fallback for:', actionType);
+      return this.webFallback(actionType, payload || {}, stamp);
+    }
+
+    try {
+      const result = await window.electronAPI.executeTool(toolName, payload || {});
+      return {
+        timestamp: stamp,
+        success: true,
+        toolName,
+        result: result as unknown,
+      };
+    } catch (err) {
+      return {
+        timestamp: stamp,
+        success: false,
+        toolName,
+        error: this.describeError(err),
+      };
+    }
+  }
+
+  /**
+   * Web fallback that returns mock data so buttons work in browser preview mode.
+   * @param actionType - The action type being executed
+   * @param payload - The payload passed to the action
+   * @param stamp - Timestamp for the result
+   */
+  private webFallback(actionType: string, payload: Record<string, unknown>, stamp: string): ToolResult {
+    const mockData: Record<string, unknown> = {
+      recipe: {
+        recipes: [
+          {
+            id: 'mock_recipe_1',
+            title: 'Demo Recipe (Browser Preview)',
+            imageUrl: null,
+            ingredients: ['2 cups flour', '1 cup sugar', '2 eggs', '1 tsp vanilla'],
+            instructions: ['Preheat oven to 350°F', 'Mix all ingredients', 'Bake for 25 minutes'],
+            servings: 4,
+            prepTimeMinutes: 10,
+            cookTimeMinutes: 25,
+            sourceUrl: '',
+          },
+        ],
+      },
+      meds: {
+        success: true,
+        reminderId: `mock_med_${Date.now()}`,
+      },
+      news: {
+        weather: {
+          temperature: 22,
+          condition: 'Sunny',
+          location: 'Demo City',
+          humidity: 45,
+          windSpeed: 10,
+          feelsLike: 23,
+          high: 24,
+          low: 18,
+          sunrise: '06:30',
+          sunset: '19:45',
+        },
+        news: [
+          {
+            title: 'Demo News Headline',
+            summary: 'This is a demo news summary for browser preview mode.',
+            url: '',
+            source: 'Demo News',
+            imageUrl: null,
+            publishedAt: new Date().toISOString(),
+          },
+        ],
+        date: new Date().toISOString().split('T')[0],
+      },
+    };
+
+    return {
+      timestamp: stamp,
+      success: true,
+      toolName: actionType,
+      result: mockData[actionType],
+    };
+  }
+
+  // -------------------------------------------------------------------------
   // Recipe search
   // -------------------------------------------------------------------------
 

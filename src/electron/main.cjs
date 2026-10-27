@@ -1826,6 +1826,10 @@ function stopMedicationChecker() {
 async function handleExecuteTool(channel, toolName, params) {
   assertPayloadSize({ toolName, params }, channel);
   const name = requireString(toolName, 'toolName');
+  
+  // Debug logging for every tool invocation
+  console.log('[IPC Main] Tool invoked:', name, params);
+  
   if (!SUNNY_TOOLS.includes(name)) {
     throw new Error(`Unknown tool: ${name}. Available tools: ${SUNNY_TOOLS.join(', ')}`);
   }
@@ -1837,11 +1841,19 @@ async function handleExecuteTool(channel, toolName, params) {
   // Sanitize all input parameters to prevent command injection
   const sanitizedParams = deepSanitize(params === undefined ? {} : params);
   const validated = validateToolParams(name, sanitizedParams);
-  return withTimeout(
-    runTool(name, validated),
-    TOOL_TIMEOUTS[name] ?? TOOL_CALL_TIMEOUT_MS,
-    `The "${name}" action took too long and was stopped.`
-  );
+  
+  try {
+    const result = await withTimeout(
+      runTool(name, validated),
+      TOOL_TIMEOUTS[name] ?? TOOL_CALL_TIMEOUT_MS,
+      `The "${name}" action took too long and was stopped.`
+    );
+    // Ensure consistent success response format
+    return { success: true, data: result };
+  } catch (err) {
+    // Ensure consistent error response format
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 // ============================================================================
@@ -2298,12 +2310,14 @@ app.whenReady().then(() => {
   ipcMain.handle('sunny:execute-tool', (event, toolName, params) => {
     assertTrustedSender(event);
     rateLimit('sunny:execute-tool');
+    console.log('[IPC Main] execute-tool invoked:', toolName, params);
     return handleExecuteTool('sunny:execute-tool', toolName, params);
   });
 
   ipcMain.handle('sunny:get-system-status', (event) => {
     assertTrustedSender(event);
     rateLimit('sunny:get-system-status');
+    console.log('[IPC Main] get-system-status invoked');
     return withTimeout(buildSystemStatus(), TOOL_CALL_TIMEOUT_MS, 'The system check took too long and was stopped.');
   });
 
@@ -2316,18 +2330,21 @@ app.whenReady().then(() => {
   ipcMain.handle('sunny:search-recipe', (event, payload) => {
     assertTrustedSender(event);
     const box = requirePlainObject(payload, 'recipe search');
+    console.log('[IPC Main] search-recipe invoked:', box.query, box.maxResults);
     return handleExecuteTool('sunny:search-recipe', 'search_recipe', box);
   });
 
   ipcMain.handle('sunny:get-daily-digest', (event, payload) => {
     assertTrustedSender(event);
     const box = requirePlainObject(payload || {}, 'daily digest');
+    console.log('[IPC Main] get-daily-digest invoked:', box.location, box.newsCount);
     return handleExecuteTool('sunny:get-daily-digest', 'get_daily_digest', box);
   });
 
   ipcMain.handle('sunny:schedule-medication-reminder', (event, payload) => {
     assertTrustedSender(event);
     const box = requirePlainObject(payload, 'medication reminder');
+    console.log('[IPC Main] schedule-medication-reminder invoked:', box.pillName, box.timeString);
     return handleExecuteTool('sunny:schedule-medication-reminder', 'schedule_medication_reminder', box);
   });
 

@@ -444,11 +444,21 @@ function App() {
     setIsSearching(true);
     setRecipeSearchError(null);
     try {
-      const result = await sunnyBrain.fetchVerifiedRecipe(recipeSearchQuery, 5);
-      setSearchResults(result.recipes);
+      const result = await sunnyBrain.triggerQuickAction('recipe', {
+        query: recipeSearchQuery,
+        maxResults: 5,
+      });
+      if (result.success) {
+        setSearchResults((result.result as { recipes: Recipe[] }).recipes);
+        sunnyBrain.addMessage("assistant", `Found ${(result.result as { recipes: Recipe[] }).recipes.length} recipe(s) for "${recipeSearchQuery}".`);
+      } else {
+        setRecipeSearchError(result.error ?? null);
+        sunnyBrain.addMessage("system", "Recipe search failed: " + result.error);
+      }
     } catch (e) {
       const message = describeError(e);
       setRecipeSearchError(message);
+      sunnyBrain.addMessage("system", "Recipe search error: " + message);
     } finally {
       setIsSearching(false);
     }
@@ -496,10 +506,14 @@ function App() {
   const handleScheduleMedication = useCallback(async (pillName: string, timeString: string) => {
     setMedModal((m) => ({ ...m, error: null }));
     try {
-      await sunnyBrain.scheduleMedicationReminder(pillName, timeString);
-      sunnyBrain.addMessage("assistant", `Medication reminder set for ${pillName} at ${timeString}.`);
-      sunnyBrain.speakNotification(`Medication reminder set for ${pillName} at ${timeString}.`, "normal", 1);
-      setMedModal({ open: false, pillName: "", timeString: "", error: null });
+      const result = await sunnyBrain.triggerQuickAction('meds', { pillName, timeString });
+      if (result.success) {
+        sunnyBrain.addMessage("assistant", `Medication reminder set for ${pillName} at ${timeString}.`);
+        sunnyBrain.speakNotification(`Medication reminder set for ${pillName} at ${timeString}.`, "normal", 1);
+        setMedModal({ open: false, pillName: "", timeString: "", error: null });
+      } else {
+        setMedModal((m) => ({ ...m, error: result.error ?? null }));
+      }
     } catch (e) {
       const message = describeError(e);
       setMedModal((m) => ({ ...m, error: message }));
@@ -531,11 +545,18 @@ function App() {
     setIsFetchingDigest(true);
     setDigestError(null);
     try {
-      const digest = await sunnyBrain.getDailyDigest();
-      setDailyDigest(digest);
-      expandSection("digest");
+      const result = await sunnyBrain.triggerQuickAction('news');
+      if (result.success) {
+        setDailyDigest(result.result as DailyDigest | null);
+        expandSection("digest");
+        sunnyBrain.addMessage("assistant", "Morning digest loaded with weather and news.");
+      } else {
+        setDigestError(result.error ?? null);
+        sunnyBrain.addMessage("system", "Digest failed: " + result.error);
+      }
     } catch (e) {
       setDigestError(describeError(e));
+      sunnyBrain.addMessage("system", "Digest error: " + describeError(e));
     } finally {
       setIsFetchingDigest(false);
     }
