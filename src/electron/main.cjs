@@ -399,7 +399,7 @@ const MAX_ACTIONS_PER_BATCH = 30;
 const MAX_TYPED_CHARS = 4000;
 
 const SPEECH_PRIORITIES = ['low', 'normal', 'high', 'urgent'];
-const SUNNY_TOOLS = ['get_system_status', 'speak_notification', 'search_recipe', 'get_daily_digest', 'schedule_medication_reminder', 'emit_cooking_step'];
+const SUNNY_TOOLS = ['get_system_status', 'speak_notification', 'search_recipe', 'get_daily_digest', 'schedule_medication_reminder', 'emit_cooking_step', 'decide_action', 'execute_actions'];
 
 /**
  * Anti-Injection System Prompt Guardrail
@@ -1375,6 +1375,23 @@ function validateToolParams(toolName, params) {
     return { stepIndex: Number(stepIndex), totalSteps: Number(totalSteps), instruction };
   }
 
+  if (toolName === 'decide_action') {
+    const prompt = requireString(box.prompt, 'prompt');
+    const image = box.image === undefined ? undefined : requireString(box.image, 'image');
+    return { prompt, image };
+  }
+
+  if (toolName === 'execute_actions') {
+    const actions = box.actions;
+    if (!Array.isArray(actions)) {
+      throw new Error('execute_actions requires an actions array.');
+    }
+    if (actions.length > MAX_ACTIONS_PER_BATCH) {
+      throw new Error(`Too many actions (limit is ${MAX_ACTIONS_PER_BATCH}).`);
+    }
+    return { actions };
+  }
+
   throw new Error(`Unknown tool: ${toolName}`);
 }
 
@@ -1412,10 +1429,42 @@ async function runTool(toolName, params) {
     return { ok: true };
   }
 
+  if (toolName === 'decide_action') {
+    // Reuse the same logic as the dedicated sunny:decide-action handler.
+    const guardedPrompt = withSystemGuardrail(params.prompt);
+    // If an image is provided, use vision; otherwise ask the LLM if vision is needed.
+    const providedImage = params.image ? params.image.replace(/^data:image\/[^;]+;base64,/, '') : null;
+    const visionCheck = await runConfiguredInference(
+      withSystemGuardrail(
+        'Does this request require seeing the user\'s screen? Answer exactly YES or NO. Request: ' + params.prompt
+      ),
+      null
+    );
+    const needsScreen = /^YES$/i.test(visionCheck.response || '');
+    let imageBase64 = providedImage;
+    if (needsScreen && !imageBase64) {
+      const capture = await captureScreen();
+      imageBase64 = capture.dataUrl.replace(/^data:image\/[^;]+;base64,/, '');
+    }
+    const result = await runConfiguredInference(guardedPrompt, imageBase64);
+    if (result.error) throw new Error(result.error);
+    return { response: sanitizeUntrustedContent(result.response || '') };
+  }
+
+  if (toolName === 'execute_actions') {
+    return await executeActions(params.actions);
+  }
+
   throw new Error(`Unknown tool: ${toolName}`);
 }
 
 async function searchRecipes(query, maxResults = 5) {
+  // Recipe search requires internet. Return empty results when offline.
+  const { reachable } = await readInternetStatus();
+  if (!reachable) {
+    return { recipes: [] };
+  }
+
   try {
     // First search by name using TheMealDB (free, no API key)
     const searchResponse = await fetch(`${RECIPE_API_BASE}/search.php?s=${encodeURIComponent(query)}`);
@@ -1684,6 +1733,16 @@ async function getDailyDigest(location = 'auto', newsCount = 5) {
 
 async function fetchDailyDigest(location = 'auto', newsCount = 5) {
   try {
+    // Digest requires internet. Return a stub when offline.
+    const { reachable } = await readInternetStatus();
+    if (!reachable) {
+      return {
+        weather: { temperature: 0, condition: 'Unknown', location: 'Offline' },
+        news: [{ title: 'No internet connection', summary: 'Weather and news require an internet connection.', url: '' }],
+        date: new Date().toISOString().split('T')[0],
+      };
+    }
+
     // The headlines do not depend on where the user is, so they are fetched
     // alongside the location lookup instead of after it.
     const newsPromise = fetchDigestNews(newsCount);
@@ -1968,11 +2027,18 @@ app.whenReady().then(() => {
       };
 
       // Check on startup only if the user left automatic checks on.
-      if (isAutoCheckUpdatesEnabled()) runUpdateCheck();
+      if (isAutoCheckUpdatesEnabled()) {
+        (async () => {
+          const { reachable } = await readInternetStatus();
+          if (reachable) runUpdateCheck();
+        })();
+      }
 
       // Periodic check every 4 hours, honouring the user's preference.
-      const periodicTimer = setInterval(() => {
-        if (isAutoCheckUpdatesEnabled()) runUpdateCheck();
+      const periodicTimer = setInterval(async () => {
+        if (!isAutoCheckUpdatesEnabled()) return;
+        const { reachable } = await readInternetStatus();
+        if (reachable) runUpdateCheck();
       }, 4 * 60 * 60 * 1000);
       if (typeof periodicTimer.unref === 'function') periodicTimer.unref();
 
@@ -2090,7 +2156,8 @@ app.whenReady().then(() => {
       const guardedPrompt = withSystemGuardrail(prompt);
       const result = await runConfiguredInference(guardedPrompt, base64Image);
       if (result.error) throw new Error(result.error);
-      return { response: result.response };
+      // Sanitize screen-derived text for prompt injection before returning.
+      return { response: sanitizeUntrustedContent(result.response || '') };
     }
   ));
 
@@ -2103,13 +2170,38 @@ app.whenReady().then(() => {
       assertPayloadSize(payload, 'decision payload');
       const box = requirePlainObject(payload, 'payload');
       const prompt = requireString(box.prompt, 'prompt');
+      const providedImage = box.image === undefined ? undefined : requireString(box.image, 'image');
+
       // Apply system guardrail to prevent prompt injection
       const guardedPrompt = withSystemGuardrail(prompt);
-      // Routed to whichever provider the user chose in Settings, not always
-      // the local model.
-      const result = await runConfiguredInference(guardedPrompt, null);
+
+      // Step 1: Ask the LLM whether this request needs to see the screen.
+      const visionCheck = await runConfiguredInference(
+        withSystemGuardrail(
+          'Does this request require seeing the user\'s screen to answer? '
+          + 'Answer with exactly one word: YES or NO. '
+          + 'User request: ' + prompt
+        ),
+        null
+      );
+
+      const needsScreen = /^YES$/i.test(visionCheck.response || '');
+
+      let imageBase64 = providedImage;
+      if (needsScreen && !imageBase64) {
+        // Capture the screen so the model can see what the user sees.
+        const capture = await captureScreen();
+        imageBase64 = capture.dataUrl.replace(/^data:image\/[^;]+;base64,/, '');
+      }
+
+      // Step 2: Run the actual inference, with vision if the screen was needed.
+      const result = await runConfiguredInference(guardedPrompt, imageBase64);
       if (result.error) throw new Error(result.error);
-      return { response: result.response };
+
+      // Step 3: Sanitize screen-derived text for prompt injection.
+      const safeResponse = sanitizeUntrustedContent(result.response || '');
+
+      return { response: safeResponse };
     }
   ));
 

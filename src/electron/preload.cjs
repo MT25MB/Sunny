@@ -28,7 +28,7 @@ function readMainArg(prefix) {
 }
 
 /** Names of every tool the main process will execute. Mirrors main.cjs. */
-const SUNNY_TOOLS = ['get_system_status', 'speak_notification', 'search_recipe', 'get_daily_digest', 'schedule_medication_reminder', 'emit_cooking_step'];
+const SUNNY_TOOLS = ['get_system_status', 'speak_notification', 'search_recipe', 'get_daily_digest', 'schedule_medication_reminder', 'emit_cooking_step', 'decide_action', 'execute_actions'];
 
 /**
  * Dangerous shell metacharacters / sequences that could enable command

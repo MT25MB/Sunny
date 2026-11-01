@@ -180,7 +180,7 @@ async function runProviderInference(options) {
 
   if (provider === 'ollama') {
     const endpoint = (options?.endpoint || PROVIDER_DEFAULTS.ollama.baseUrl).replace(/\/+$/, '');
-    return runOllama({ prompt, imageBase64, endpoint, model: model || 'llava' });
+    return runOllama({ prompt, imageBase64, endpoint, model: model || 'qwen3-vl:8b' });
   }
 
   const apiKey = (options?.apiKey || '').trim();

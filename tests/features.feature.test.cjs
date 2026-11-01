@@ -141,3 +141,19 @@ test("transcribe_speech is not in SENSITIVE_OPERATIONS", () => {
   const sensitive = MAIN.slice(start, MAIN.indexOf("]);", start));
   assert.ok(!/["']transcribe_speech["']/.test(sensitive), "transcribe_speech must not require a confirmation dialog");
 });
+
+// ============================================================================
+// Decide action with screen understanding
+// ============================================================================
+
+test("decide-action IPC handler exists in the main process", () => {
+  assert.ok(/sunny:decide-action/.test(MAIN), "the main process must handle sunny:decide-action");
+});
+
+test("Ollama default model is qwen3-vl:8b", () => {
+  const PROVIDERS = fs.readFileSync(path.join(REPO, "src", "electron", "providers.cjs"), "utf8");
+  assert.ok(
+    /model:\s*model\s*\|\|\s*'qwen3-vl:8b'/.test(PROVIDERS),
+    "providers.cjs must default Ollama to qwen3-vl:8b"
+  );
+});
