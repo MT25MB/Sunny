@@ -260,11 +260,22 @@ class SunnyBrain {
 
     try {
       const result = await window.electronAPI.executeTool(toolName, payload || {});
+      // executeTool returns {success: true, data} or {success: false, error};
+      // propagate the inner result so callers see errors instead of undefined data
+      const r = result as { success?: boolean; data?: unknown; error?: string };
+      if (!r.success) {
+        return {
+          timestamp: stamp,
+          success: false,
+          toolName,
+          error: r.error,
+        };
+      }
       return {
         timestamp: stamp,
         success: true,
         toolName,
-        result: result as unknown,
+        result: r.data,
       };
     } catch (err) {
       return {
