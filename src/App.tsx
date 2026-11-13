@@ -71,7 +71,7 @@ const POLL_INTERVAL = 30000;
 function App() {
   const isBrowserPreview = typeof window !== "undefined" && !window.electronAPI;
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -762,10 +762,11 @@ function App() {
             <main className="app-main" role="main">
               {isBrowserPreview && (
                 <div className="browser-preview-banner" role="note">
-                  <span aria-hidden="true">??</span>
+                  <span aria-hidden="true">⚠️</span>
                   <div>
                     <strong>You are previewing Sunny in a web browser.</strong>
                     <p>
+                      The buttons below are disabled because they require the desktop app.
                       Download the free Sunny desktop app from{" "}
                       <a href="https://github.com/MT25MB/Sunny/releases/latest" target="_blank" rel="noopener noreferrer">
                         GitHub Releases
