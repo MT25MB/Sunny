@@ -414,8 +414,14 @@ const windowControls = {
 contextBridge.exposeInMainWorld('windowControls', windowControls);
 
 // ============================================================================
-// Legacy desktop-automation surface (unchanged, kept for existing callers)
+// Legacy desktop-automation surface (kept for existing callers).
+//
+// DEPRECATED: New code should use `window.electronAPI` instead. This surface
+// will be removed in a future major version. It exists only because existing
+// callers (including older renderer bundles) still reference it.
 // ============================================================================
+
+console.warn('[Sunny Preload] sunnyDesktop is deprecated; use electronAPI instead.');
 
 contextBridge.exposeInMainWorld('sunnyDesktop', {
   captureScreen: () => ipcRenderer.invoke('sunny:capture-screen'),

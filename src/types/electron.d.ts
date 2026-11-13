@@ -98,7 +98,15 @@ export interface SpeakNotificationParams {
 export type Unsubscribe = () => void;
 
 /** Names of the tools the main process is willing to run. */
-export type SunnyToolName = 'get_system_status' | 'speak_notification' | 'search_recipe' | 'get_daily_digest' | 'schedule_medication_reminder' | 'emit_cooking_step';
+export type SunnyToolName =
+  | 'get_system_status'
+  | 'speak_notification'
+  | 'search_recipe'
+  | 'get_daily_digest'
+  | 'schedule_medication_reminder'
+  | 'emit_cooking_step'
+  | 'decide_action'
+  | 'execute_actions';
 
 /** Recipe data structure */
 export interface Recipe {

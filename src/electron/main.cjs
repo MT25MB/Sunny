@@ -132,7 +132,31 @@ const PREFERENCE_VALIDATORS = {
   execution_speed: (v) => v === 'careful' || v === 'balanced' || v === 'fast',
   brain_provider: (v) => ['embedded', 'openai', 'anthropic', 'groq', 'ollama'].includes(v),
   brain_model: (v) => typeof v === 'string' && v.length > 0 && v.length <= 64,
-  ollama_endpoint: (v) => typeof v === 'string' && /^https?:\/\/[^\s]+$/i.test(v) && v.length <= 300,
+  // Restrict the Ollama endpoint to loopback and private ranges so a
+  // compromised renderer cannot use it as an SSRF proxy to internal hosts.
+  ollama_endpoint: (v) => {
+    if (typeof v !== 'string' || v.length > 300) return false;
+    try {
+      const parsed = new URL(v);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+      const host = parsed.hostname.toLowerCase();
+      // Allow loopback and RFC 1918 private ranges only.
+      if (
+        host === 'localhost' ||
+        host === '127.0.0.1' ||
+        host === '[::1]' ||
+        host.startsWith('192.168.') ||
+        host.startsWith('10.')
+      ) {
+        return true;
+      }
+      // 172.16.0.0/12
+      if (/^172\.(1[6-9]|2\d|3[01])\./.test(host)) return true;
+      return false;
+    } catch {
+      return false;
+    }
+  },
   voice_enabled: (v) => typeof v === 'boolean',
   remember_window_position: (v) => typeof v === 'boolean',
 };
@@ -489,7 +513,12 @@ function rateLimit(channel) {
 
 /** Rejects IPC calls that originate outside our own app window. */
 function assertTrustedSender(event) {
-  if (mainWindow && event && event.sender && event.sender !== mainWindow.webContents) {
+  // During startup the window may not exist yet; reject rather than allow
+  // any sender to reach privileged handlers before the window is ready.
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    throw new Error('Sunny rejected a request: no window available.');
+  }
+  if (!event || !event.sender || event.sender !== mainWindow.webContents) {
     throw new Error('Sunny rejected a request from an unexpected source.');
   }
 }
@@ -1110,20 +1139,25 @@ async function executeActions(actions) {
     if (emergencyStop || automationCancelled) return { completed: completed.length, cancelled: true, emergencyStop: true };
     if (!action || typeof action.type !== 'string') throw new Error('Sunny received an invalid desktop action.');
 
-    // Check forbidden zones for click/move/hover actions
-    const checkCoords = { x: action.x, y: action.y };
+    // Rate-limit individual actions so a large batch cannot exceed the
+    // per-batch IPC limit. 60 actions/minute is well above human speed.
+    rateLimit('sunny:execute-action-individual');
+
+    // Check forbidden zones for click/move/hover/drag actions. For drags,
+    // both the start and end coordinates must be outside the forbidden zone.
+    const coordsToCheck = [];
     if (action.type === 'drag') {
-      checkCoords.x = action.fromX;
-      checkCoords.y = action.fromY;
+      coordsToCheck.push({ x: action.fromX, y: action.fromY });
+      coordsToCheck.push({ x: action.toX, y: action.toY });
+    } else if (action.type === 'double_click' || action.type === 'move' || action.type === 'hover') {
+      coordsToCheck.push({ x: action.x, y: action.y });
     }
-    if (action.type === 'double_click') {
-      checkCoords.x = action.x;
-      checkCoords.y = action.y;
-    }
-    if (checkCoords.x !== undefined && checkCoords.y !== undefined) {
-      const forbiddenZone = isInForbiddenZone(checkCoords.x, checkCoords.y);
-      if (forbiddenZone) {
-        throw new Error(`Action blocked: coordinate is in forbidden zone (${forbiddenZone})`);
+    for (const coord of coordsToCheck) {
+      if (coord.x !== undefined && coord.y !== undefined) {
+        const forbiddenZone = isInForbiddenZone(coord.x, coord.y);
+        if (forbiddenZone) {
+          throw new Error(`Action blocked: coordinate is in forbidden zone (${forbiddenZone})`);
+        }
       }
     }
 
@@ -1929,6 +1963,18 @@ function getWeatherCondition(code) {
 }
 
 async function scheduleMedicationReminder(pillName, timeString) {
+  // Validate inputs even though the renderer validates too — never trust
+  // the client payload (server-side validation is the authoritative check).
+  if (typeof pillName !== 'string' || !pillName.trim()) {
+    throw new Error('pillName must be a non-empty string.');
+  }
+  if (pillName.length > 200) {
+    throw new Error('pillName must be 200 characters or fewer.');
+  }
+  if (typeof timeString !== 'string' || !/^([01]\d|2[0-3]):([0-5]\d)$/.test(timeString)) {
+    throw new Error('timeString must be in HH:MM format (24-hour).');
+  }
+
   const id = `med_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
   const reminder = {
     id,
@@ -1936,6 +1982,8 @@ async function scheduleMedicationReminder(pillName, timeString) {
     timeString,
     enabled: true,
     createdAt: new Date().toISOString(),
+    takenOn: null,
+    lastFiredOn: null,
   };
 
   medicationReminders.set(id, reminder);
@@ -1985,6 +2033,41 @@ function stopMedicationChecker() {
     clearInterval(medicationCheckInterval);
     medicationCheckInterval = null;
   }
+}
+
+/**
+ * Fires reminders that were missed while the app was closed.
+ *
+ * Runs once at startup. For each enabled reminder whose time has already
+ * passed today and which has not fired yet, emit a triggered event so the
+ * user still sees it. The reminder's `lastFiredOn` is set to prevent the
+ * regular checker from firing it again.
+ */
+function catchUpMissedReminders() {
+  const now = new Date();
+  const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  for (const [id, reminder] of medicationReminders.entries()) {
+    if (!reminder.enabled) continue;
+    if (reminder.takenOn === today) continue;
+    // If the reminder time has already passed today and it hasn't fired yet,
+    // treat it as missed.
+    if (reminder.timeString >= currentTime) continue;
+    if (reminder.lastFiredOn === `${today} ${reminder.timeString}`) continue;
+
+    reminder.lastFiredOn = `${today} ${reminder.timeString}`;
+    medicationReminders.set(id, reminder);
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('sunny:medication-reminder-triggered', {
+        ...reminder,
+        triggeredAt: new Date().toISOString(),
+        missed: true,
+      });
+    }
+  }
+  saveMedicationReminders();
 }
 
 // ============================================================================
@@ -2096,17 +2179,47 @@ function isInForbiddenZone(x, y) {
 // Emergency stop flag - set by global hotkey
 let emergencyStop = false;
 
+// ============================================================================
+// Security event logging (audit trail)
+// ============================================================================
+
+/**
+ * Log a security-relevant event to the debug log.
+ * Used for blocked actions, failed confirmations, emergency stops, etc.
+ */
+function logSecurityEvent(eventType, details) {
+  try {
+    const entry = {
+      type: 'security',
+      event: eventType,
+      details: details || {},
+      timestamp: new Date().toISOString(),
+    };
+    // Write to the standard debug log if available
+    if (typeof writeDebugLog === 'function') {
+      writeDebugLog(entry);
+    }
+    console.log('[Security]', eventType, details);
+  } catch {
+    // Never let logging failures break the app
+  }
+}
+
 // Global hotkey for emergency stop (Ctrl+Shift+Escape)
 function registerEmergencyStopHotkey() {
   const { globalShortcut } = require('electron');
-  globalShortcut.register('Control+Shift+Escape', () => {
+  const registered = globalShortcut.register('Control+Shift+Escape', () => {
     emergencyStop = true;
     automationCancelled = true;
     console.log('[Emergency Stop] Triggered by Ctrl+Shift+Escape');
+    logSecurityEvent('emergency_stop', { triggeredBy: 'Ctrl+Shift+Escape' });
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('sunny:emergency-stop', { triggered: true });
     }
   });
+  if (!registered) {
+    console.warn('[Emergency Stop] Failed to register global hotkey. Another application may have it registered.');
+  }
 }
 
 // Action verification - compare before/after screenshots
@@ -2416,11 +2529,14 @@ app.whenReady().then(() => {
       const guardedPrompt = withSystemGuardrail(prompt);
 
       // Step 1: Ask the LLM whether this request needs to see the screen.
+      // Sanitize the user prompt before embedding it in the vision check so
+      // that instruction-like text cannot manipulate the classifier.
+      const safePromptForVisionCheck = sanitizeUntrustedContent(prompt);
       const visionCheck = await runConfiguredInference(
         withSystemGuardrail(
           'Does this request require seeing the user\'s screen to answer? '
           + 'Answer with exactly one word: YES or NO. '
-          + 'User request: ' + prompt
+          + 'User request: ' + safePromptForVisionCheck
         ),
         null
       );
@@ -2458,6 +2574,7 @@ app.whenReady().then(() => {
       for (const action of actions) {
         const result = interceptAction(action);
         if (result.verdict === 'block') {
+          logSecurityEvent('action_blocked', { action: action.type, reason: result.reason });
           throw new Error(`Blocked: ${result.reason}`);
         }
         if (result.verdict === 'confirm') {
@@ -2466,6 +2583,7 @@ app.whenReady().then(() => {
             result.confirmReason ?? 'This action requires your approval before proceeding.'
           );
           if (!confirmed) {
+            logSecurityEvent('confirmation_denied', { action: action.type, reason: result.confirmReason });
             throw new Error('Security confirmation denied for confirm_action');
           }
         }
@@ -2807,6 +2925,10 @@ app.whenReady().then(() => {
 
   createWindow();
   startStatusBroadcast();
+
+  // Fire any medication reminders that were missed while the app was closed.
+  // The window now exists so events can be delivered to the renderer.
+  catchUpMissedReminders();
 
   // Register emergency stop hotkey (Ctrl+Shift+Escape)
   registerEmergencyStopHotkey();

@@ -21,7 +21,7 @@ function getElectronStore(): CredentialStore | null {
   return {
     async getCredential(key: CredentialKey): Promise<string> {
       const result = await desktop.loadCredential!(key);
-      return result.value ?? '';
+      return result?.value ?? '';
     },
     async setCredential(key: CredentialKey, value: string): Promise<void> {
       await desktop.saveCredential!(key, value);
@@ -31,7 +31,7 @@ function getElectronStore(): CredentialStore | null {
     },
     async hasCredential(key: CredentialKey): Promise<boolean> {
       const result = await desktop.loadCredential!(key);
-      return !!result.value;
+      return !!result?.value;
     },
   };
 }

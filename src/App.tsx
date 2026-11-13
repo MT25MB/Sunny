@@ -130,7 +130,11 @@ function App() {
     setOpenSections(loadSectionState());
     // Re-assert them in the main process: it holds no persisted copy, so a
     // restart would otherwise silently reset every setting to its default.
-    void window.electronAPI?.setPreferences?.(prefs);
+    try {
+      await window.electronAPI?.setPreferences?.(prefs);
+    } catch (e) {
+      console.error('Failed to sync preferences to main process:', e);
+    }
     if (!prefs.has_completed_onboarding) {
       setShowOnboarding(true);
     }
@@ -601,7 +605,7 @@ function App() {
     } finally {
       setIsProcessingChat(false);
     }
-  }, [describeError]);
+  }, [describeError, isProcessingChat]);
 
   const handleSpeakDailyDigest = useCallback(async () => {
     if (!dailyDigest) return;

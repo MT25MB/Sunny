@@ -359,6 +359,59 @@ function clearDebugLogs() {
   }
 }
 
+/**
+ * Delete debug logs and screenshots older than the retention window.
+ *
+ * Called once at startup so stale artifacts do not accumulate indefinitely.
+ * Screenshots are kept for 7 days; task logs are kept for 30 days.
+ */
+const SCREENSHOT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+const TASK_LOG_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
+function cleanupOldLogs() {
+  const now = Date.now();
+  // Clean old screenshots
+  const screenshotDir = getScreenshotDir();
+  try {
+    if (fs.existsSync(screenshotDir)) {
+      for (const file of fs.readdirSync(screenshotDir)) {
+        const filePath = path.join(screenshotDir, file);
+        try {
+          const stat = fs.statSync(filePath);
+          if (now - stat.mtimeMs > SCREENSHOT_RETENTION_MS) {
+            fs.unlinkSync(filePath);
+          }
+        } catch {
+          // Ignore per-file errors
+        }
+      }
+    }
+  } catch {
+    // Directory may not exist
+  }
+
+  // Trim task history to the retention window
+  const logFile = path.join(getLogDir(), 'task-history.json');
+  try {
+    if (fs.existsSync(logFile)) {
+      const content = fs.readFileSync(logFile, 'utf-8');
+      const logs = JSON.parse(content);
+      if (Array.isArray(logs)) {
+        const cutoff = new Date(now - TASK_LOG_RETENTION_MS).toISOString();
+        const filtered = logs.filter((entry) => {
+          const created = entry?.created_at || entry?.timestamp || entry?.date;
+          return typeof created === 'string' && created >= cutoff;
+        });
+        if (filtered.length !== logs.length) {
+          fs.writeFileSync(logFile, JSON.stringify(filtered, null, 2), 'utf-8');
+        }
+      }
+    }
+  } catch {
+    // Ignore malformed log files
+  }
+}
+
 function exportDebugLogs() {
   const logFile = path.join(getLogDir(), 'task-history.json');
   try {
