@@ -397,6 +397,8 @@ const TOOL_TIMEOUTS = {
 const APP_LAUNCH_TIMEOUT_MS = 10_000;
 const MAX_ACTIONS_PER_BATCH = 30;
 const MAX_TYPED_CHARS = 4000;
+const MAX_DRAG_DURATION_MS = 5000;
+const MAX_HOTKEY_KEYS = 4;
 
 const SPEECH_PRIORITIES = ['low', 'normal', 'high', 'urgent'];
 const SUNNY_TOOLS = ['get_system_status', 'speak_notification', 'search_recipe', 'get_daily_digest', 'schedule_medication_reminder', 'emit_cooking_step', 'decide_action', 'execute_actions'];
@@ -1098,36 +1100,141 @@ async function openApp(appKey) {
 async function executeActions(actions) {
   const automation = await getAutomation();
   automationCancelled = false;
+  emergencyStop = false;
   const completed = [];
 
   for (const action of actions) {
-    if (automationCancelled) return { completed: completed.length, cancelled: true };
+    // Check emergency stop before each action
+    if (emergencyStop || automationCancelled) return { completed: completed.length, cancelled: true, emergencyStop: true };
     if (!action || typeof action.type !== 'string') throw new Error('Sunny received an invalid desktop action.');
+
+    // Check forbidden zones for click/move/hover actions
+    const checkCoords = { x: action.x, y: action.y };
+    if (action.type === 'drag') {
+      checkCoords.x = action.fromX;
+      checkCoords.y = action.fromY;
+    }
+    if (action.type === 'double_click') {
+      checkCoords.x = action.x;
+      checkCoords.y = action.y;
+    }
+    if (checkCoords.x !== undefined && checkCoords.y !== undefined) {
+      const forbiddenZone = isInForbiddenZone(checkCoords.x, checkCoords.y);
+      if (forbiddenZone) {
+        throw new Error(`Action blocked: coordinate is in forbidden zone (${forbiddenZone})`);
+      }
+    }
+
+    // Capture screenshot before action for verification (for click, type, drag, double_click, hotkey)
+    let beforeScreenshot = null;
+    const shouldVerify = ['click', 'double_click', 'drag', 'type', 'hotkey', 'key'].includes(action.type);
+    if (shouldVerify) {
+      beforeScreenshot = await captureScreen();
+    }
 
     if (action.type === 'move' && Number.isFinite(action.x) && Number.isFinite(action.y)) {
       await automation.mouse.setPosition(new automation.Point(action.x, action.y));
     } else if (action.type === 'click') {
       await automation.mouse.click(action.button === 'right' ? automation.Button.RIGHT : automation.Button.LEFT);
+    } else if (action.type === 'double_click') {
+      await automation.mouse.doubleClick(action.button === 'right' ? automation.Button.RIGHT : automation.Button.LEFT);
+    } else if (action.type === 'hover' && Number.isFinite(action.x) && Number.isFinite(action.y)) {
+      await automation.mouse.setPosition(new automation.Point(action.x, action.y));
+    } else if (action.type === 'drag' && Number.isFinite(action.fromX) && Number.isFinite(action.fromY) && Number.isFinite(action.toX) && Number.isFinite(action.toY)) {
+      const duration = Math.min(action.duration || 500, MAX_DRAG_DURATION_MS);
+      const start = new automation.Point(action.fromX, action.fromY);
+      const end = new automation.Point(action.toX, action.toY);
+      await automation.mouse.drag(start, end, { duration });
     } else if (action.type === 'type' && typeof action.text === 'string' && action.text.length <= MAX_TYPED_CHARS) {
       await automation.keyboard.type(action.text);
     } else if (action.type === 'key' && typeof action.key === 'string') {
       await automation.keyboard.pressKey(automation.Key[action.key]);
+    } else if (action.type === 'hotkey' && Array.isArray(action.keys) && action.keys.length > 0 && action.keys.length <= MAX_HOTKEY_KEYS) {
+      const keys = action.keys.map(k => automation.Key[k]).filter(Boolean);
+      if (keys.length === action.keys.length) {
+        await automation.keyboard.pressKey(...keys);
+      } else {
+        throw new Error(`Invalid hotkey combination: ${action.keys.join('+')}`);
+      }
     } else if (action.type === 'scroll' && Number.isFinite(action.amount)) {
-      await automation.mouse.scrollDown(action.amount);
+      if (action.amount >= 0) {
+        await automation.mouse.scrollDown(action.amount);
+      } else {
+        await automation.mouse.scrollUp(Math.abs(action.amount));
+      }
+    } else if (action.type === 'scroll_horizontal' && Number.isFinite(action.amount)) {
+      if (action.amount >= 0) {
+        await automation.mouse.scrollRight(action.amount);
+      } else {
+        await automation.mouse.scrollLeft(Math.abs(action.amount));
+      }
     } else if (action.type === 'wait' && Number.isFinite(action.ms) && action.ms <= 10000) {
       await new Promise((resolve) => setTimeout(resolve, action.ms));
     } else if (action.type === 'screenshot') {
       // Screenshots are taken through captureScreen; nothing to do here.
     } else if (action.type === 'open_app' && typeof action.app === 'string') {
       await openApp(action.app.toLowerCase());
+    } else if (action.type === 'copy') {
+      await automation.keyboard.pressKey(automation.Key.LeftControl, automation.Key.C);
+    } else if (action.type === 'paste') {
+      await automation.keyboard.pressKey(automation.Key.LeftControl, automation.Key.V);
+    } else if (action.type === 'select_all') {
+      await automation.keyboard.pressKey(automation.Key.LeftControl, automation.Key.A);
+    } else if (action.type === 'window_action' && typeof action.action === 'string') {
+      await handleWindowAction(action);
     } else {
       throw new Error('Sunny stopped because an action was not safe to run.');
+    }
+
+    // Verify action had effect
+    if (shouldVerify && beforeScreenshot) {
+      const verification = await verifyAction(action, beforeScreenshot);
+      if (!verification.verified && action.type !== 'move' && action.type !== 'hover') {
+        console.warn('[Action Verification]', verification);
+        // Note: we log but don't fail - some actions might not visibly change screen
+      }
     }
 
     completed.push(action.type);
   }
 
-  return { completed: completed.length, cancelled: false };
+  return { completed: completed.length, cancelled: false, emergencyStop: false };
+}
+
+async function handleWindowAction(action) {
+  if (!mainWindow) throw new Error('Main window not available');
+
+  switch (action.action) {
+    case 'minimize':
+      mainWindow.minimize();
+      break;
+    case 'maximize':
+      mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
+      break;
+    case 'close':
+      mainWindow.close();
+      break;
+    case 'focus':
+      mainWindow.focus();
+      break;
+    case 'hide':
+      mainWindow.hide();
+      break;
+    case 'show':
+      mainWindow.show();
+      break;
+    case 'get_info':
+      return {
+        bounds: mainWindow.getBounds(),
+        isMaximized: mainWindow.isMaximized(),
+        isMinimized: mainWindow.isMinimized(),
+        isVisible: mainWindow.isVisible(),
+        isFocused: mainWindow.isFocused(),
+        title: mainWindow.getTitle(),
+      };
+    default:
+      throw new Error(`Unknown window action: ${action.action}`);
+  }
 }
 
 // ============================================================================
@@ -1963,6 +2070,137 @@ function emitCookingStepChange(stepIndex, totalSteps, instruction) {
 }
 
 // ============================================================================
+// Enhanced desktop automation (Phase 1)
+// ============================================================================
+
+// Forbidden zones - areas where clicks are never allowed (taskbar, system tray, etc.)
+const FORBIDDEN_ZONES = [
+  // Taskbar (bottom of primary screen, ~40px height)
+  { x: 0, y: 1040, width: 1920, height: 40, name: 'taskbar' },
+  // System tray area (bottom right)
+  { x: 1720, y: 1040, width: 200, height: 40, name: 'system_tray' },
+];
+
+// Check if a point is in a forbidden zone
+function isInForbiddenZone(x, y) {
+  for (const zone of FORBIDDEN_ZONES) {
+    if (x >= zone.x && x <= zone.x + zone.width && y >= zone.y && y <= zone.y + zone.height) {
+      return zone.name;
+    }
+  }
+  return null;
+}
+
+// Emergency stop flag - set by global hotkey
+let emergencyStop = false;
+
+// Global hotkey for emergency stop (Ctrl+Shift+Escape)
+function registerEmergencyStopHotkey() {
+  const { globalShortcut } = require('electron');
+  globalShortcut.register('Control+Shift+Escape', () => {
+    emergencyStop = true;
+    automationCancelled = true;
+    console.log('[Emergency Stop] Triggered by Ctrl+Shift+Escape');
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('sunny:emergency-stop', { triggered: true });
+    }
+  });
+}
+
+// Action verification - compare before/after screenshots
+async function verifyAction(action, beforeScreenshot) {
+  if (!beforeScreenshot) return { verified: true, reason: 'No baseline screenshot' };
+
+  // Wait a bit for action to complete
+  await new Promise((resolve) => setTimeout(resolve, 100));
+
+  // Capture after screenshot
+  const afterScreenshot = await captureScreen();
+
+  // Simple pixel difference check
+  const beforeData = beforeScreenshot.dataUrl.replace(/^data:image\/[^;]+;base64,/, '');
+  const afterData = afterScreenshot.dataUrl.replace(/^data:image\/[^;]+;base64,/, '');
+
+  // If screenshots are identical, action likely didn't do anything
+  const identical = beforeData === afterData;
+
+  return {
+    verified: !identical || action.type === 'move' || action.type === 'hover' || action.type === 'wait',
+    identical,
+    reason: identical ? 'Screen did not change after action' : 'Screen changed as expected',
+    beforeWidth: beforeScreenshot.width,
+    beforeHeight: beforeScreenshot.height,
+    afterWidth: afterScreenshot.width,
+    afterHeight: afterScreenshot.height,
+  };
+}
+
+// Clipboard handlers
+ipcMain.handle('sunny:clipboard-read', withSecurityConfirmation(
+  'read_clipboard',
+  'Sunny will read the clipboard contents.',
+  async (event) => {
+    rateLimit('sunny:clipboard-read');
+    assertTrustedSender(event);
+    const { clipboard } = require('electron');
+    return { text: clipboard.readText() };
+  }
+));
+
+ipcMain.handle('sunny:clipboard-write', withSecurityConfirmation(
+  'write_clipboard',
+  'Sunny will write text to the clipboard.',
+  async (event, text) => {
+    rateLimit('sunny:clipboard-write');
+    assertTrustedSender(event);
+    if (typeof text !== 'string') throw new Error('Clipboard write requires a string.');
+    if (text.length > 10000) throw new Error('Clipboard text too long (max 10000 chars).');
+    const { clipboard } = require('electron');
+    clipboard.writeText(text);
+    return { success: true };
+  }
+));
+
+// Window info handler (for any window, not just Sunny's)
+ipcMain.handle('sunny:get-window-info', withSecurityConfirmation(
+  'get_window_info',
+  'Sunny will get information about the active window.',
+  async (event) => {
+    rateLimit('sunny:get-window-info');
+    assertTrustedSender(event);
+    const automation = await getAutomation();
+    try {
+      const win = await automation.getActiveWindow();
+      if (!win) return { error: 'No active window found' };
+      const bounds = win.getBounds();
+      return {
+        title: win.getTitle(),
+        bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+        isMaximized: win.isMaximized(),
+        isMinimized: win.isMinimized(),
+        isFocused: win.isFocused(),
+      };
+    } catch (err) {
+      return { error: err.message };
+    }
+  }
+));
+
+// Emergency stop status
+ipcMain.handle('sunny:emergency-stop-status', (event) => {
+  assertTrustedSender(event);
+  return { emergencyStop };
+});
+
+// Reset emergency stop
+ipcMain.handle('sunny:reset-emergency-stop', (event) => {
+  assertTrustedSender(event);
+  emergencyStop = false;
+  automationCancelled = false;
+  return { reset: true };
+});
+
+// ============================================================================
 // App lifecycle
 // ============================================================================
 
@@ -2567,6 +2805,9 @@ app.whenReady().then(() => {
 
   createWindow();
   startStatusBroadcast();
+
+  // Register emergency stop hotkey (Ctrl+Shift+Escape)
+  registerEmergencyStopHotkey();
 
   globalShortcut.register('CommandOrControl+Shift+Space', () => {
     if (!mainWindow) return;

@@ -323,6 +323,38 @@ const electronAPI = {
   listTools: () => SUNNY_TOOLS.slice(),
 
   // -------------------------------------------------------------------------
+  // Desktop automation (Phase 1)
+  // -------------------------------------------------------------------------
+
+  /** Read text from the system clipboard. */
+  readClipboard: async () => {
+    const result = await ipcRenderer.invoke('sunny:clipboard-read');
+    return result.text;
+  },
+
+  /** Write text to the system clipboard. */
+  writeClipboard: async (text) => {
+    if (typeof text !== 'string') throw new Error('writeClipboard requires a string.');
+    return ipcRenderer.invoke('sunny:clipboard-write', text);
+  },
+
+  /** Get information about the active window. */
+  getWindowInfo: async () => ipcRenderer.invoke('sunny:get-window-info'),
+
+  /** Get emergency stop status. */
+  getEmergencyStopStatus: async () => ipcRenderer.invoke('sunny:emergency-stop-status'),
+
+  /** Reset emergency stop flag. */
+  resetEmergencyStop: async () => ipcRenderer.invoke('sunny:reset-emergency-stop'),
+
+  /** Subscribe to emergency stop events. */
+  onEmergencyStop: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('sunny:emergency-stop', handler);
+    return () => ipcRenderer.removeListener('sunny:emergency-stop', handler);
+  },
+
+  // -------------------------------------------------------------------------
   // Static metadata (resolved at preload time)
   // -------------------------------------------------------------------------
 
@@ -397,6 +429,22 @@ contextBridge.exposeInMainWorld('sunnyDesktop', {
   cancelActions: () => ipcRenderer.invoke('sunny:cancel-actions'),
 
   windowAction: (action) => ipcRenderer.invoke('sunny:window-action', action),
+
+  // Clipboard operations
+  readClipboard: () => ipcRenderer.invoke('sunny:clipboard-read'),
+  writeClipboard: (text) => ipcRenderer.invoke('sunny:clipboard-write', text),
+
+  // Window info
+  getWindowInfo: () => ipcRenderer.invoke('sunny:get-window-info'),
+
+  // Emergency stop
+  getEmergencyStopStatus: () => ipcRenderer.invoke('sunny:emergency-stop-status'),
+  resetEmergencyStop: () => ipcRenderer.invoke('sunny:reset-emergency-stop'),
+  onEmergencyStop: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('sunny:emergency-stop', handler);
+    return () => ipcRenderer.removeListener('sunny:emergency-stop', handler);
+  },
 
   getModelStatus: () => ipcRenderer.invoke('sunny:get-model-status'),
 

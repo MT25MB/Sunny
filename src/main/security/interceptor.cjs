@@ -123,21 +123,86 @@ function interceptAction(action) {
   if (typeof a.type !== 'string') return { verdict: 'block', reason: 'Action has no type field.' };
 
   switch (a.type) {
-    case 'screenshot': case 'wait': return { verdict: 'allow', reason: 'Safe action.' };
+    case 'screenshot':
+    case 'wait':
+    case 'copy':
+    case 'paste':
+    case 'select_all':
+      return { verdict: 'allow', reason: 'Safe action.' };
     // Coordinates matter differently per action: `move` must have them to do
     // anything, while `click` acts on the cursor's current position and may
     // legitimately omit them. Either way, numbers that are present must be
     // real numbers — `Number.isFinite` is used instead of a truthiness check
     // because the string "NaN" is truthy and `{ x: 'NaN' }` used to be
     // reported as a safe action.
-    case 'click': return interceptPoint(a, false);
-    case 'move': return interceptPoint(a, true);
-    case 'scroll': return interceptScroll(a);
-    case 'key': return interceptKey(a);
-    case 'type': return interceptType(a);
-    case 'open_app': return interceptOpenApp(a);
-    default: return { verdict: 'block', reason: `Unknown action type: "${a.type}".` };
+    case 'click':
+      return interceptPoint(a, false);
+    case 'move':
+    case 'hover':
+      return interceptPoint(a, true);
+    case 'double_click':
+      return interceptPoint(a, false);
+    case 'drag':
+      return interceptDrag(a);
+    case 'scroll':
+      return interceptScroll(a);
+    case 'scroll_horizontal':
+      return interceptScroll(a);
+    case 'key':
+      return interceptKey(a);
+    case 'hotkey':
+      return interceptHotkey(a);
+    case 'type':
+      return interceptType(a);
+    case 'open_app':
+      return interceptOpenApp(a);
+    case 'window_action':
+      return interceptWindowAction(a);
+    default:
+      return { verdict: 'block', reason: `Unknown action type: "${a.type}".` };
   }
+}
+
+function interceptDrag(a) {
+  if (!Number.isFinite(a.fromX) || !Number.isFinite(a.fromY) || !Number.isFinite(a.toX) || !Number.isFinite(a.toY)) {
+    return { verdict: 'block', reason: 'Drag action requires valid fromX, fromY, toX, toY coordinates.' };
+  }
+  if (a.fromX < 0 || a.fromY < 0 || a.toX < 0 || a.toY < 0 ||
+      a.fromX > MAX_COORDINATE || a.fromY > MAX_COORDINATE ||
+      a.toX > MAX_COORDINATE || a.toY > MAX_COORDINATE) {
+    return { verdict: 'block', reason: 'Drag coordinates out of bounds.' };
+  }
+  if (a.duration !== undefined && (typeof a.duration !== 'number' || !Number.isFinite(a.duration) || a.duration > MAX_DRAG_DURATION_MS)) {
+    return { verdict: 'block', reason: `Drag duration must be a number <= ${MAX_DRAG_DURATION_MS}ms.` };
+  }
+  return { verdict: 'allow', reason: 'Safe action.' };
+}
+
+function interceptHotkey(a) {
+  if (!Array.isArray(a.keys) || a.keys.length === 0 || a.keys.length > MAX_HOTKEY_KEYS) {
+    return { verdict: 'block', reason: `Hotkey requires 1-${MAX_HOTKEY_KEYS} keys.` };
+  }
+  const validKeys = new Set(Object.keys(require('@nut-tree-fork/nut-js').Key));
+  for (const k of a.keys) {
+    if (!validKeys.has(k)) {
+      return { verdict: 'block', reason: `Invalid key in hotkey: "${k}".` };
+    }
+  }
+  return { verdict: 'allow', reason: 'Safe action.' };
+}
+
+function interceptWindowAction(a) {
+  if (!a.action || typeof a.action !== 'string') {
+    return { verdict: 'block', reason: 'Window action requires an action string.' };
+  }
+  const validActions = ['minimize', 'maximize', 'close', 'focus', 'hide', 'show', 'get_info'];
+  if (!validActions.includes(a.action)) {
+    return { verdict: 'block', reason: `Invalid window action: "${a.action}".` };
+  }
+  if (a.action === 'close') {
+    return { verdict: 'confirm', reason: 'Close window.', confirmLabel: 'Close window', confirmReason: 'This will close the current window. Unsaved work may be lost.' };
+  }
+  return { verdict: 'allow', reason: 'Safe action.' };
 }
 
 /**
@@ -155,6 +220,9 @@ function hasValidCoords(a, required) {
   if (!Number.isFinite(a.x) || !Number.isFinite(a.y)) return false;
   return a.x >= 0 && a.y >= 0 && a.x <= MAX_COORDINATE && a.y <= MAX_COORDINATE;
 }
+
+const MAX_DRAG_DURATION_MS = 5000;
+const MAX_HOTKEY_KEYS = 4;
 
 function interceptPoint(a, required) {
   if (!hasValidCoords(a, required)) {
@@ -258,8 +326,28 @@ function checkParameterAmbiguity(action) {
     case 'move':
       if (!Number.isFinite(a.x) || !Number.isFinite(a.y)) return { isAmbiguous: true, question: 'Where should I move the cursor?' };
       break;
+    case 'hover':
+      if (!Number.isFinite(a.x) || !Number.isFinite(a.y)) return { isAmbiguous: true, question: 'Where should I hover the cursor?' };
+      break;
+    case 'drag':
+      if (!Number.isFinite(a.fromX) || !Number.isFinite(a.fromY) || !Number.isFinite(a.toX) || !Number.isFinite(a.toY)) {
+        return { isAmbiguous: true, question: 'Where should I drag from and to?' };
+      }
+      break;
+    case 'double_click':
+      if (!Number.isFinite(a.x) && !Number.isFinite(a.y)) return { isAmbiguous: true, question: 'Where should I double-click?' };
+      break;
+    case 'hotkey':
+      if (!Array.isArray(a.keys) || a.keys.length === 0) return { isAmbiguous: true, question: 'Which key combination should I press?' };
+      break;
     case 'scroll':
       if (!Number.isFinite(a.amount)) return { isAmbiguous: true, question: 'How much should I scroll?' };
+      break;
+    case 'scroll_horizontal':
+      if (!Number.isFinite(a.amount)) return { isAmbiguous: true, question: 'How much should I scroll horizontally?' };
+      break;
+    case 'window_action':
+      if (!a.action || typeof a.action !== 'string') return { isAmbiguous: true, question: 'What window action should I perform?' };
       break;
   }
   return { isAmbiguous: false, question: '' };
