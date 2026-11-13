@@ -41313,7 +41313,7 @@ textarea::placeholder { color: #65747b; }
   margin-top: 2rem;
   padding: 1.25rem 1.5rem;
   border-top: 1px solid rgba(255,255,255,0.06);
-  color: #8a979d;
+  color: #93a4aa;
   font-size: 0.8rem;
 }
 .footer-container {
@@ -41350,7 +41350,7 @@ textarea::placeholder { color: #65747b; }
   cursor: pointer;
 }
 .footer-quit:hover, .footer-quit:focus-visible { color: #e09a90; }
-.footer-note { width: 100%; margin: 0; font-size: 0.7rem; color: #859299; }
+.footer-note { width: 100%; margin: 0; font-size: 0.7rem; color: #93a4aa; }
 
 
 

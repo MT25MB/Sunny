@@ -2195,10 +2195,10 @@ function logSecurityEvent(eventType, details) {
       details: details || {},
       timestamp: new Date().toISOString(),
     };
-    // Write to the standard debug log if available
-    if (typeof writeDebugLog === 'function') {
-      writeDebugLog(entry);
-    }
+    // Write to the standard debug log. `inference` is the module that
+    // owns the implementation; the previous bare reference silently skipped
+    // the write at runtime and failed `tsc` in CI.
+    inference.writeDebugLog(entry);
     console.log('[Security]', eventType, details);
   } catch {
     // Never let logging failures break the app
