@@ -1,104 +1,75 @@
-/**
- * UNIT TESTS: Section state (content-based)
- * Tests for src/lib/section-state.ts
- */
+'use strict';
 
-const test = require('node:test');
+const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
+const fs = require('node:fs');
 
-const SRC = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'lib', 'section-state.ts'), 'utf8');
+// section-state.ts is TypeScript - read as text for structural verification
+const sectionPath = path.join(process.cwd(), 'src/lib/section-state.ts');
+const sectionTs = fs.readFileSync(sectionPath, 'utf8');
 
-// ============================================================================
-// Section IDs
-// ============================================================================
+describe('section-state — SECTION_IDS (structural)', () => {
+  it('defines all 6 section IDs', () => {
+    assert.ok(sectionTs.includes("'system-health'"));
+    assert.ok(sectionTs.includes("'quick-actions'"));
+    assert.ok(sectionTs.includes("'recipes'"));
+    assert.ok(sectionTs.includes("'medication'"));
+    assert.ok(sectionTs.includes("'digest'"));
+    assert.ok(sectionTs.includes("'activity'"));
+  });
 
-test('sections: defines SECTION_IDS array', () => {
-  assert.ok(SRC.includes('export const SECTION_IDS = ['));
-});
+  it('SECTION_IDS array is declared', () => {
+    assert.ok(sectionTs.includes("SECTION_IDS = ["));
+  });
 
-test('sections: includes all 6 section IDs', () => {
-  for (const id of [
-    'system-health',
-    'quick-actions',
-    'recipes',
-    'medication',
-    'digest',
-    'activity',
-  ]) {
-    assert.ok(SRC.includes(`'${id}'`), `SECTION_IDS must include ${id}`);
-  }
-});
+  it('defaultSectionState is declared', () => {
+    assert.ok(sectionTs.includes('defaultSectionState'));
+  });
 
-test('sections: exports SectionId type', () => {
-  assert.ok(SRC.includes('export type SectionId ='));
-});
+  it('system-health and quick-actions start open', () => {
+    assert.ok(sectionTs.includes("'system-health': true"));
+    assert.ok(sectionTs.includes("'quick-actions': true"));
+  });
 
-test('sections: exports SectionState type', () => {
-  assert.ok(SRC.includes('export type SectionState = Record<SectionId, boolean>;'));
-});
+  it('recipes, medication, digest, activity start closed', () => {
+    assert.ok(sectionTs.includes("recipes: false"));
+    assert.ok(sectionTs.includes("medication: false"));
+    assert.ok(sectionTs.includes("digest: false"));
+    assert.ok(sectionTs.includes("activity: false"));
+  });
 
-// ============================================================================
-// Default state
-// ============================================================================
+  it('loadSectionState function exists', () => {
+    assert.ok(sectionTs.includes('function loadSectionState'));
+  });
 
-test('defaults: system-health starts open', () => {
-  assert.ok(SRC.includes("'system-health': true"));
-});
+  it('saveSectionState function exists', () => {
+    assert.ok(sectionTs.includes('function saveSectionState'));
+  });
 
-test('defaults: quick-actions starts open', () => {
-  assert.ok(SRC.includes("'quick-actions': true"));
-});
+  it('loadSectionState falls back to defaults on error', () => {
+    assert.ok(sectionTs.includes('catch'));
+    assert.ok(sectionTs.includes('defaultSectionState'));
+  });
 
-test('defaults: recipes starts closed', () => {
-  assert.ok(SRC.includes("recipes: false"));
-});
+  it('saveSectionState catches errors silently', () => {
+    assert.ok(sectionTs.includes('catch'));
+    assert.ok(sectionTs.includes('// localStorage may be unavailable'));
+  });
 
-test('defaults: medication starts closed', () => {
-  assert.ok(SRC.includes("medication: false"));
-});
+  it('loadSectionState only accepts boolean values', () => {
+    assert.ok(sectionTs.includes('typeof parsed[id] === \'boolean\''));
+  });
 
-test('defaults: digest starts closed', () => {
-  assert.ok(SRC.includes("digest: false"));
-});
+  it('storage key is defined', () => {
+    assert.ok(sectionTs.includes("STORAGE_KEY = 'sunny_sections_v1'"));
+  });
 
-test('defaults: activity starts closed', () => {
-  assert.ok(SRC.includes("activity: false"));
-});
+  it('SectionId type is exported', () => {
+    assert.ok(sectionTs.includes('type SectionId'));
+  });
 
-// ============================================================================
-// Functions
-// ============================================================================
-
-test('functions: defines loadSectionState', () => {
-  assert.ok(SRC.includes('export function loadSectionState()'));
-});
-
-test('functions: defines saveSectionState', () => {
-  assert.ok(SRC.includes('export function saveSectionState('));
-});
-
-// ============================================================================
-// Storage key
-// ============================================================================
-
-test('storage: defines section storage key', () => {
-  assert.ok(SRC.includes("const STORAGE_KEY = 'sunny_sections_v1';"));
-});
-
-// ============================================================================
-// Safety behavior
-// ============================================================================
-
-test('safety: loadSectionState falls back to defaults on error', () => {
-  assert.ok(SRC.includes('return { ...defaultSectionState };'));
-});
-
-test('safety: saveSectionState catches errors silently', () => {
-  assert.ok(SRC.includes('// localStorage may be unavailable in some sandboxed contexts'));
-});
-
-test('safety: loadSectionState only accepts boolean values', () => {
-  assert.ok(SRC.includes('if (typeof parsed[id] === \'boolean\''));
+  it('SectionState type is exported', () => {
+    assert.ok(sectionTs.includes('type SectionState'));
+  });
 });

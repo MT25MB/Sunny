@@ -1,152 +1,120 @@
-/**
- * UNIT TESTS: Credential path traversal protection
- * Tests for src/electron/credential-path.cjs
- */
+'use strict';
 
-const test = require('node:test');
+const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 
-const { getCredentialPath, CREDENTIAL_KEY_PATTERN } = require('../../src/electron/credential-path.cjs');
+const credentialPathModule = require(path.join(
+  process.cwd(),
+  'src/electron/credential-path.cjs'
+));
+const { getCredentialPath } = credentialPathModule;
 
-// ============================================================================
-// CREDENTIAL_KEY_PATTERN
-// ============================================================================
+const CREDENTIALS_DIR = path.join(
+  require('electron').app.getPath('userData'),
+  'credentials'
+);
 
-test('pattern: accepts valid credential keys', () => {
+describe('credential-path — valid credential keys', () => {
+  it('accepts openai_api_key', () => {
+    const result = getCredentialPath('openai_api_key');
+    assert.strictEqual(result, path.join(CREDENTIALS_DIR, 'openai_api_key'));
+  });
+
+  it('accepts anthropic_api_key', () => {
+    const result = getCredentialPath('anthropic_api_key');
+    assert.strictEqual(
+      result,
+      path.join(CREDENTIALS_DIR, 'anthropic_api_key')
+    );
+  });
+
+  it('accepts groq_api_key', () => {
+    const result = getCredentialPath('groq_api_key');
+    assert.strictEqual(result, path.join(CREDENTIALS_DIR, 'groq_api_key'));
+  });
+
+  it('accepted keys land directly inside base dir (no traversal)', () => {
+    for (const key of ['openai_api_key', 'anthropic_api_key', 'groq_api_key']) {
+      const result = getCredentialPath(key);
+      assert.ok(result.startsWith(CREDENTIALS_DIR + path.sep));
+      assert.strictEqual(result.split(path.sep).pop(), key);
+    }
+  });
+});
+
+describe('credential-path — rejects path traversal attacks', () => {
+  const attackKeys = [
+    '../../../etc/passwd',
+    '..\\..\\..\\windows\\win.ini',
+    '../../secrets',
+    '../openai_api_key',
+    './../../../tmp/evil',
+    '....//....//....//etc/passwd',
+    'openai_api_key/../../../etc/passwd',
+    '/etc/passwd',
+    'C:\\Windows\\System32\\config\\SAM',
+    '',
+    '   ',
+    null,
+    undefined,
+  ];
+
+  for (const badKey of attackKeys) {
+    it(`rejects key: ${JSON.stringify(badKey)}`, () => {
+      assert.throws(() => getCredentialPath(badKey), /path traversal|invalid credential key|unsafe/);
+    });
+  }
+});
+
+describe('credential-path — key format validation', () => {
+  it('rejects keys longer than 64 chars', () => {
+    const longKey = 'a'.repeat(65);
+    assert.throws(() => getCredentialPath(longKey), /too long|64/);
+  });
+
+  it('rejects keys with spaces', () => {
+    assert.throws(() => getCredentialPath('openai api key'), /space|invalid/);
+  });
+
+  it('rejects keys with null bytes', () => {
+    assert.throws(() => getCredentialPath('openai\0api_key'), /null|invalid/);
+  });
+
+  it('rejects keys with dots and dot-dot', () => {
+    assert.throws(() => getCredentialPath('.openai'), /dot|invalid/);
+    assert.throws(() => getCredentialPath('..openai'), /dot|invalid/);
+  });
+
+  it('rejects keys with special characters', () => {
+    assert.throws(() => getCredentialPath('openai@key'), /special|invalid/);
+    assert.throws(() => getCredentialPath('openai#key'), /special|invalid/);
+    assert.throws(() => getCredentialPath('openai key!'), /special|invalid/);
+  });
+
+  it('rejects empty key', () => {
+    assert.throws(() => getCredentialPath(''), /empty|invalid/);
+  });
+});
+
+describe('credential-path — valid key patterns', () => {
   const validKeys = [
     'openai_api_key',
     'anthropic_api_key',
     'groq_api_key',
-    'a',
-    'A_b-1',
-    'key',
     'my_key_123',
-    'A'.repeat(64),
+    'a',
+    'key-with-dashes',
+    'key.with.dots',
+    'KEY_UPPERCASE',
+    'key123',
   ];
-  for (const key of validKeys) {
-    assert.ok(
-      CREDENTIAL_KEY_PATTERN.test(key),
-      `must accept valid key: ${key}`
-    );
-  }
-});
 
-test('pattern: rejects invalid credential keys', () => {
-  const invalidKeys = [
-    '',
-    '.',
-    '..',
-    'a'.repeat(65),
-    'has space',
-    'null\0byte',
-    '../../../etc/passwd',
-    '..\\..\\windows\\system32\\config',
-    '/etc/passwd',
-    'sub/dir',
-    'sub\\dir',
-    'key/with/slash',
-    'key.with.dot',
-    'key-with-dash',  // this should actually be valid based on pattern
-    'key_with_underscore',
-  ];
-  for (const key of invalidKeys) {
-    // Some of these might actually pass the regex but fail the path check
-    // Just verify the pattern itself is reasonable
-  }
-});
-
-// More precise pattern tests
-test('pattern: rejects empty string', () => {
-  assert.ok(!CREDENTIAL_KEY_PATTERN.test(''));
-});
-
-test('pattern: rejects dot and dot-dot', () => {
-  assert.ok(!CREDENTIAL_KEY_PATTERN.test('.'));
-  assert.ok(!CREDENTIAL_KEY_PATTERN.test('..'));
-});
-
-test('pattern: rejects keys longer than 64 chars', () => {
-  assert.ok(!CREDENTIAL_KEY_PATTERN.test('a'.repeat(65)));
-});
-
-test('pattern: rejects keys with spaces', () => {
-  assert.ok(!CREDENTIAL_KEY_PATTERN.test('has space'));
-});
-
-test('pattern: rejects keys with null bytes', () => {
-  assert.ok(!CREDENTIAL_KEY_PATTERN.test('null\0byte'));
-});
-
-test('pattern: rejects path traversal patterns', () => {
-  assert.ok(!CREDENTIAL_KEY_PATTERN.test('../../../etc/passwd'));
-  assert.ok(!CREDENTIAL_KEY_PATTERN.test('..\\..\\windows\\system32\\config'));
-  assert.ok(!CREDENTIAL_KEY_PATTERN.test('/etc/passwd'));
-  assert.ok(!CREDENTIAL_KEY_PATTERN.test('sub/dir'));
-  assert.ok(!CREDENTIAL_KEY_PATTERN.test('sub\\dir'));
-});
-
-// ============================================================================
-// getCredentialPath - valid keys
-// ============================================================================
-
-test('getCredentialPath: accepts real credential keys', () => {
-  const base = path.resolve('/home/user/.config/Sunny/credentials');
-  for (const key of ['openai_api_key', 'anthropic_api_key', 'groq_api_key']) {
-    const result = getCredentialPath(base, key);
-    assert.equal(result, path.join(base, `${key}.enc`));
-  }
-});
-
-test('getCredentialPath: accepts short valid keys', () => {
-  const base = path.resolve('/home/user/.config/Sunny/credentials');
-  for (const key of ['a', 'A_b-1', 'key']) {
-    const result = getCredentialPath(base, key);
-    assert.equal(path.dirname(result), base);
-    assert.ok(result.endsWith(`${key}.enc`));
-  }
-});
-
-// ============================================================================
-// getCredentialPath - attack rejection
-// ============================================================================
-
-test('getCredentialPath: rejects path traversal attacks', () => {
-  const base = path.resolve('/home/user/.config/Sunny/credentials');
-  const attacks = [
-    '../../../../../../etc/passwd',
-    '../../../etc/shadow',
-    '..\\..\\windows\\system32\\config',
-    '/etc/passwd',
-    'sub/dir',
-    'sub\\dir',
-    '',
-    '.',
-    '..',
-    'a'.repeat(65),
-    'has space',
-    'null\0byte',
-  ];
-  for (const key of attacks) {
-    assert.throws(
-      () => getCredentialPath(base, key),
-      /Invalid credential key/,
-      `must reject: ${JSON.stringify(key)}`
-    );
-  }
-});
-
-test('getCredentialPath: accepted keys land directly inside base dir', () => {
-  const base = path.resolve('/home/user/.config/Sunny/credentials');
-  for (const key of ['openai_api_key', 'a', 'A_b-1']) {
-    const result = getCredentialPath(base, key);
-    assert.equal(path.dirname(result), base, `key ${key} must be in base dir`);
-  }
-});
-
-test('getCredentialPath: works with Windows-style base paths', () => {
-  const base = 'C:\\Users\\me\\AppData\\Local\\Sunny\\credentials';
-  const result = getCredentialPath(base, 'openai_api_key');
-  assert.ok(result.includes('openai_api_key.enc'));
-  assert.ok(!result.includes('..'));
+  for (const validKey of validKeys) {
+    it(`accepts valid key: ${validKey}`, () => {
+      const result = getCredentialPath(validKey);
+      assert.ok(result.startsWith(CREDENTIALS_DIR + path.sep));
+      assert.strictEqual(result.split(path.sep).pop(), validKey);
+    });
+  });
 });

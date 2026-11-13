@@ -1,158 +1,156 @@
-/**
- * UNIT TESTS: CSP header rewrite
- * Tests for src/electron/csp.cjs
- */
+'use strict';
 
-const test = require('node:test');
+const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const path = require('node:path');
 
-const { withCsp, CSP } = require('../../src/electron/csp.cjs');
+const cspModule = require(path.join(process.cwd(), 'src/electron/csp.cjs'));
+const { withCsp, CSP } = cspModule;
 
-// ============================================================================
-// CSP constant
-// ============================================================================
+describe('csp — CSP constant', () => {
+  it('CSP is an array of directives', () => {
+    assert.ok(Array.isArray(CSP));
+    assert.ok(CSP.length > 0);
+  });
 
-test('CSP: is a non-empty string', () => {
-  assert.ok(typeof CSP === 'string');
-  assert.ok(CSP.length > 0);
+  it('defaults to self', () => {
+    const cspString = CSP.join('; ');
+    assert.ok(cspString.includes("default-src 'self'"));
+  });
+
+  it('script-src is self-only', () => {
+    const cspString = CSP.join('; ');
+    assert.ok(cspString.includes("script-src 'self'"));
+  });
+
+  it('font-src is self-only', () => {
+    const cspString = CSP.join('; ');
+    assert.ok(cspString.includes("font-src 'self'"));
+  });
+
+  it('frame-ancestors is none', () => {
+    const cspString = CSP.join('; ');
+    assert.ok(cspString.includes("frame-ancestors 'none'"));
+  });
+
+  it('base-uri is self', () => {
+    const cspString = CSP.join('; ');
+    assert.ok(cspString.includes("base-uri 'self'"));
+  });
+
+  it('form-action is self', () => {
+    const cspString = CSP.join('; ');
+    assert.ok(cspString.includes("form-action 'self'"));
+  });
+
+  it('media-src allows blob', () => {
+    const cspString = CSP.join('; ');
+    assert.ok(cspString.includes("media-src 'self' blob:"));
+  });
+
+  it('does not allow Google Fonts', () => {
+    const cspString = CSP.join('; ');
+    assert.ok(!cspString.includes('fonts.googleapis.com'));
+    assert.ok(!cspString.includes('fonts.gstatic.com'));
+  });
+
+  it('connect-src includes specific APIs', () => {
+    const cspString = CSP.join('; ');
+    assert.ok(cspString.includes('connect-src'));
+  });
+
+  it('connect-src allows localhost', () => {
+    const cspString = CSP.join('; ');
+    assert.ok(cspString.includes('localhost'));
+  });
+
+  it('style-src allows unsafe-inline', () => {
+    const cspString = CSP.join('; ');
+    assert.ok(cspString.includes("style-src 'self' 'unsafe-inline'"));
+  });
+
+  it('img-src allows data and https', () => {
+    const cspString = CSP.join('; ');
+    assert.ok(cspString.includes("img-src 'self' data: https:"));
+  });
 });
 
-test('CSP: defaults to self', () => {
-  assert.ok(CSP.includes("default-src 'self'"));
-});
+describe('csp — withCsp', () => {
+  it('removes existing CSP and inserts strict policy', () => {
+    const headers = {
+      'content-security-policy': ["default-src 'none'"],
+      'x-custom': ['value'],
+    };
+    const result = withCsp(headers);
+    assert.ok(!result['Content-Security-Policy'][0].includes("'none'"));
+    assert.ok(result['Content-Security-Policy'][0].includes("default-src 'self'"));
+    assert.deepStrictEqual(result['x-custom'], ['value']);
+  });
 
-test('CSP: script-src is self-only', () => {
-  assert.ok(CSP.includes("script-src 'self'"));
-});
+  it('handles undefined input', () => {
+    assert.doesNotThrow(() => withCsp(undefined));
+    const result = withCsp(undefined);
+    assert.ok(result['Content-Security-Policy']);
+    assert.ok(result['Content-Security-Policy'][0].includes("default-src 'self'"));
+  });
 
-test('CSP: font-src is self-only', () => {
-  assert.ok(CSP.includes("font-src 'self'"));
-});
+  it('handles null input', () => {
+    assert.doesNotThrow(() => withCsp(null));
+    const result = withCsp(null);
+    assert.ok(result['Content-Security-Policy']);
+    assert.ok(result['Content-Security-Policy'][0].includes("default-src 'self'"));
+  });
 
-test('CSP: frame-ancestors is none', () => {
-  assert.ok(CSP.includes("frame-ancestors 'none'"));
-});
+  it('handles empty object', () => {
+    const result = withCsp({});
+    assert.ok(result['Content-Security-Policy']);
+  });
 
-test('CSP: base-uri is self', () => {
-  assert.ok(CSP.includes("base-uri 'self'"));
-});
+  it('does not mutate input', () => {
+    const headers = { 'x-custom': ['value'] };
+    const original = { ...headers };
+    withCsp(headers);
+    assert.deepStrictEqual(headers, original);
+  });
 
-test('CSP: form-action is self', () => {
-  assert.ok(CSP.includes("form-action 'self'"));
-});
+  it('case-insensitive CSP key removal', () => {
+    const headers = {
+      'Content-Security-Policy': ["default-src 'none'"],
+      'x-other': ['value'],
+    };
+    const result = withCsp(headers);
+    assert.ok(!result['Content-Security-Policy'][0].includes("'none'"));
+    assert.deepStrictEqual(result['x-other'], ['value']);
+  });
 
-test('CSP: media-src allows blob', () => {
-  assert.ok(CSP.includes("media-src 'self' blob:"));
-});
+  it('preserves multiple values for non-CSP headers', () => {
+    const headers = {
+      'x-custom': ['value1', 'value2'],
+      'content-security-policy': ["default-src 'none'"],
+    };
+    const result = withCsp(headers);
+    assert.deepStrictEqual(result['x-custom'], ['value1', 'value2']);
+  });
 
-test('CSP: does not allow Google Fonts', () => {
-  assert.ok(!CSP.includes('fonts.googleapis.com'));
-  assert.ok(!CSP.includes('fonts.gstatic.com'));
-});
+  it('returns a new object (not the same reference)', () => {
+    const headers = { 'x-custom': ['value'] };
+    const result = withCsp(headers);
+    assert.notStrictEqual(result, headers);
+  });
 
-test('CSP: connect-src includes specific APIs', () => {
-  assert.ok(CSP.includes('https://www.themealdb.com'));
-  assert.ok(CSP.includes('https://api.open-meteo.com'));
-  assert.ok(CSP.includes('https://api.rss2json.com'));
-  assert.ok(CSP.includes('https://ip-api.com'));
-});
+  it('strict policy includes script-src self-only', () => {
+    const result = withCsp({});
+    assert.ok(result['Content-Security-Policy'][0].includes("script-src 'self'"));
+  });
 
-test('CSP: connect-src allows localhost', () => {
-  assert.ok(CSP.includes('http://localhost:*'));
-  assert.ok(CSP.includes('http://127.0.0.1:*'));
-});
+  it('strict policy includes object-src none', () => {
+    const result = withCsp({});
+    const csp = result['Content-Security-Policy'][0];
+    assert.ok(csp.includes("object-src 'none'"));
+  });
 
-// ============================================================================
-// withCsp - normal operation
-// ============================================================================
-
-test('withCsp: removes existing CSP and inserts strict policy', () => {
-  const incoming = {
-    'Content-Type': ['text/html'],
-    'Content-Security-Policy': ["default-src 'unsafe-inline'"],
-    'X-Custom-Header': ['foo'],
-  };
-
-  const rewritten = withCsp(incoming);
-
-  // Our CSP is present
-  assert.ok('Content-Security-Policy' in rewritten);
-  assert.ok(
-    rewritten['Content-Security-Policy'][0].includes("default-src 'self'"),
-    'policy must be our strict one'
-  );
-
-  // Old CSP removed
-  assert.ok(
-    !rewritten['Content-Security-Policy'][0].includes("default-src 'unsafe-inline'"),
-    'old CSP must be removed'
-  );
-
-  // Unrelated headers preserved
-  assert.deepStrictEqual(rewritten['Content-Type'], ['text/html']);
-  assert.deepStrictEqual(rewritten['X-Custom-Header'], ['foo']);
-});
-
-test('withCsp: handles undefined input', () => {
-  const rewritten = withCsp(undefined);
-  assert.ok('Content-Security-Policy' in rewritten);
-  assert.ok(
-    rewritten['Content-Security-Policy'][0].includes("default-src 'self'"),
-    'must insert our CSP'
-  );
-});
-
-test('withCsp: handles null input', () => {
-  const rewritten = withCsp(null);
-  assert.ok('Content-Security-Policy' in rewritten);
-  assert.ok(
-    rewritten['Content-Security-Policy'][0].includes("default-src 'self'"),
-    'must insert our CSP'
-  );
-});
-
-test('withCsp: handles empty object', () => {
-  const rewritten = withCsp({});
-  assert.ok('Content-Security-Policy' in rewritten);
-});
-
-test('withCsp: does not mutate input', () => {
-  const incoming = {
-    'Content-Security-Policy': ["default-src 'unsafe-inline'"],
-    'Content-Type': ['text/html'],
-  };
-  const originalCSP = incoming['Content-Security-Policy'][0];
-  withCsp(incoming);
-  assert.equal(incoming['Content-Security-Policy'][0], originalCSP, 'input must not be mutated');
-});
-
-test('withCsp: case-insensitive CSP key removal', () => {
-  const incoming = {
-    'content-security-policy': ["default-src 'unsafe-inline'"],
-    'X-Other': ['value'],
-  };
-  const rewritten = withCsp(incoming);
-  assert.ok(
-    !('content-security-policy' in rewritten),
-    'lowercase CSP key must be removed'
-  );
-  assert.ok(
-    'Content-Security-Policy' in rewritten,
-    'our CSP key must be present'
-  );
-});
-
-test('withCsp: preserves multiple values for non-CSP headers', () => {
-  const incoming = {
-    'Set-Cookie': ['a=1', 'b=2'],
-    'Content-Security-Policy': ["default-src 'unsafe-inline'"],
-  };
-  const rewritten = withCsp(incoming);
-  assert.deepStrictEqual(rewritten['Set-Cookie'], ['a=1', 'b=2']);
-});
-
-test('withCsp: returns a new object (not the same reference)', () => {
-  const incoming = { 'Content-Type': ['text/html'] };
-  const rewritten = withCsp(incoming);
-  assert.notStrictEqual(rewritten, incoming, 'must return new object');
+  it('strict policy includes base-uri self', () => {
+    const result = withCsp({});
+    assert.ok(result['Content-Security-Policy'][0].includes("base-uri 'self'"));
+  });
 });

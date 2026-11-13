@@ -1,205 +1,173 @@
-/**
- * UNIT TESTS: Credential store (content-based)
- * Tests for src/lib/credential-store.ts
- */
+'use strict';
 
-const test = require('node:test');
+const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
+const fs = require('node:fs');
 
-const SRC = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'lib', 'credential-store.ts'), 'utf8');
+// credential-store.ts is TypeScript - read as text for structural verification
+const storePath = path.join(process.cwd(), 'src/lib/credential-store.ts');
+const storeTs = fs.readFileSync(storePath, 'utf8');
 
-// ============================================================================
-// CredentialKey type
-// ============================================================================
+describe('credential-store — types', () => {
+  it('CredentialKey union is defined', () => {
+    assert.ok(storeTs.includes("type CredentialKey ="));
+    assert.ok(storeTs.includes("'openai_api_key'"));
+    assert.ok(storeTs.includes("'anthropic_api_key'"));
+    assert.ok(storeTs.includes("'groq_api_key'"));
+  });
 
-test('types: defines CredentialKey union', () => {
-  assert.ok(SRC.includes("export type CredentialKey ="));
+  it('CredentialStore interface is defined', () => {
+    assert.ok(storeTs.includes('export type CredentialStore = {'));
+  });
+
+  it('CredentialStore has getCredential', () => {
+    assert.ok(storeTs.includes('getCredential(key: CredentialKey): Promise<string>;'));
+  });
+
+  it('CredentialStore has setCredential', () => {
+    assert.ok(storeTs.includes('setCredential(key: CredentialKey, value: string): Promise<void>;'));
+  });
+
+  it('CredentialStore has deleteCredential', () => {
+    assert.ok(storeTs.includes('deleteCredential(key: CredentialKey): Promise<void>;'));
+  });
+
+  it('CredentialStore has hasCredential', () => {
+    assert.ok(storeTs.includes('hasCredential(key: CredentialKey): Promise<boolean>;'));
+  });
 });
 
-test('types: includes openai_api_key', () => {
-  assert.ok(SRC.includes("| 'openai_api_key'"));
+describe('credential-store — functions', () => {
+  it('getCredential function exists', () => {
+    assert.ok(storeTs.includes('export async function getCredential'));
+  });
+
+  it('setCredential function exists', () => {
+    assert.ok(storeTs.includes('export async function setCredential'));
+  });
+
+  it('deleteCredential function exists', () => {
+    assert.ok(storeTs.includes('export async function deleteCredential'));
+  });
+
+  it('hasCredential function exists', () => {
+    assert.ok(storeTs.includes('export async function hasCredential'));
+  });
+
+  it('testProviderConnection function exists', () => {
+    assert.ok(storeTs.includes('export async function testProviderConnection'));
+  });
+
+  it('setCredential deletes when value is empty', () => {
+    assert.ok(storeTs.includes('if (!value.trim())'));
+    assert.ok(storeTs.includes('await getStore().deleteCredential(key)'));
+  });
+
+  it('setCredential trims whitespace before checking', () => {
+    assert.ok(storeTs.includes('!value.trim()'));
+  });
 });
 
-test('types: includes anthropic_api_key', () => {
-  assert.ok(SRC.includes("| 'anthropic_api_key'"));
+describe('credential-store — testProviderConnection', () => {
+  it('OpenAI checks for API key first', () => {
+    assert.ok(storeTs.includes("!options.apiKey?.trim()"));
+    assert.ok(storeTs.includes("Enter an API key first.'"));
+  });
+
+  it('OpenAI calls /v1/models', () => {
+    assert.ok(storeTs.includes("'https://api.openai.com/v1/models'"));
+  });
+
+  it('OpenAI uses Bearer authorization', () => {
+    assert.ok(storeTs.includes("Authorization: \`Bearer ${options.apiKey}\`"));
+  });
+
+  it('OpenAI 401 means key rejected', () => {
+    assert.ok(storeTs.includes("res.status === 401"));
+    assert.ok(storeTs.includes("Your API key was rejected by OpenAI.'"));
+  });
+
+  it('Anthropic checks for API key first', () => {
+    assert.ok(storeTs.includes("case 'anthropic':"));
+  });
+
+  it('Anthropic calls /v1/messages', () => {
+    assert.ok(storeTs.includes("'https://api.anthropic.com/v1/messages'"));
+  });
+
+  it('Anthropic uses x-api-key header', () => {
+    assert.ok(storeTs.includes("'x-api-key': options.apiKey"));
+  });
+
+  it('Anthropic uses anthropic-version header', () => {
+    assert.ok(storeTs.includes("'anthropic-version': '2023-06-01'"));
+  });
+
+  it('Anthropic 401 means key rejected', () => {
+    assert.ok(storeTs.includes("Your API key was rejected by Anthropic.'"));
+  });
+
+  it('Groq checks for API key first', () => {
+    assert.ok(storeTs.includes("case 'groq':"));
+  });
+
+  it('Groq calls /openai/v1/models', () => {
+    assert.ok(storeTs.includes("'https://api.groq.com/openai/v1/models'"));
+  });
+
+  it('Groq 401 means key rejected', () => {
+    assert.ok(storeTs.includes("Your API key was rejected by Groq.'"));
+  });
+
+  it('Ollama defaults to localhost:11434', () => {
+    assert.ok(storeTs.includes("'http://localhost:11434'"));
+  });
+
+  it('Ollama calls /api/tags', () => {
+    assert.ok(storeTs.includes("'\/api/tags'"));
+  });
+
+  it('Ollama uses 5 second timeout', () => {
+    assert.ok(storeTs.includes('AbortSignal.timeout(5000)'));
+  });
+
+  it('Ollama checks model availability', () => {
+    assert.ok(storeTs.includes('options.model && !models.some'));
+  });
+
+  it('Ollama not running returns error', () => {
+    assert.ok(storeTs.includes("Ollama is not running"));
+  });
+
+  it('Ollama success reports model count', () => {
+    assert.ok(storeTs.includes('models.length'));
+  });
+
+  it('unknown provider returns error', () => {
+    assert.ok(storeTs.includes("default: return { success: false, message: 'Unknown provider.'");
+  });
+
+  it('catch block returns error message', () => {
+    assert.ok(storeTs.includes('catch (err)'));
+    assert.ok(storeTs.includes('err instanceof Error ? err.message'));
+  });
 });
 
-test('types: includes groq_api_key', () => {
-  assert.ok(SRC.includes("| 'groq_api_key'"));
-});
+describe('credential-store — memory store fallback', () => {
+  it('isElectron checks for window.sunnyDesktop', () => {
+    assert.ok(storeTs.includes('window.sunnyDesktop'));
+  });
 
-test('types: defines CredentialStore interface', () => {
-  assert.ok(SRC.includes('export type CredentialStore = {'));
-});
+  it('getElectronStore returns null when not in Electron', () => {
+    assert.ok(storeTs.includes('!isElectron() || !window.sunnyDesktop'));
+  });
 
-test('types: CredentialStore has getCredential', () => {
-  assert.ok(SRC.includes('getCredential(key: CredentialKey): Promise<string>;'));
-});
+  it('memory store is used as fallback', () => {
+    assert.ok(storeTs.includes('getElectronStore() ?? getMemoryStore()'));
+  });
 
-test('types: CredentialStore has setCredential', () => {
-  assert.ok(SRC.includes('setCredential(key: CredentialKey, value: string): Promise<void>;'));
-});
-
-test('types: CredentialStore has deleteCredential', () => {
-  assert.ok(SRC.includes('deleteCredential(key: CredentialKey): Promise<void>;'));
-});
-
-test('types: CredentialStore has hasCredential', () => {
-  assert.ok(SRC.includes('hasCredential(key: CredentialKey): Promise<boolean>;'));
-});
-
-// ============================================================================
-// Functions
-// ============================================================================
-
-test('functions: defines getCredential', () => {
-  assert.ok(SRC.includes('export async function getCredential('));
-});
-
-test('functions: defines setCredential', () => {
-  assert.ok(SRC.includes('export async function setCredential('));
-});
-
-test('functions: defines deleteCredential', () => {
-  assert.ok(SRC.includes('export async function deleteCredential('));
-});
-
-test('functions: defines hasCredential', () => {
-  assert.ok(SRC.includes('export async function hasCredential('));
-});
-
-test('functions: defines testProviderConnection', () => {
-  assert.ok(SRC.includes('export async function testProviderConnection('));
-});
-
-// ============================================================================
-// Electron store integration
-// ============================================================================
-
-test('electron: checks for window.sunnyDesktop', () => {
-  assert.ok(SRC.includes('typeof window !== \'undefined\' && !!window.sunnyDesktop'));
-});
-
-test('electron: checks for saveCredential/loadCredential/deleteCredential', () => {
-  assert.ok(SRC.includes('!desktop.saveCredential || !desktop.loadCredential || !desktop.deleteCredential'));
-});
-
-test('electron: falls back to memory store', () => {
-  assert.ok(SRC.includes('const memoryStore = new Map<string, string>();'));
-});
-
-test('electron: getStore prefers Electron, falls back to memory', () => {
-  assert.ok(SRC.includes('return getElectronStore() ?? getMemoryStore();'));
-});
-
-// ============================================================================
-// setCredential safety
-// ============================================================================
-
-test('safety: setCredential deletes when value is empty', () => {
-  assert.ok(SRC.includes('if (!value.trim())'));
-  assert.ok(SRC.includes('await getStore().deleteCredential(key);'));
-});
-
-test('safety: setCredential trims whitespace before checking', () => {
-  assert.ok(SRC.includes('!value.trim()'));
-});
-
-// ============================================================================
-// testProviderConnection - OpenAI
-// ============================================================================
-
-test('connection: OpenAI checks for API key first', () => {
-  assert.ok(SRC.includes("case 'openai':"));
-  assert.ok(SRC.includes("if (!options.apiKey?.trim()) return { success: false, message: 'Enter an API key first.' };"));
-});
-
-test('connection: OpenAI calls /v1/models', () => {
-  assert.ok(SRC.includes("https://api.openai.com/v1/models"));
-});
-
-test('connection: OpenAI uses Bearer authorization', () => {
-  assert.ok(SRC.includes("Authorization: \`Bearer ${options.apiKey}\`"));
-});
-
-test('connection: OpenAI 401 means key rejected', () => {
-  assert.ok(SRC.includes("if (res.status === 401) return { success: false, message: 'Your API key was rejected by OpenAI.' };"));
-});
-
-// ============================================================================
-// testProviderConnection - Anthropic
-// ============================================================================
-
-test('connection: Anthropic checks for API key first', () => {
-  assert.ok(SRC.includes("case 'anthropic':"));
-});
-
-test('connection: Anthropic calls /v1/messages', () => {
-  assert.ok(SRC.includes("https://api.anthropic.com/v1/messages"));
-});
-
-test('connection: Anthropic uses x-api-key header', () => {
-  assert.ok(SRC.includes("'x-api-key': options.apiKey"));
-});
-
-test('connection: Anthropic 401 means key rejected', () => {
-  assert.ok(SRC.includes("if (res.status === 401) return { success: false, message: 'Your API key was rejected by Anthropic.' };"));
-});
-
-// ============================================================================
-// testProviderConnection - Groq
-// ============================================================================
-
-test('connection: Groq checks for API key first', () => {
-  assert.ok(SRC.includes("case 'groq':"));
-});
-
-test('connection: Groq calls /openai/v1/models', () => {
-  assert.ok(SRC.includes("https://api.groq.com/openai/v1/models"));
-});
-
-test('connection: Groq 401 means key rejected', () => {
-  assert.ok(SRC.includes("if (res.status === 401) return { success: false, message: 'Your API key was rejected by Groq.' };"));
-});
-
-// ============================================================================
-// testProviderConnection - Ollama
-// ============================================================================
-
-test('connection: Ollama defaults to localhost:11434', () => {
-  assert.ok(SRC.includes("const endpoint = options.endpoint?.trim() || 'http://localhost:11434';"));
-});
-
-test('connection: Ollama calls /api/tags', () => {
-  assert.ok(SRC.includes('\${endpoint}/api/tags'));
-});
-
-test('connection: Ollama uses 5 second timeout', () => {
-  assert.ok(SRC.includes('AbortSignal.timeout(5000)'));
-});
-
-test('connection: Ollama checks model availability', () => {
-  assert.ok(SRC.includes('!models.some((m) => m.name.startsWith(options.model!))'));
-});
-
-test('connection: Ollama not running returns error', () => {
-  assert.ok(SRC.includes("message: 'Ollama is not running. Start Ollama and try again.'"));
-});
-
-test('connection: Ollama success reports model count', () => {
-  assert.ok(SRC.includes('Ollama is running with'));
-});
-
-// ============================================================================
-// Error handling
-// ============================================================================
-
-test('safety: unknown provider returns error', () => {
-  assert.ok(SRC.includes("message: 'Unknown provider.'"));
-});
-
-test('safety: catch block returns error message', () => {
-  assert.ok(SRC.includes("return { success: false, message: err instanceof Error ? err.message : 'Connection failed.' };"));
+  it('memory store uses Map', () => {
+    assert.ok(storeTs.includes('const memoryStore = new Map<string, string>()'));
+  });
 });

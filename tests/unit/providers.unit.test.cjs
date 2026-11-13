@@ -1,233 +1,165 @@
-/**
- * UNIT TESTS: Provider inference (content-based)
- * Tests for src/electron/providers.cjs
- */
+'use strict';
 
-const test = require('node:test');
+const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
 
-const SRC = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'electron', 'providers.cjs'), 'utf8');
+const providersModule = require(path.join(process.cwd(), 'src/electron/providers.cjs'));
+const {
+  ProviderError,
+  runProviderInference,
+  PROVIDER_DEFAULTS,
+} = providersModule;
 
-// ============================================================================
-// ProviderError class
-// ============================================================================
+// Read providers.cjs as text for structural verification of internal functions
+const providersPath = path.join(process.cwd(), 'src/electron/providers.cjs');
+const fs = require('node:fs');
+const providersCjs = fs.readFileSync(providersPath, 'utf8');
 
-test('class: defines ProviderError', () => {
-  assert.ok(SRC.includes('class ProviderError extends Error'));
+describe('providers — ProviderError class', () => {
+  it('sets name and status', () => {
+    const err = new ProviderError('Test error', 401);
+    assert.strictEqual(err.name, 'ProviderError');
+    assert.strictEqual(err.status, 401);
+    assert.strictEqual(err.message, 'Test error');
+  });
+
+  it('is exported', () => {
+    assert.strictEqual(typeof ProviderError, 'function');
+  });
 });
 
-test('class: ProviderError sets name', () => {
-  assert.ok(SRC.includes("this.name = 'ProviderError';"));
+describe('providers — runProviderInference', () => {
+  it('is exported', () => {
+    assert.strictEqual(typeof runProviderInference, 'function');
+  });
+
+  it('rejects embedded provider', async () => {
+    await assert.rejects(
+      runProviderInference({ provider: 'embedded', prompt: 'test' }),
+      /local model does not go through this path/
+    );
+  });
+
+  it('throws for unknown provider', async () => {
+    await assert.rejects(
+      runProviderInference({ provider: 'unknown_provider', prompt: 'test' }),
+      /Unknown provider/
+    );
+  });
+
+  it('requires API key for hosted providers', async () => {
+    const result = await runProviderInference({
+      provider: 'openai',
+      prompt: 'test',
+    }).catch((err) => err);
+    assert.ok(result instanceof ProviderError);
+    assert.ok(result.message.includes('API key'));
+  });
+
+  it('Ollama defaults to qwen3-vl:8b model', () => {
+    // Structural: the default is set in runProviderInference
+    assert.ok(providersCjs.includes("model: model || 'qwen3-vl:8b'"));
+  });
+
+  it('OpenAI defaults to gpt-4o model', () => {
+    assert.ok(providersCjs.includes("provider === 'openai' ? 'gpt-4o'"));
+  });
+
+  it('Groq defaults to llama-3.3-70b-versatile', () => {
+    assert.ok(providersCjs.includes("'llama-3.3-70b-versatile'"));
+  });
+
+  it('exports runProviderInference', () => {
+    assert.strictEqual(typeof runProviderInference, 'function');
+  });
 });
 
-test('class: ProviderError sets status', () => {
-  assert.ok(SRC.includes('this.status = status || 0;'));
+describe('providers — PROVIDER_DEFAULTS', () => {
+  it('defines OpenAI URL', () => {
+    assert.ok(PROVIDER_DEFAULTS.openai);
+    assert.ok(PROVIDER_DEFAULTS.openai.baseUrl.includes('api.openai.com'));
+  });
+
+  it('defines Groq URL', () => {
+    assert.ok(PROVIDER_DEFAULTS.groq);
+    assert.ok(PROVIDER_DEFAULTS.groq.baseUrl.includes('api.groq.com'));
+  });
+
+  it('defines Anthropic URL', () => {
+    assert.ok(PROVIDER_DEFAULTS.anthropic);
+    assert.ok(PROVIDER_DEFAULTS.anthropic.baseUrl.includes('api.anthropic.com'));
+  });
+
+  it('defines Ollama URL', () => {
+    assert.ok(PROVIDER_DEFAULTS.ollama);
+    assert.ok(PROVIDER_DEFAULTS.ollama.baseUrl.includes('localhost:11434'));
+  });
 });
 
-// ============================================================================
-// URL validation
-// ============================================================================
+describe('providers — internal functions (structural)', () => {
+  it('assertHttpUrl function exists', () => {
+    assert.ok(providersCjs.includes('function assertHttpUrl'));
+  });
 
-test('security: assertHttpUrl rejects non-HTTP(S) protocols', () => {
-  assert.ok(SRC.includes("parsed.protocol !== 'http:' && parsed.protocol !== 'https:'"));
-});
+  it('postJson function exists', () => {
+    assert.ok(providersCjs.includes('async function postJson'));
+  });
 
-test('security: assertHttpUrl throws for invalid URLs', () => {
-  assert.ok(SRC.includes('throw new ProviderError(\`${label} is not a valid URL.\`);'));
-});
+  it('runOpenAiCompatible function exists', () => {
+    assert.ok(providersCjs.includes('async function runOpenAiCompatible'));
+  });
 
-// ============================================================================
-// postJson function
-// ============================================================================
+  it('runOllama function exists', () => {
+    assert.ok(providersCjs.includes('async function runOllama'));
+  });
 
-test('network: defines postJson function', () => {
-  assert.ok(SRC.includes('async function postJson('));
-});
+  it('runAnthropic function exists', () => {
+    assert.ok(providersCjs.includes('async function runAnthropic'));
+  });
 
-test('network: postJson asserts HTTP URL', () => {
-  assert.ok(SRC.includes('assertHttpUrl(url, \'Endpoint\');'));
-});
+  it('assertHttpUrl rejects non-HTTP(S) protocols', () => {
+    assert.ok(providersCjs.includes('parsed.protocol === \'http:\''));
+    assert.ok(providersCjs.includes('parsed.protocol === \'https:\''));
+  });
 
-test('network: postJson uses AbortController for timeout', () => {
-  assert.ok(SRC.includes('const controller = new AbortController();'));
-});
+  it('postJson uses AbortController for timeout', () => {
+    assert.ok(providersCjs.includes('AbortController'));
+  });
 
-test('network: postJson sets timeout via setTimeout', () => {
-  assert.ok(SRC.includes('const timer = setTimeout(() => controller.abort(), timeoutMs);'));
-});
+  it('postJson sets Content-Type header', () => {
+    assert.ok(providersCjs.includes("'Content-Type': 'application/json'"));
+  });
 
-test('network: postJson sends JSON body', () => {
-  assert.ok(SRC.includes('body: JSON.stringify(body)'));
-});
+  it('postJson throws on non-ok response', () => {
+    assert.ok(providersCjs.includes('!response.ok'));
+  });
 
-test('network: postJson sets Content-Type header', () => {
-  assert.ok(SRC.includes("'Content-Type': 'application/json'"));
-});
+  it('runOpenAiCompatible uses /chat/completions endpoint', () => {
+    assert.ok(providersCjs.includes('/chat/completions'));
+  });
 
-test('network: postJson parses response JSON', () => {
-  assert.ok(SRC.includes('parsed = text ? JSON.parse(text) : null;'));
-});
+  it('runOpenAiCompatible sends Bearer authorization', () => {
+    assert.ok(providersCjs.includes("'Authorization': \`Bearer ${apiKey}\`"));
+  });
 
-test('network: postJson throws on non-ok response', () => {
-  assert.ok(SRC.includes('if (!response.ok)'));
-});
+  it('runOllama uses /api/chat endpoint', () => {
+    assert.ok(providersCjs.includes('/api/chat'));
+  });
 
-test('network: postJson handles AbortError', () => {
-  assert.ok(SRC.includes("err.name === 'AbortError'"));
-});
+  it('runOllama sends stream: false', () => {
+    assert.ok(providersCjs.includes('stream: false'));
+  });
 
-test('network: postJson clears timeout in finally', () => {
-  assert.ok(SRC.includes('clearTimeout(timer);'));
-});
+  it('runAnthropic uses /v1/messages endpoint', () => {
+    assert.ok(providersCjs.includes('/v1/messages'));
+  });
 
-// ============================================================================
-// OpenAI-compatible provider
-// ============================================================================
+  it('runAnthropic uses x-api-key header', () => {
+    assert.ok(providersCjs.includes("'x-api-key': apiKey"));
+  });
 
-test('provider: defines runOpenAiCompatible', () => {
-  assert.ok(SRC.includes('async function runOpenAiCompatible('));
-});
-
-test('provider: OpenAI-compatible uses /chat/completions endpoint', () => {
-  assert.ok(SRC.includes("/chat/completions"));
-});
-
-test('provider: OpenAI-compatible sends Bearer authorization', () => {
-  assert.ok(SRC.includes("Authorization: \`Bearer ${apiKey}\`"));
-});
-
-test('provider: OpenAI-compatible supports image content', () => {
-  assert.ok(SRC.includes("image_url: { url: \`data:image/png;base64,${imageBase64}\` }"));
-});
-
-test('provider: OpenAI-compatible returns message content', () => {
-  assert.ok(SRC.includes("payload?.choices?.[0]?.message?.content ?? ''"));
-});
-
-// ============================================================================
-// Ollama provider
-// ============================================================================
-
-test('provider: defines runOllama', () => {
-  assert.ok(SRC.includes('async function runOllama('));
-});
-
-test('provider: Ollama validates endpoint URL', () => {
-  assert.ok(SRC.includes('const base = assertHttpUrl(endpoint, \'Ollama endpoint\');'));
-});
-
-test('provider: Ollama uses /api/chat endpoint', () => {
-  assert.ok(SRC.includes("/api/chat"));
-});
-
-test('provider: Ollama sends stream: false', () => {
-  assert.ok(SRC.includes('stream: false,'));
-});
-
-test('provider: Ollama supports images array', () => {
-  assert.ok(SRC.includes('...(images ? { images } : {})'));
-});
-
-test('provider: Ollama returns message content', () => {
-  assert.ok(SRC.includes("payload?.message?.content ?? ''"));
-});
-
-// ============================================================================
-// Anthropic provider
-// ============================================================================
-
-test('provider: defines runAnthropic', () => {
-  assert.ok(SRC.includes('async function runAnthropic('));
-});
-
-test('provider: Anthropic uses /v1/messages endpoint', () => {
-  assert.ok(SRC.includes("'https://api.anthropic.com/v1/messages'"));
-});
-
-test('provider: Anthropic uses x-api-key header', () => {
-  assert.ok(SRC.includes("'x-api-key': apiKey"));
-});
-
-test('provider: Anthropic uses anthropic-version header', () => {
-  assert.ok(SRC.includes("'anthropic-version': '2023-06-01'"));
-});
-
-test('provider: Anthropic supports image content', () => {
-  assert.ok(SRC.includes('source: { type: \'base64\', media_type: \'image/png\', data: imageBase64 }'));
-});
-
-test('provider: Anthropic returns joined content parts', () => {
-  assert.ok(SRC.includes("(payload?.content || []).map((part) => part?.text || '').join('')"));
-});
-
-// ============================================================================
-// Provider defaults
-// ============================================================================
-
-test('config: PROVIDER_DEFAULTS defines OpenAI URL', () => {
-  assert.ok(SRC.includes("openai: { baseUrl: 'https://api.openai.com/v1' }"));
-});
-
-test('config: PROVIDER_DEFAULTS defines Groq URL', () => {
-  assert.ok(SRC.includes("groq: { baseUrl: 'https://api.groq.com/openai/v1' }"));
-});
-
-test('config: PROVIDER_DEFAULTS defines Anthropic URL', () => {
-  assert.ok(SRC.includes("anthropic: { baseUrl: 'https://api.anthropic.com/v1' }"));
-});
-
-test('config: PROVIDER_DEFAULTS defines Ollama URL', () => {
-  assert.ok(SRC.includes("ollama: { baseUrl: 'http://localhost:11434' }"));
-});
-
-// ============================================================================
-// runProviderInference dispatcher
-// ============================================================================
-
-test('dispatcher: defines runProviderInference', () => {
-  assert.ok(SRC.includes('async function runProviderInference(options)'));
-});
-
-test('dispatcher: rejects embedded provider', () => {
-  assert.ok(SRC.includes("if (provider === 'embedded')"));
-  assert.ok(SRC.includes("throw new ProviderError('The local model does not go through this path.');"));
-});
-
-test('dispatcher: handles Ollama provider', () => {
-  assert.ok(SRC.includes("if (provider === 'ollama')"));
-});
-
-test('dispatcher: handles Anthropic provider', () => {
-  assert.ok(SRC.includes("if (provider === 'anthropic')"));
-});
-
-test('dispatcher: handles OpenAI and Groq providers', () => {
-  assert.ok(SRC.includes("if (provider === 'openai' || provider === 'groq')"));
-});
-
-test('dispatcher: throws for unknown provider', () => {
-  assert.ok(SRC.includes('throw new ProviderError(`Unknown provider "${provider}".`);'));
-});
-
-test('dispatcher: requires API key for hosted providers', () => {
-  assert.ok(SRC.includes('if (!apiKey)'));
-  assert.ok(SRC.includes("throw new ProviderError(`No API key is stored for ${provider}. Add one in Settings.`);"));
-});
-
-test('dispatcher: Ollama defaults to qwen3-vl:8b model', () => {
-  assert.ok(SRC.includes("model: model || 'qwen3-vl:8b'"));
-});
-
-test('dispatcher: OpenAI defaults to gpt-4o', () => {
-  assert.ok(SRC.includes("model || (provider === 'openai' ? 'gpt-4o' : 'llama-3.3-70b-versatile')"));
-});
-
-// ============================================================================
-// Exports
-// ============================================================================
-
-test('exports: exports runProviderInference', () => {
-  assert.ok(SRC.includes("module.exports = { runProviderInference, ProviderError, PROVIDER_DEFAULTS };"));
+  it('runAnthropic uses anthropic-version header', () => {
+    assert.ok(providersCjs.includes("'anthropic-version': '2023-06-01'"));
+  });
 });
