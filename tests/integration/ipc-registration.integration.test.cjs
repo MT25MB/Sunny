@@ -180,6 +180,8 @@ describe('IPC — sensitive tools are protected', () => {
     'write_debug_log',
     'clear_debug_logs',
     'export_debug_logs',
+    'read_clipboard',
+    'write_clipboard',
   ];
 
   const interceptorOpsMatch = sensitiveOpsSource.match(
