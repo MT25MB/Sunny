@@ -41330,7 +41330,7 @@ textarea::placeholder { color: #65747b; }
 /* Specificity boosted so generic `p` rules later in the stylesheet cannot
    override the footer text color. White on #11161b gives ~15.7:1 contrast,
    far above the WCAG AA 4.5:1 minimum for small text. */
-.site-footer .footer-tagline { margin: 0; font-size: 0.75rem; color: #ffffff; }
+.site-footer .footer-tagline { margin: 0; font-size: 0.75rem; color: #ffffff !important; }
 .footer-nav ul {
   display: flex;
   flex-wrap: wrap;
@@ -41354,8 +41354,8 @@ textarea::placeholder { color: #65747b; }
   cursor: pointer;
 }
 .footer-quit:hover, .footer-quit:focus-visible { color: #e09a90; }
-.footer-note { width: 100%; margin: 0; font-size: 0.7rem; color: #ffffff; }
-.footer-note p { color: #ffffff; }
+.footer-note { width: 100%; margin: 0; font-size: 0.7rem; color: #ffffff !important; }
+.footer-note p { color: #ffffff !important; }
 
 
 
