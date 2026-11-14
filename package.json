@@ -10,7 +10,7 @@
     "build": "vite build",
     "electron": "electron .",
     "lint": "eslint .",
-    "test": "node --test tests/unit/ tests/integration/ tests/security/ tests/accessibility/ tests/performance/ tests/ci*.test.cjs tests/*.test.cjs tests/e2e/",
+    "test": "node --test \"tests/unit/**/*.test.cjs\" \"tests/integration/**/*.test.cjs\" \"tests/security/**/*.test.cjs\" \"tests/accessibility/**/*.test.cjs\" \"tests/performance/**/*.test.cjs\" \"tests/ci-*.test.cjs\" \"tests/*.test.cjs\" \"tests/e2e/**/*.test.cjs\"",
     "verify": "npm run typecheck && npm run typecheck:electron && npm run lint && npm test && npm run build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
