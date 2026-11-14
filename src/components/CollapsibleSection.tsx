@@ -85,7 +85,7 @@ export default function CollapsibleSection({
         id={panelId}
         role="region"
         aria-labelledby={buttonId}
-        className="collapsible-panel"
+        className={`collapsible-panel${className ? ` ${className}` : ""}`}
         hidden={!open}
       >
         {children}
