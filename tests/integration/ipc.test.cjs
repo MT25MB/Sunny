@@ -29,17 +29,23 @@ async function waitForCdp(timeoutMs) {
 }
 
 async function launchApp() {
+  if (!fs.existsSync(APP)) {
+    console.log('[e2e] Packaged app not available; runtime tests will be skipped.');
+    appProcess = null;
+    return false;
+  }
   try {
     appProcess = spawn(APP, ['--remote-debugging-port=' + PORT], {
       cwd: path.dirname(APP), env: { ...process.env }, stdio: ['ignore', 'pipe', 'pipe'],
     });
+    appProcess.on('error', () => {});
     await waitForCdp(WAIT_FOR_APP_MS);
     browser = await chromium.connectOverCDP(`http://localhost:${PORT}`);
     page = browser.contexts()[0].pages()[0] || await browser.contexts()[0].newPage();
     cdpReady = true;
     console.log('[e2e] CDP connected');
     return true;
-  } catch (e) { console.log('[e2e] CDP unavailable:', e.message); browser = null; page = null; appProcess = null; return false; }
+  } catch (e) { console.log('[e2e] CDP unavailable:', e.message); try { appProcess?.kill(); } catch {} browser = null; page = null; appProcess = null; return false; }
 }
 
 async function cleanup() { try { if (browser) await browser.close(); } catch {} try { if (appProcess) appProcess.kill(); } catch {} browser = null; page = null; appProcess = null; cdpReady = false; }

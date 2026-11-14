@@ -13,7 +13,7 @@ const BLOCKED_COMMAND_PATTERNS = [
   /\breg\s+delete\b/i, /\bregedit\b/i, /\bnet\s+user\b/i,
   /\bnet\s+localgroup\b/i, /\bat\s+\d{1,2}:\d{2}\s+\//i, /\bschtasks\b/i,
   /\bcron\b/i, /\bsystemctl\b/i,
-  /\bservice\s+(stop|delete|disable)\b/i, /\bftp\b\s+/i,
+  /\bservice\s+\S+\s+(stop|delete|disable)\b/i, /\bservice\s+(stop|delete|disable)\b/i, /\bftp\b\s+/i,
   /\bscp\b\s+/i, /\bwget\b\s+/i,
   /\bcurl\b.*\|\s*(sh|bash|python|perl)/i, /\bnohup\b/i,
   /\bhistory\s+-c\b/i, /\bexport\s+(PATH|LD_LIBRARY_PATH|DYLD)/i,
@@ -30,7 +30,7 @@ const BLOCKED_COMMAND_PATTERNS = [
  * blocked pattern only applies to text that is genuinely command-shaped.
  */
 const PROSE_WORDS =
-  /\b(?:i|me|my|mine|you|your|yours|we|our|he|she|they|them|it|its|the|a|an|and|or|but|so|to|of|in|on|at|for|with|from|by|as|is|are|was|were|be|been|am|do|does|did|can|could|will|would|should|shall|may|might|must|please|need|want|like|call|email|write|make|get|tell|show|find|help|know|think|when|what|where|which|who|why|how|then|than|about|after|before|also|very|really|just|still|even|some|any|there|here|now|today|tomorrow|set|up|out|again|more|less|later|tonight|schedule|remind|bring|read|look|thank|please)\b/gi;
+  /\b(?:i|me|my|mine|you|your|yours|we|our|he|she|they|them|it|its|the|a|an|and|or|but|so|to|of|in|on|at|for|with|from|by|as|is|are|was|were|be|been|am|do|does|did|can|could|will|would|should|shall|may|might|must|please|need|want|like|call|email|write|make|get|tell|show|find|help|know|think|when|what|where|which|who|why|how|then|than|about|after|before|also|very|really|just|still|even|some|any|there|here|now|today|tomorrow|set|up|out|again|more|less|later|tonight|schedule|remind|bring|read|look|thank|please|format)\b/gi;
 
 /** True when the text reads as a sentence rather than a command line. */
 function looksLikeProse(text) {
@@ -94,8 +94,8 @@ const INSTRUCTION_LIKE_PATTERNS = [
   /you are now (in )?(admin|developer|root|unrestricted|jailbreak|dan) mode/gi,
   /disregard (all |the )?(above |prior )?(rules|safety|guardrails|restrictions)/gi,
   /pretend (you are|to be) (a |an )?(different|other|unrestricted)/gi,
-  /act as (if )?(you are|a |an )?(unrestricted|unfiltered|admin)/gi,
-  /do not (ask|seek|request) (permission|approval|confirmation)/gi,
+  /act as (if )?(you are |a |an )?(unrestricted|unfiltered|admin)/gi,
+  /do not (ask|seek|request) (for )?(permission|approval|confirmation)/gi,
   /reveal (your |the )?(system |internal )?(prompt|instructions|rules)/gi,
   /send (this |the )?(data|text|content|info) (to|at|via) (http|ftp|email|discord|telegram)/gi,
   /execute (the )?following (command|code|script|payload)/gi,

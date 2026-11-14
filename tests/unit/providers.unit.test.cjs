@@ -119,8 +119,8 @@ describe('providers — internal functions (structural)', () => {
   });
 
   it('assertHttpUrl rejects non-HTTP(S) protocols', () => {
-    assert.ok(providersCjs.includes('parsed.protocol === \'http:\''));
-    assert.ok(providersCjs.includes('parsed.protocol === \'https:\''));
+    assert.ok(providersCjs.includes("parsed.protocol !== 'http:'"));
+    assert.ok(providersCjs.includes("parsed.protocol !== 'https:'"));
   });
 
   it('postJson uses AbortController for timeout', () => {
@@ -140,7 +140,7 @@ describe('providers — internal functions (structural)', () => {
   });
 
   it('runOpenAiCompatible sends Bearer authorization', () => {
-    assert.ok(providersCjs.includes("'Authorization': \`Bearer ${apiKey}\`"));
+    assert.ok(providersCjs.includes('Authorization: `Bearer ${apiKey}`'));
   });
 
   it('runOllama uses /api/chat endpoint', () => {

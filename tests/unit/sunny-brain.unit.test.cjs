@@ -2,12 +2,30 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
+const ts = require('typescript');
 
-const sunnyBrainModule = require(path.join(
-  process.cwd(),
-  'src/renderer/services/sunnyBrain.js'
-));
+const sourcePath = path.join(process.cwd(), 'src/renderer/services/sunnyBrain.ts');
+const source = fs.readFileSync(sourcePath, 'utf8');
+const exportedForTests = '\nexport { splitForSpeech, DEFAULT_POLL_INTERVAL_MS, MIN_REPEAT, MAX_REPEAT, MAX_MESSAGE_CHARS, SPEECH_PRIORITIES, CHUNK_GAP_MS };\n';
+const compiled = ts.transpileModule(source + exportedForTests, {
+  compilerOptions: {
+    module: ts.ModuleKind.CommonJS,
+    target: ts.ScriptTarget.ES2020,
+    esModuleInterop: true,
+  },
+});
+const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sunny-brain-test-'));
+const compiledPath = path.join(tmpDir, 'sunnyBrain.compiled.cjs');
+fs.writeFileSync(compiledPath, compiled.outputText);
+let sunnyBrainModule;
+try {
+  sunnyBrainModule = require(compiledPath);
+} finally {
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+}
 const {
   SunnyBrain,
   sunnyBrain,
@@ -45,7 +63,7 @@ describe('sunny-brain — constants', () => {
 
 describe('sunny-brain — splitForSpeech', () => {
   it('splits on sentence boundaries', () => {
-    const result = splitForSpeech('Hello world. How are you? I am fine.');
+    const result = splitForSpeech('Hello world. '.repeat(80).trim());
     assert.ok(result.length > 1);
     assert.ok(result[0].includes('Hello world'));
   });
@@ -218,6 +236,7 @@ describe('sunny-brain — messages', () => {
   });
 
   it('defines clearMessages', () => {
+    sunnyBrain.clearMessages();
     sunnyBrain.addMessage('user', 'To be cleared');
     assert.strictEqual(sunnyBrain.getMessages().length, 1);
     sunnyBrain.clearMessages();
@@ -225,6 +244,7 @@ describe('sunny-brain — messages', () => {
   });
 
   it('defines dispose', () => {
+    sunnyBrain.clearMessages();
     sunnyBrain.addMessage('user', 'To be disposed');
     assert.strictEqual(sunnyBrain.getMessages().length, 1);
     sunnyBrain.dispose();
@@ -248,14 +268,8 @@ describe('sunny-brain — speakNotification', () => {
   });
 
   it('clamps repeat value', async () => {
-    // Without electronAPI, speakNotification will try to use window.electronAPI
-    // which doesn't exist in plain Node. It should handle gracefully.
-    // The function validates priority and repeat before attempting IPC
-    await assert.rejects(
-      sunnyBrain.speakNotification('Test', 'normal', 0),
-      // repeat 0 gets clamped to 1, so this might not throw
-      // Let's just test that it doesn't crash
-    );
+    // Repeat 0 is clamped to 1 and speaks through the no-op local path.
+    await sunnyBrain.speakNotification('Test', 'normal', 0);
   });
 
   it('splits message into chunks', async () => {
@@ -359,7 +373,7 @@ describe('sunny-brain — triggerQuickAction', () => {
 describe('sunny-brain — internal methods', () => {
   it('defines requireElectronAPI', () => {
     // requireElectronAPI is private, tested through public methods
-    assert.strictEqual(typeof sunnyBrain.requireElectronAPI, 'undefined');
+    assert.strictEqual(typeof sunnyBrain.requireElectronAPI, 'function');
   });
 
   it('requireElectronAPI throws without electron', () => {
@@ -370,7 +384,7 @@ describe('sunny-brain — internal methods', () => {
 
   it('defines speakLocally', () => {
     // speakLocally is private
-    assert.strictEqual(typeof sunnyBrain.speakLocally, 'undefined');
+    assert.strictEqual(typeof sunnyBrain.speakLocally, 'function');
   });
 
   it('speakLocally checks for speechSynthesis', () => {
@@ -401,7 +415,7 @@ describe('sunny-brain — internal methods', () => {
 
   it('defines describeError', () => {
     // describeError is private
-    assert.strictEqual(typeof sunnyBrain.describeError, 'undefined');
+    assert.strictEqual(typeof sunnyBrain.describeError, 'function');
   });
 
   it('describeError handles Error objects', () => {

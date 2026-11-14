@@ -162,7 +162,7 @@ class SunnyBrain {
     const chunks = splitForSpeech(cleanMessage);
 
     // Validate/acknowledge through Electron once (main process rate-limits per call)
-    if (window.electronAPI) {
+    if (typeof window !== 'undefined' && window.electronAPI) {
       await window.electronAPI.speakNotification({
         message: cleanMessage, // send full message for logging/validation
         priority,
@@ -201,7 +201,7 @@ class SunnyBrain {
       };
     }
 
-    if (!window.electronAPI) {
+    if (typeof window === 'undefined' || !window.electronAPI) {
       return {
         timestamp: stamp,
         success: false,
@@ -253,7 +253,7 @@ class SunnyBrain {
     const toolName = toolMap[actionType];
 
     // Web fallback when Electron IPC is unavailable
-    if (!window.electronAPI || !window.electronAPI.executeTool) {
+    if (typeof window === 'undefined' || !window.electronAPI || !window.electronAPI.executeTool) {
       console.warn('[Sunny] Electron IPC unavailable, executing web fallback for:', actionType);
       return this.webFallback(actionType, payload || {}, stamp);
     }
@@ -360,7 +360,7 @@ class SunnyBrain {
    * @returns Array of recipes with ingredients and step-by-step instructions
    */
   async fetchVerifiedRecipe(query: string, maxResults: number = 5): Promise<{ recipes: Recipe[] }> {
-    if (!window.electronAPI) {
+    if (typeof window === 'undefined' || !window.electronAPI) {
       throw new Error('Electron API is not available. Recipe search requires the Sunny desktop app.');
     }
     return window.electronAPI.searchRecipe({ query, maxResults });
@@ -377,7 +377,7 @@ class SunnyBrain {
    * @returns Daily digest with weather and news
    */
   async getDailyDigest(location?: string, newsCount: number = 5): Promise<DailyDigest> {
-    if (!window.electronAPI) {
+    if (typeof window === 'undefined' || !window.electronAPI) {
       throw new Error('Electron API is not available. Daily digest requires the Sunny desktop app.');
     }
     return window.electronAPI.getDailyDigest({ location, newsCount });
@@ -394,7 +394,7 @@ class SunnyBrain {
    * @returns Object with success status and reminder ID
    */
   async scheduleMedicationReminder(pillName: string, timeString: string): Promise<{ success: boolean; reminderId: string }> {
-    if (!window.electronAPI) {
+    if (typeof window === 'undefined' || !window.electronAPI) {
       throw new Error('Electron API is not available. Medication reminders require the Sunny desktop app.');
     }
     return window.electronAPI.scheduleMedicationReminder({ pillName, timeString });
@@ -406,7 +406,7 @@ class SunnyBrain {
    * @returns Unsubscribe function
    */
   onMedicationReminder(callback: (reminder: MedicationReminder) => void): () => void {
-    if (!window.electronAPI) {
+    if (typeof window === 'undefined' || !window.electronAPI) {
       return () => {};
     }
     return window.electronAPI.onMedicationReminder(callback);
@@ -418,7 +418,7 @@ class SunnyBrain {
    * @returns Unsubscribe function
    */
   onMedicationReminderAdded(callback: (reminder: MedicationReminder) => void): () => void {
-    if (!window.electronAPI) {
+    if (typeof window === 'undefined' || !window.electronAPI) {
       return () => {};
     }
     return window.electronAPI.onMedicationReminderAdded(callback);
@@ -430,7 +430,7 @@ class SunnyBrain {
    * @returns Success status
    */
   async markMedicationTaken(reminderId: string): Promise<{ success: boolean }> {
-    if (!window.electronAPI) {
+    if (typeof window === 'undefined' || !window.electronAPI) {
       throw new Error('Electron API is not available.');
     }
     return window.electronAPI.markMedicationTaken({ reminderId });
@@ -441,7 +441,7 @@ class SunnyBrain {
    * @returns Array of medication reminders
    */
   async getMedicationReminders(): Promise<MedicationReminder[]> {
-    if (!window.electronAPI) {
+    if (typeof window === 'undefined' || !window.electronAPI) {
       throw new Error('Electron API is not available.');
     }
     return window.electronAPI.getMedicationReminders();
@@ -453,7 +453,7 @@ class SunnyBrain {
    * @returns Success status
    */
   async deleteMedicationReminder(reminderId: string): Promise<{ success: boolean }> {
-    if (!window.electronAPI) {
+    if (typeof window === 'undefined' || !window.electronAPI) {
       throw new Error('Electron API is not available.');
     }
     return window.electronAPI.deleteMedicationReminder({ reminderId });
@@ -469,7 +469,7 @@ class SunnyBrain {
    * @param newsCount - Number of news items to include
    */
   async speakDailyDigest(location?: string, newsCount: number = 5): Promise<void> {
-    if (!window.electronAPI) {
+    if (typeof window === 'undefined' || !window.electronAPI) {
       throw new Error('Electron API is not available. Daily digest requires the Sunny desktop app.');
     }
     const digest = await this.getDailyDigest(location, newsCount);
@@ -491,7 +491,7 @@ class SunnyBrain {
    * @returns Unsubscribe function
    */
   onCookingStepChange(callback: (step: { stepIndex: number; totalSteps: number; instruction: string }) => void): () => void {
-    if (!window.electronAPI) {
+    if (typeof window === 'undefined' || !window.electronAPI) {
       return () => {};
     }
     return window.electronAPI.onCookingStepChange(callback);
@@ -549,14 +549,14 @@ class SunnyBrain {
   // -------------------------------------------------------------------------
 
   private requireElectronAPI(): ElectronAPI {
-    if (!window.electronAPI) {
+    if (typeof window === 'undefined' || !window.electronAPI) {
       throw new Error('Electron API is unavailable. Are you running inside the Sunny app?');
     }
     return window.electronAPI;
   }
 
   private speakLocally(message: string, repeat: number): void {
-    if (!('speechSynthesis' in window) || !window.speechSynthesis) {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window) || !window.speechSynthesis) {
       // Speech synthesis unavailable (e.g. some Linux setups): log and
       // continue rather than crashing the caller.
       console.warn('[Sunny] Text-to-speech is unavailable in this environment.');

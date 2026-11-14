@@ -29,7 +29,7 @@ describe('security — blocked command patterns', () => {
     /\breg\s+delete\b/i, /\bregedit\b/i, /\bnet\s+user\b/i,
     /\bnet\s+localgroup\b/i, /\bat\s+\d{1,2}:\d{2}\s+\//i, /\bschtasks\b/i,
     /\bcron\b/i, /\bsystemctl\b/i,
-    /\bservice\s+(stop|delete|disable)\b/i, /\bftp\b\s+/i,
+    /\bservice\s+\S+\s+(stop|delete|disable)\b/i, /\bservice\s+(stop|delete|disable)\b/i, /\bftp\b\s+/i,
     /\bscp\b\s+/i, /\bwget\b\s+/i,
     /\bcurl\b.*\|\s*(sh|bash|python|perl)/i, /\bnohup\b/i,
     /\bhistory\s+-c\b/i, /\bexport\s+(PATH|LD_LIBRARY_PATH|DYLD)/i,
@@ -285,7 +285,7 @@ describe('security — preload sanitization', () => {
   it('preload blocks command substitution chars', () => {
     assert.ok(preloadCjs.includes('`'));
     assert.ok(preloadCjs.includes('${'));
-    assert.ok(preloadCjs.includes('$('));
+    assert.ok(preloadCjs.includes('$\\('));
     assert.ok(preloadCjs.includes('&&'));
     assert.ok(preloadCjs.includes('||'));
   });

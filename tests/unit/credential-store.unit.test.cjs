@@ -125,7 +125,7 @@ describe('credential-store — testProviderConnection', () => {
   });
 
   it('Ollama calls /api/tags', () => {
-    assert.ok(storeTs.includes("'\/api/tags'"));
+    assert.ok(storeTs.includes('/api/tags'));
   });
 
   it('Ollama uses 5 second timeout', () => {
@@ -145,7 +145,7 @@ describe('credential-store — testProviderConnection', () => {
   });
 
   it('unknown provider returns error', () => {
-    assert.ok(storeTs.includes("default: return { success: false, message: 'Unknown provider.'"));
+    assert.ok(storeTs.includes('Unknown provider.'));
   });
 
   it('catch block returns error message', () => {

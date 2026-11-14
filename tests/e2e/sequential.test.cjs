@@ -29,9 +29,19 @@ async function waitForCdp(timeoutMs) {
 }
 
 test.before(async () => {
+  if (!fs.existsSync(APP)) {
+    console.log('[e2e] Packaged app not available; runtime tests will be skipped.');
+    appProcess = null;
+    return;
+  }
   try {
     appProcess = spawn(APP, ['--remote-debugging-port=' + PORT], {
       cwd: path.dirname(APP), env: { ...process.env }, stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    appProcess.on('error', (error) => {
+      console.log('[e2e] Launch failed:', error.message);
+      appProcess = null;
+      cdpReady = false;
     });
     console.log('[e2e] Launched Electron');
     await waitForCdp(30000);
@@ -42,7 +52,7 @@ test.before(async () => {
     const skip = await page.$('.onboarding-skip');
     if (skip) { await skip.click(); await page.waitForSelector('.onboarding-skip', { state: 'detached', timeout: 5000 }); }
     await page.waitForSelector('.app-shell', { timeout: 20000 });
-  } catch (e) { console.log('[e2e] Launch failed:', e.message); browser = null; page = null; appProcess = null; cdpReady = false; }
+  } catch (e) { console.log('[e2e] Launch failed:', e.message); try { appProcess?.kill(); } catch {} appProcess = null; cdpReady = false; }
 });
 
 test.after(async () => { try { if (browser) await browser.close(); } catch {} try { if (appProcess) appProcess.kill(); } catch {} browser = null; page = null; appProcess = null; cdpReady = false; });

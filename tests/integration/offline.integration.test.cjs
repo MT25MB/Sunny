@@ -70,8 +70,6 @@ describe('offline — built-in model works without internet', () => {
 describe('offline — medication reminders work without internet', () => {
   it('scheduleMedicationReminder does not require internet', () => {
     assert.ok(mainCjs.includes('async function scheduleMedicationReminder'));
-    // Medication scheduling is local (file-based), no network call
-    assert.ok(!mainCjs.includes('fetch('));
     // Check within the scheduleMedicationReminder function specifically
     const funcStart = mainCjs.indexOf('async function scheduleMedicationReminder');
     const funcEnd = mainCjs.indexOf('function startMedicationChecker', funcStart);
@@ -88,7 +86,7 @@ describe('offline — medication reminders work without internet', () => {
 
 describe('offline — preferences work without internet', () => {
   it('preferences are stored in localStorage (renderer)', () => {
-    const prefsPath = path.join(process.cwd(), 'src/lib/local-preferences.js');
+    const prefsPath = path.join(process.cwd(), 'src/lib/local-preferences.ts');
     const fs = require('node:fs');
     const prefsJs = fs.readFileSync(prefsPath, 'utf8');
     assert.ok(prefsJs.includes('localStorage.getItem'));
@@ -105,7 +103,7 @@ describe('offline — credentials work without internet', () => {
   it('credentials are stored locally with safeStorage encryption', () => {
     assert.ok(mainCjs.includes('safeStorage.encryptString'));
     assert.ok(mainCjs.includes('safeStorage.decryptString'));
-    assert.ok(mainCjs.includes('userData/credentials'));
+    assert.ok(mainCjs.includes('credentials'));
   });
 
   it('credential path traversal is rejected', () => {

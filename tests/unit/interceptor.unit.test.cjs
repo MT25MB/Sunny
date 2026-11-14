@@ -87,7 +87,7 @@ describe('interceptor — structural verification', () => {
   });
 
   it('interceptAction default case blocks unknown types', () => {
-    assert.ok(interceptorCjs.includes('default: return { verdict: \'block\''));
+    assert.match(interceptorCjs, /default:\s*return\s*\{\s*verdict:\s*'block'/);
   });
 
   it('interceptDrag validates coordinates', () => {

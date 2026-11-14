@@ -32,7 +32,7 @@ describe('performance — app entry point', () => {
     assert.ok(mainCjs.includes('initModel'));
     // The initModel call should not block window creation
     const createWindowIdx = mainCjs.indexOf('createWindow()');
-    const initModelIdx = mainCjs.indexOf('initModel()');
+    const initModelIdx = mainCjs.indexOf('initModel');
     // Both should exist
     assert.ok(createWindowIdx !== -1);
     assert.ok(initModelIdx !== -1);
@@ -71,7 +71,8 @@ describe('performance — lazy model loading', () => {
   });
 
   it('model cache is in userData', () => {
-    assert.ok(mainCjs.includes('userData/models') || mainCjs.includes('models-cache'));
+    assert.ok(inferenceCjs.includes("app.getPath('userData')"));
+    assert.ok(inferenceCjs.includes("'models") || inferenceCjs.includes('models-cache'));
   });
 
   it('model loading does not terminate app on failure', () => {

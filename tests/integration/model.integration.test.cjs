@@ -52,6 +52,9 @@ describe('model — speech.cjs exports required functions', () => {
 });
 
 describe('model — model IDs', () => {
+  const speechPath = path.join(process.cwd(), 'src/electron/speech.cjs');
+  const speechCjs = fs.readFileSync(speechPath, 'utf8');
+
   it('Moondream2 model ID is declared', () => {
     assert.ok(mainCjs.includes("moondream2") || inferenceCjs.includes('moondream2'));
   });
@@ -79,7 +82,8 @@ describe('model — runVisionInference uses AutoProcessor', () => {
 
 describe('model — model cache redirected out of node_modules', () => {
   it('model cache is in userData directory', () => {
-    assert.ok(mainCjs.includes('userData/models') || mainCjs.includes('models-cache'));
+    assert.ok(inferenceCjs.includes("app.getPath('userData')"));
+    assert.ok(inferenceCjs.includes("'models") || inferenceCjs.includes('models-cache'));
   });
 
   it('native model dependencies are unpacked from ASAR', () => {

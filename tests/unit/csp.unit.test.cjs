@@ -8,69 +8,69 @@ const cspModule = require(path.join(process.cwd(), 'src/electron/csp.cjs'));
 const { withCsp, CSP } = cspModule;
 
 describe('csp — CSP constant', () => {
-  it('CSP is an array of directives', () => {
-    assert.ok(Array.isArray(CSP));
+  it('CSP is a non-empty policy string', () => {
+    assert.strictEqual(typeof CSP, 'string');
     assert.ok(CSP.length > 0);
   });
 
   it('defaults to self', () => {
-    const cspString = CSP.join('; ');
+    const cspString = CSP;
     assert.ok(cspString.includes("default-src 'self'"));
   });
 
   it('script-src is self-only', () => {
-    const cspString = CSP.join('; ');
+    const cspString = CSP;
     assert.ok(cspString.includes("script-src 'self'"));
   });
 
   it('font-src is self-only', () => {
-    const cspString = CSP.join('; ');
+    const cspString = CSP;
     assert.ok(cspString.includes("font-src 'self'"));
   });
 
   it('frame-ancestors is none', () => {
-    const cspString = CSP.join('; ');
+    const cspString = CSP;
     assert.ok(cspString.includes("frame-ancestors 'none'"));
   });
 
   it('base-uri is self', () => {
-    const cspString = CSP.join('; ');
+    const cspString = CSP;
     assert.ok(cspString.includes("base-uri 'self'"));
   });
 
   it('form-action is self', () => {
-    const cspString = CSP.join('; ');
+    const cspString = CSP;
     assert.ok(cspString.includes("form-action 'self'"));
   });
 
   it('media-src allows blob', () => {
-    const cspString = CSP.join('; ');
+    const cspString = CSP;
     assert.ok(cspString.includes("media-src 'self' blob:"));
   });
 
   it('does not allow Google Fonts', () => {
-    const cspString = CSP.join('; ');
+    const cspString = CSP;
     assert.ok(!cspString.includes('fonts.googleapis.com'));
     assert.ok(!cspString.includes('fonts.gstatic.com'));
   });
 
   it('connect-src includes specific APIs', () => {
-    const cspString = CSP.join('; ');
+    const cspString = CSP;
     assert.ok(cspString.includes('connect-src'));
   });
 
   it('connect-src allows localhost', () => {
-    const cspString = CSP.join('; ');
+    const cspString = CSP;
     assert.ok(cspString.includes('localhost'));
   });
 
   it('style-src allows unsafe-inline', () => {
-    const cspString = CSP.join('; ');
+    const cspString = CSP;
     assert.ok(cspString.includes("style-src 'self' 'unsafe-inline'"));
   });
 
   it('img-src allows data and https', () => {
-    const cspString = CSP.join('; ');
+    const cspString = CSP;
     assert.ok(cspString.includes("img-src 'self' data: https:"));
   });
 });
@@ -82,7 +82,7 @@ describe('csp — withCsp', () => {
       'x-custom': ['value'],
     };
     const result = withCsp(headers);
-    assert.ok(!result['Content-Security-Policy'][0].includes("'none'"));
+    assert.ok(!result['Content-Security-Policy'][0].includes("default-src 'none'"));
     assert.ok(result['Content-Security-Policy'][0].includes("default-src 'self'"));
     assert.deepStrictEqual(result['x-custom'], ['value']);
   });
@@ -119,7 +119,7 @@ describe('csp — withCsp', () => {
       'x-other': ['value'],
     };
     const result = withCsp(headers);
-    assert.ok(!result['Content-Security-Policy'][0].includes("'none'"));
+    assert.ok(!result['Content-Security-Policy'][0].includes("default-src 'none'"));
     assert.deepStrictEqual(result['x-other'], ['value']);
   });
 

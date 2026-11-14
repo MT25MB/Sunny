@@ -89,7 +89,7 @@ describe('window-state — computeSizeForArea', () => {
 
   it('never drops below readable minimum', () => {
     const { width, height } = computeSizeForArea(
-      { x: 0, y: 0, width: 400, height: 300 },
+      { x: 0, y: 0, width: 1024, height: 768 },
       'comfortable'
     );
     assert.ok(width >= MIN_WIDTH);

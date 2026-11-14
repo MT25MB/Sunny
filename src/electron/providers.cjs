@@ -178,6 +178,11 @@ async function runProviderInference(options) {
     throw new ProviderError('The local model does not go through this path.');
   }
 
+  const supportedProviders = new Set(['ollama', 'anthropic', 'openai', 'groq']);
+  if (!supportedProviders.has(provider)) {
+    throw new ProviderError(`Unknown provider "${provider}".`);
+  }
+
   if (provider === 'ollama') {
     const endpoint = (options?.endpoint || PROVIDER_DEFAULTS.ollama.baseUrl).replace(/\/+$/, '');
     return runOllama({ prompt, imageBase64, endpoint, model: model || 'qwen3-vl:8b' });
