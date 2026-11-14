@@ -145,7 +145,7 @@ describe('credential-store — testProviderConnection', () => {
   });
 
   it('unknown provider returns error', () => {
-    assert.ok(storeTs.includes("default: return { success: false, message: 'Unknown provider.'");
+    assert.ok(storeTs.includes("default: return { success: false, message: 'Unknown provider.'"));
   });
 
   it('catch block returns error message', () => {

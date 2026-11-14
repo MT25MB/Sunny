@@ -116,5 +116,5 @@ describe('credential-path — valid key patterns', () => {
       assert.ok(result.startsWith(CREDENTIALS_DIR + path.sep));
       assert.strictEqual(result.split(path.sep).pop(), validKey);
     });
-  });
+  }
 });

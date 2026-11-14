@@ -182,7 +182,7 @@ describe('interceptor — blocked command patterns', () => {
       }
       assert.ok(matched, `Command "${cmd}" should match a blocked pattern`);
     });
-  });
+  }
 });
 
 describe('interceptor — instruction injection patterns', () => {
@@ -211,7 +211,7 @@ describe('interceptor — instruction injection patterns', () => {
       // contains these patterns
       assert.ok(interceptorCjs.length > 0);
     });
-  });
+  }
 
   it('sanitizeUntrustedContent replaces with [FILTERED]', () => {
     assert.ok(interceptorCjs.includes("'[FILTERED]'"));

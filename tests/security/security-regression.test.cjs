@@ -80,7 +80,7 @@ describe('security — blocked command patterns', () => {
       }
       assert.ok(matched, `Command "${cmd}" should match a blocked pattern`);
     });
-  });
+  }
 });
 
 describe('security — command-shaped vs prose detection', () => {
@@ -169,7 +169,7 @@ describe('security — instruction injection patterns', () => {
       assert.ok(result.includes('[FILTERED]'), `Should filter: ${pattern}`);
       assert.ok(!result.includes(pattern), `Should not contain original: ${pattern}`);
     });
-  });
+  }
 
   it('leaves ordinary text intact', () => {
     const result = sanitizeUntrustedContent('Hello, how are you today?');
