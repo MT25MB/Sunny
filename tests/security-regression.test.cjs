@@ -214,23 +214,26 @@ test('sanitizeUntrustedContent strips template injection markers', () => {
 test('main tool allowlist contains the registered cooking-step tool (H1 regression)', () => {
   const fs = require('node:fs');
   const path = require('node:path');
-  const mainSrc = fs.readFileSync(
-    path.join(__dirname, '..', 'src', 'electron', 'main.cjs'),
-    'utf8'
-  );
-  const preloadSrc = fs.readFileSync(
-    path.join(__dirname, '..', 'src', 'electron', 'preload.cjs'),
-    'utf8'
-  );
+  const mainPath = path.join(__dirname, '..', 'src', 'electron', 'main.cjs');
+  const preloadPath = path.join(__dirname, '..', 'src', 'electron', 'preload.cjs');
+  const mainSrc = fs.readFileSync(mainPath, 'utf8');
+  const preloadSrc = fs.readFileSync(preloadPath, 'utf8');
 
-  const extract = (src) => {
-    const match = src.match(/const SUNNY_TOOLS = \[([^\]]+)\]/);
-    assert.ok(match, 'SUNNY_TOOLS array must be declared');
-    return match[1].split(',').map((s) => s.trim().replace(/^'|'$/g, ''));
+  const extract = (src, filePath) => {
+    // First try inline array: const SUNNY_TOOLS = [...]
+    const inlineMatch = src.match(/const SUNNY_TOOLS = \[([^\]]+)\]/);
+    if (inlineMatch) {
+      return inlineMatch[1].split(',').map((s) => s.trim().replace(/^'|'$/g, ''));
+    }
+    // Fallback: required from external JSON file
+    const reqMatch = src.match(/require\(['"]([^'"]*sunny-tools[^'"]*)['"]\)/);
+    assert.ok(reqMatch, `SUNNY_TOOLS array must be declared or required in ${filePath}`);
+    const toolsPath = path.join(path.dirname(filePath), reqMatch[1]);
+    return JSON.parse(fs.readFileSync(toolsPath, 'utf8'));
   };
 
-  const mainTools = extract(mainSrc);
-  const preloadTools = extract(preloadSrc);
+  const mainTools = extract(mainSrc, mainPath);
+  const preloadTools = extract(preloadSrc, preloadPath);
 
   assert.deepEqual(
     mainTools,
@@ -1211,23 +1214,26 @@ test('renderer source contains no mojibake', () => {
 test('decide_action and execute_actions are registered in SUNNY_TOOLS (H9 regression)', () => {
   const fs = require('node:fs');
   const path = require('node:path');
-  const mainSrc = fs.readFileSync(
-    path.join(__dirname, '..', 'src', 'electron', 'main.cjs'),
-    'utf8'
-  );
-  const preloadSrc = fs.readFileSync(
-    path.join(__dirname, '..', 'src', 'electron', 'preload.cjs'),
-    'utf8'
-  );
+  const mainPath = path.join(__dirname, '..', 'src', 'electron', 'main.cjs');
+  const preloadPath = path.join(__dirname, '..', 'src', 'electron', 'preload.cjs');
+  const mainSrc = fs.readFileSync(mainPath, 'utf8');
+  const preloadSrc = fs.readFileSync(preloadPath, 'utf8');
 
-  const extract = (src) => {
-    const match = src.match(/const SUNNY_TOOLS = \[([^\]]+)\]/);
-    assert.ok(match, 'SUNNY_TOOLS array must be declared');
-    return match[1].split(',').map((s) => s.trim().replace(/^'|'$/g, ''));
+  const extract = (src, filePath) => {
+    // First try inline array: const SUNNY_TOOLS = [...]
+    const inlineMatch = src.match(/const SUNNY_TOOLS = \[([^\]]+)\]/);
+    if (inlineMatch) {
+      return inlineMatch[1].split(',').map((s) => s.trim().replace(/^'|'$/g, ''));
+    }
+    // Fallback: required from external JSON file
+    const reqMatch = src.match(/require\(['"]([^'"]*sunny-tools[^'"]*)['"]\)/);
+    assert.ok(reqMatch, `SUNNY_TOOLS array must be declared or required in ${filePath}`);
+    const toolsPath = path.join(path.dirname(filePath), reqMatch[1]);
+    return JSON.parse(fs.readFileSync(toolsPath, 'utf8'));
   };
 
-  const mainTools = extract(mainSrc);
-  const preloadTools = extract(preloadSrc);
+  const mainTools = extract(mainSrc, mainPath);
+  const preloadTools = extract(preloadSrc, preloadPath);
 
   assert.deepEqual(
     mainTools,

@@ -10,7 +10,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const MAIN = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'electron', 'main.cjs'), 'utf8');
+const MAIN_PATH = path.join(__dirname, '..', '..', 'src', 'electron', 'main.cjs');
+const MAIN = fs.readFileSync(MAIN_PATH, 'utf8');
 
 // ============================================================================
 // IPC channel registration
@@ -88,19 +89,27 @@ test('IPC: no duplicate channel registrations', () => {
 // SUNNY_TOOLS allowlist
 // ============================================================================
 
-function extractSUNNY_TOOLS(src) {
-  const match = src.match(/const SUNNY_TOOLS = \[([^\]]+)\]/);
-  assert.ok(match, 'SUNNY_TOOLS must be declared');
-  return match[1].split(',').map((s) => s.trim().replace(/^['"]|['"]$/g, ''));
+function extractSUNNY_TOOLS(src, filePath) {
+  // First try inline array: const SUNNY_TOOLS = [...]
+  const inlineMatch = src.match(/const SUNNY_TOOLS = \[([^\]]+)\]/);
+  if (inlineMatch) {
+    return inlineMatch[1].split(',').map((s) => s.trim().replace(/^['"]|['"]$/g, ''));
+  }
+  // Fallback: required from external JSON file
+  const reqMatch = src.match(/require\(['"]([^'"]*sunny-tools[^'"]*)['"]\)/);
+  assert.ok(reqMatch, `SUNNY_TOOLS must be declared or required in ${filePath}`);
+  const toolsPath = path.join(path.dirname(filePath), reqMatch[1]);
+  const toolsJson = JSON.parse(fs.readFileSync(toolsPath, 'utf8'));
+  return toolsJson;
 }
 
 test('tools: SUNNY_TOOLS is declared', () => {
-  const tools = extractSUNNY_TOOLS(MAIN);
+  const tools = extractSUNNY_TOOLS(MAIN, MAIN_PATH);
   assert.ok(tools.length > 0, 'SUNNY_TOOLS must not be empty');
 });
 
 test('tools: SUNNY_TOOLS includes core tools', () => {
-  const tools = extractSUNNY_TOOLS(MAIN);
+  const tools = extractSUNNY_TOOLS(MAIN, MAIN_PATH);
   for (const tool of [
     'get_system_status',
     'speak_notification',
@@ -128,7 +137,7 @@ function extractRunToolCases(src) {
 }
 
 test('runTool: has dispatch case for every SUNNY_TOOLS entry', () => {
-  const tools = extractSUNNY_TOOLS(MAIN);
+  const tools = extractSUNNY_TOOLS(MAIN, MAIN_PATH);
   const cases = extractRunToolCases(MAIN);
   for (const tool of tools) {
     assert.ok(cases.has(tool), `runTool must handle "${tool}"`);
@@ -180,7 +189,7 @@ function extractValidateToolParamsCases(src) {
 }
 
 test('validateToolParams: has validation case for every SUNNY_TOOLS entry', () => {
-  const tools = extractSUNNY_TOOLS(MAIN);
+  const tools = extractSUNNY_TOOLS(MAIN, MAIN_PATH);
   const cases = extractValidateToolParamsCases(MAIN);
   for (const tool of tools) {
     assert.ok(cases.has(tool), `validateToolParams must handle "${tool}"`);

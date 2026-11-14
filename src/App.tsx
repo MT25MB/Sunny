@@ -622,7 +622,7 @@ function App() {
     } finally {
       setIsProcessingChat(false);
     }
-  }, [describeError, isProcessingChat]);
+  }, [chatInput, describeError, isProcessingChat]);
 
   const handleSpeakDailyDigest = useCallback(async () => {
     if (!dailyDigest) return;
