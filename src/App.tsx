@@ -793,7 +793,7 @@ function App() {
                     <p>
                       The buttons below are disabled because they require the desktop app.
                       Download the free Sunny desktop app from{" "}
-                      <a href="https://github.com/MT25MB/Sunny/releases/latest" target="_blank" rel="noopener noreferrer">
+                      <a href="https://github.com/MT25MB/Sunny/releases/latest" target="_blank" rel="noopener noreferrer" style={{ color: "#ffd9a0" }}>
                         GitHub Releases
                       </a>{" "}
                       to check the computer health, set medication reminders, and hear spoken answers.
@@ -1445,8 +1445,8 @@ function ActionButton({ icon, label, description, onClick, disabled, loading, pr
     >
       <span className="btn-icon" aria-hidden="true">{icon}</span>
       <div className="btn-text">
-        <span className="btn-label">{label}</span>
-        <span className="btn-desc">{description}</span>
+        <span className="btn-label" style={{ color: "#f7f9fb" }}>{label}</span>
+        <span className="btn-desc" style={{ color: "#829298" }}>{description}</span>
       </div>
       {loading && <span className="btn-spinner" aria-label="Loading" />}
     </button>
