@@ -28943,6 +28943,9 @@ textarea::placeholder { color: #65747b; }
 
 
   color: #829298;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
 
 
 
