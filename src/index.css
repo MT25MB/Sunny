@@ -7592,7 +7592,7 @@ textarea::placeholder { color: #65747b; }
 
      title takes the line and the button goes underneath it. */
 
-  .collapsible-header {
+  .collapsible-section {
 
     flex-wrap: wrap;
 
