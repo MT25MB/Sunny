@@ -35,7 +35,7 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
         onUnlock();
       } else if (result?.locked) {
         setLockedOut(true);
-        setRemainingSeconds(result.remainingSeconds);
+        setRemainingSeconds(result.remainingSeconds ?? 30);
         setError('Too many failed attempts. Please wait.');
         // Countdown timer
         const interval = setInterval(() => {
@@ -53,7 +53,7 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
         setError('Incorrect PIN. ' + (result?.attemptsRemaining ? result.attemptsRemaining + ' attempts remaining.' : ''));
         setPin('');
       }
-    } catch (e) {
+    } catch {
       setError('Verification failed. Please try again.');
     } finally {
       setLoading(false);

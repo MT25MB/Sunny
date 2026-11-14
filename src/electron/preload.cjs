@@ -356,21 +356,6 @@ const electronAPI = {
   /** Get lockout status. */
   getLockoutStatus: async () => ipcRenderer.invoke('sunny:get-lockout-status'),
 
-  /** Check if a PIN is configured. */
-  hasPin: async () => ipcRenderer.invoke('sunny:has-pin'),
-
-  /** Set or change the PIN. */
-  setPin: async (pin) => ipcRenderer.invoke('sunny:set-pin', pin),
-
-  /** Verify a PIN. */
-  verifyPin: async (pin) => ipcRenderer.invoke('sunny:verify-pin', pin),
-
-  /** Remove the PIN. */
-  removePin: async (currentPin) => ipcRenderer.invoke('sunny:remove-pin', currentPin),
-
-  /** Get lockout status. */
-  getLockoutStatus: async () => ipcRenderer.invoke('sunny:get-lockout-status'),
-
   /** Subscribe to lock-app events. */
   onLockApp: (callback) => {
     const handler = (_event, data) => callback(data);
@@ -383,13 +368,6 @@ const electronAPI = {
 
   /** Reset emergency stop flag. */
   resetEmergencyStop: async () => ipcRenderer.invoke('sunny:reset-emergency-stop'),
-
-  /** Subscribe to lock-app events. */
-  onLockApp: (callback) => {
-    const handler = (_event, data) => callback(data);
-    ipcRenderer.on('sunny:lock-app', handler);
-    return () => ipcRenderer.removeListener('sunny:lock-app', handler);
-  },
 
   /** Subscribe to emergency stop events. */
   onEmergencyStop: (callback) => {

@@ -1206,8 +1206,8 @@ async function executeActions(actions) {
       } else {
         await automation.mouse.scrollLeft(Math.abs(action.amount));
       }
-    } else if (action.type === 'wait' && Number.isFinite(action.ms) && action.ms! <= 10000) {
-      const waitMs = action.ms as number;
+    } else if (action.type === 'wait' && Number.isFinite(action.ms) && action.ms <= 10000) {
+      const waitMs = /** @type {number} */ (action.ms);
       await new Promise((resolve) => setTimeout(resolve, waitMs));
     } else if (action.type === 'screenshot') {
       // Screenshots are taken through captureScreen; nothing to do here.

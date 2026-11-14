@@ -66,13 +66,13 @@ export default {
     // The plugin appends its own `**/*.node` glob to this list.
     asar: { unpack: UNPACK_PATTERNS.join(',') },
     extraResource: ['public/assets/mascot.png'],
-    osxSign: process.platform === 'darwin' ? {
+    osxSign: process.platform === 'darwin' && process.env.APPLE_IDENTITY ? {
       identity: process.env.APPLE_IDENTITY,
       hardenedRuntime: true,
       entitlements: 'entitlements.plist',
       entitlementsInherit: 'entitlements.plist',
     } : undefined,
-    osxNotarize: process.platform === 'darwin' ? {
+    osxNotarize: process.platform === 'darwin' && process.env.APPLE_ID && process.env.APPLE_ID_PASSWORD && process.env.APPLE_TEAM_ID ? {
       appleId: process.env.APPLE_ID,
       appleIdPassword: process.env.APPLE_ID_PASSWORD,
       teamId: process.env.APPLE_TEAM_ID,

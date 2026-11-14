@@ -18,6 +18,7 @@ jobs:
     name: build
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
         include:
@@ -52,6 +53,10 @@ jobs:
         run: npm run make
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_IDENTITY: ${{ secrets.APPLE_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
        # ------------------------------------------------------------------
        # Code signing with SignPath (free for open source).

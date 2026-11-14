@@ -41326,7 +41326,7 @@ textarea::placeholder { color: #65747b; }
 .footer-brand { display: flex; align-items: center; gap: 0.5rem; }
 .footer-logo { color: #f1b568; font-size: 1rem; }
 .footer-brand strong { color: #e0e7e6; font-size: 0.9rem; }
-.footer-tagline { margin: 0; font-size: 0.75rem; }
+.footer-tagline { margin: 0; font-size: 0.75rem; color: #c8d4dc; }
 .footer-nav ul {
   display: flex;
   flex-wrap: wrap;
@@ -41350,7 +41350,7 @@ textarea::placeholder { color: #65747b; }
   cursor: pointer;
 }
 .footer-quit:hover, .footer-quit:focus-visible { color: #e09a90; }
-.footer-note { width: 100%; margin: 0; font-size: 0.7rem; color: #93a4aa; }
+.footer-note { width: 100%; margin: 0; font-size: 0.7rem; color: #c8d4dc; }
 
 
 

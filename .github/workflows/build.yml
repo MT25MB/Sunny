@@ -22,6 +22,8 @@ jobs:
         run: npm run typecheck
       - name: Typecheck (main process)
         run: npm run typecheck:electron
+      - name: Syntax-check main.cjs (plain JS)
+        run: node --check src/electron/main.cjs
       - name: Lint
         run: npm run lint
       - name: Regression tests
