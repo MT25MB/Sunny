@@ -305,6 +305,28 @@ export interface ElectronAPI {
   /** Quit the app and install the downloaded update. */
   quitAndInstall(): Promise<{ success: boolean }>;
 
+  // -------------------------------------------------------------------------
+  // PIN authentication
+  // -------------------------------------------------------------------------
+
+  /** Check if a PIN is configured. */
+  hasPin(): Promise<{ hasPin: boolean }>;
+
+  /** Set or change the PIN. */
+  setPin(pin: string): Promise<{ success: boolean }>;
+
+  /** Verify a PIN. */
+  verifyPin(pin: string): Promise<{ success: boolean; locked?: boolean; remainingSeconds?: number; attemptsRemaining?: number; error?: string }>;
+
+  /** Remove the PIN. */
+  removePin(currentPin: string): Promise<{ success: boolean; error?: string }>;
+
+  /** Get lockout status. */
+  getLockoutStatus(): Promise<{ locked: boolean; remainingSeconds: number }>;
+
+  /** Subscribe to lock-app events. */
+  onLockApp(callback: (payload: { locked: boolean }) => void): Unsubscribe;
+
   /** Subscribe to update-available event. */
   onUpdateAvailable(callback: (info: { version: string; releaseNotes?: string; releaseDate?: string }) => void): Unsubscribe;
 

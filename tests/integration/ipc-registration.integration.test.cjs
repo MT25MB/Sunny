@@ -112,14 +112,16 @@ describe('IPC — SUNNY_TOOLS allowlist', () => {
     }
   });
 
-  it('SUNNY_TOOLS allowlist is identical in main.cjs and preload.cjs', () => {
-    const mainToolsMatch = mainCjs.match(/const SUNNY_TOOLS = \[([^\]]+)\]/);
-    const preloadToolsMatch = preloadCjs.match(/const SUNNY_TOOLS = \[([^\]]+)\]/);
-    const mainTools = mainToolsMatch ? mainToolsMatch[1] : '';
-    const preloadTools = preloadToolsMatch ? preloadToolsMatch[1] : '';
-    assert.ok(mainTools, 'main.cjs should define SUNNY_TOOLS');
-    assert.ok(preloadTools, 'preload.cjs should define SUNNY_TOOLS');
-    assert.strictEqual(mainTools.trim(), preloadTools.trim());
+  it('SUNNY_TOOLS allowlist is sourced from shared JSON in both files', () => {
+    assert.ok(mainCjs.includes("require('../shared/sunny-tools.json')"), 'main.cjs should require shared sunny-tools.json');
+    assert.ok(preloadCjs.includes("require('../shared/sunny-tools.json')"), 'preload.cjs should require shared sunny-tools.json');
+    const sharedPath = path.join(process.cwd(), 'src/shared/sunny-tools.json');
+    assert.ok(fs.existsSync(sharedPath), 'shared sunny-tools.json should exist');
+    const sharedTools = JSON.parse(fs.readFileSync(sharedPath, 'utf8'));
+    assert.ok(Array.isArray(sharedTools));
+    assert.strictEqual(sharedTools.length, 8);
+    assert.ok(sharedTools.includes('get_system_status'));
+    assert.ok(sharedTools.includes('execute_actions'));
   });
 });
 

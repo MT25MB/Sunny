@@ -8,6 +8,8 @@ const speech = require('./speech.cjs');
 const windowState = require('./window-state.cjs');
 const { getCredentialPath: resolveCredentialPath } = require('./credential-path.cjs');
 const { interceptAction, sanitizeUntrustedContent, checkParameterAmbiguity, DESTRUCTIVE_TEXT_PATTERN } = require('../main/security/interceptor.cjs');
+const secureStorage = require('./secure-storage.cjs');
+const pinAuth = require('./pin-auth.cjs');
 
 // ============================================================================
 // Global error guard — never let a main-process throw reach Electron's modal.
@@ -87,6 +89,8 @@ const SENSITIVE_OPERATIONS = new Set([
   'export_debug_logs',    // Exporting debug logs
   'read_clipboard',       // Reading system clipboard
   'write_clipboard',      // Writing to system clipboard
+  'set_pin',              // Setting or changing PIN
+  'remove_pin',           // Removing PIN
   // Voice input is deliberately not here. Holding the microphone button and
   // letting go is the consent; asking again with a modal dialog every time
   // would make the feature unusable. The transcript never leaves the
@@ -427,7 +431,8 @@ const MAX_DRAG_DURATION_MS = 5000;
 const MAX_HOTKEY_KEYS = 4;
 
 const SPEECH_PRIORITIES = ['low', 'normal', 'high', 'urgent'];
-const SUNNY_TOOLS = ['get_system_status', 'speak_notification', 'search_recipe', 'get_daily_digest', 'schedule_medication_reminder', 'emit_cooking_step', 'decide_action', 'execute_actions'];
+// SUNNY_TOOLS is now sourced from the shared JSON to avoid duplication.
+const SUNNY_TOOLS = require('../shared/sunny-tools.json');
 
 /**
  * Anti-Injection System Prompt Guardrail
@@ -462,13 +467,10 @@ function getRemindersFilePath() {
 function loadMedicationReminders() {
   const filePath = getRemindersFilePath();
   try {
-    if (fs.existsSync(filePath)) {
-      const content = fs.readFileSync(filePath, 'utf8');
-      const data = JSON.parse(content);
-      if (Array.isArray(data)) {
-        for (const r of data) {
-          medicationReminders.set(r.id, r);
-        }
+    const data = secureStorage.readFile(filePath);
+    if (Array.isArray(data)) {
+      for (const r of data) {
+        medicationReminders.set(r.id, r);
       }
     }
   } catch (err) {
@@ -481,7 +483,7 @@ function saveMedicationReminders() {
   const filePath = getRemindersFilePath();
   try {
     const data = Array.from(medicationReminders.values());
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+    secureStorage.writeFile(filePath, data);
   } catch (err) {
     console.error('[Medication] Failed to save reminders:', err);
   }
@@ -2301,6 +2303,49 @@ ipcMain.handle('sunny:get-window-info', withSecurityConfirmation(
   }
 ));
 
+// PIN authentication handlers
+ipcMain.handle('sunny:has-pin', (event) => {
+  assertTrustedSender(event);
+  return { hasPin: pinAuth.hasPin(app.getPath('userData')) };
+});
+
+ipcMain.handle('sunny:set-pin', withSecurityConfirmation(
+  'set_pin',
+  'Sunny will set or change your PIN.',
+  async (event, pin) => {
+    rateLimit('sunny:set-pin');
+    assertTrustedSender(event);
+    if (typeof pin !== 'string') throw new Error('PIN must be a string.');
+    const result = pinAuth.setPin(app.getPath('userData'), pin);
+    if (!result.success) throw new Error(result.error || 'Failed to set PIN.');
+    return result;
+  }
+));
+
+ipcMain.handle('sunny:verify-pin', (event, pin) => {
+  assertTrustedSender(event);
+  if (typeof pin !== 'string') throw new Error('PIN must be a string.');
+  return pinAuth.verifyPin(app.getPath('userData'), pin);
+});
+
+ipcMain.handle('sunny:remove-pin', withSecurityConfirmation(
+  'remove_pin',
+  'Sunny will remove your PIN.',
+  async (event, currentPin) => {
+    rateLimit('sunny:remove-pin');
+    assertTrustedSender(event);
+    if (typeof currentPin !== 'string') throw new Error('Current PIN must be a string.');
+    const result = pinAuth.removePin(app.getPath('userData'), currentPin);
+    if (!result.success) throw new Error(result.error || 'Failed to remove PIN.');
+    return result;
+  }
+));
+
+ipcMain.handle('sunny:get-lockout-status', (event) => {
+  assertTrustedSender(event);
+  return pinAuth.getLockoutStatus();
+});
+
 // Emergency stop status
 ipcMain.handle('sunny:emergency-stop-status', (event) => {
   assertTrustedSender(event);
@@ -2926,6 +2971,22 @@ app.whenReady().then(() => {
   createWindow();
   startStatusBroadcast();
 
+  // Auto-lock on inactivity (5 minutes)
+  let lastActivity = Date.now();
+  const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000;
+  setInterval(() => {
+    if (pinAuth.hasPin(app.getPath('userData')) && Date.now() - lastActivity > INACTIVITY_TIMEOUT_MS) {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('sunny:lock-app', { locked: true });
+      }
+    }
+  }, 30000);
+
+  // Reset inactivity timer on user interaction
+  mainWindow.webContents.on('did-finish-load', () => {
+    lastActivity = Date.now();
+  });
+
   // Fire any medication reminders that were missed while the app was closed.
   // The window now exists so events can be delivered to the renderer.
   catchUpMissedReminders();
@@ -2945,6 +3006,11 @@ app.whenReady().then(() => {
   // digest) still works. Killing the process would leave the user with no
   // window and no way to recover, which is the worst outcome for an app
   // aimed at older adults.
+  try {
+    inference.cleanupOldLogs();
+  } catch (err) {
+    console.error('[Startup] Log cleanup failed:', err);
+  }
   inference.initModel((status) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('sunny:model-progress', status);

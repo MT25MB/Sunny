@@ -40,6 +40,8 @@ function getScreenshotDir() {
   return path.join(getLogDir(), 'screenshots');
 }
 
+const secureStorage = require('./secure-storage.cjs');
+
 function ensureLogDirs() {
   const logDir = getLogDir();
   const screenshotDir = getScreenshotDir();
@@ -329,17 +331,14 @@ function writeDebugLog(entry) {
   const logFile = path.join(getLogDir(), 'task-history.json');
   let logs = [];
   try {
-    if (fs.existsSync(logFile)) {
-      const content = fs.readFileSync(logFile, 'utf-8');
-      logs = JSON.parse(content);
-      if (!Array.isArray(logs)) logs = [];
-    }
+    const existing = secureStorage.readFile(logFile);
+    if (Array.isArray(existing)) logs = existing;
   } catch {
     logs = [];
   }
   const sanitized = JSON.parse(sanitizeForLog(entry));
   logs.push(sanitized);
-  fs.writeFileSync(logFile, JSON.stringify(logs, null, 2), 'utf-8');
+  secureStorage.writeFile(logFile, logs);
 }
 
 function clearDebugLogs() {
@@ -394,8 +393,7 @@ function cleanupOldLogs() {
   const logFile = path.join(getLogDir(), 'task-history.json');
   try {
     if (fs.existsSync(logFile)) {
-      const content = fs.readFileSync(logFile, 'utf-8');
-      const logs = JSON.parse(content);
+      const logs = secureStorage.readFile(logFile);
       if (Array.isArray(logs)) {
         const cutoff = new Date(now - TASK_LOG_RETENTION_MS).toISOString();
         const filtered = logs.filter((entry) => {
@@ -403,7 +401,7 @@ function cleanupOldLogs() {
           return typeof created === 'string' && created >= cutoff;
         });
         if (filtered.length !== logs.length) {
-          fs.writeFileSync(logFile, JSON.stringify(filtered, null, 2), 'utf-8');
+          secureStorage.writeFile(logFile, filtered);
         }
       }
     }
@@ -416,8 +414,8 @@ function exportDebugLogs() {
   const logFile = path.join(getLogDir(), 'task-history.json');
   try {
     if (!fs.existsSync(logFile)) return { content: '[]' };
-    const content = fs.readFileSync(logFile, 'utf-8');
-    return { content };
+    const logs = secureStorage.readFile(logFile);
+    return { content: JSON.stringify(logs || [], null, 2) };
   } catch {
     return { content: '[]' };
   }
@@ -427,8 +425,7 @@ function getDebugLogCount() {
   const logFile = path.join(getLogDir(), 'task-history.json');
   try {
     if (!fs.existsSync(logFile)) return { count: 0 };
-    const content = fs.readFileSync(logFile, 'utf-8');
-    const logs = JSON.parse(content);
+    const logs = secureStorage.readFile(logFile);
     return { count: Array.isArray(logs) ? logs.length : 0 };
   } catch {
     return { count: 0 };
@@ -444,4 +441,5 @@ module.exports = {
   exportDebugLogs,
   getDebugLogCount,
   ensureLogDirs,
+  cleanupOldLogs,
 };

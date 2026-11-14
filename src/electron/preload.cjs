@@ -27,8 +27,8 @@ function readMainArg(prefix) {
   return hit ? hit.slice(prefix.length) : '';
 }
 
-/** Names of every tool the main process will execute. Mirrors main.cjs. */
-const SUNNY_TOOLS = ['get_system_status', 'speak_notification', 'search_recipe', 'get_daily_digest', 'schedule_medication_reminder', 'emit_cooking_step', 'decide_action', 'execute_actions'];
+/** Names of every tool the main process will execute. Sourced from shared JSON. */
+const SUNNY_TOOLS = require('../shared/sunny-tools.json');
 
 /**
  * Dangerous shell metacharacters / sequences that could enable command
@@ -341,11 +341,55 @@ const electronAPI = {
   /** Get information about the active window. */
   getWindowInfo: async () => ipcRenderer.invoke('sunny:get-window-info'),
 
+  /** Check if a PIN is configured. */
+  hasPin: async () => ipcRenderer.invoke('sunny:has-pin'),
+
+  /** Set or change the PIN. */
+  setPin: async (pin) => ipcRenderer.invoke('sunny:set-pin', pin),
+
+  /** Verify a PIN. */
+  verifyPin: async (pin) => ipcRenderer.invoke('sunny:verify-pin', pin),
+
+  /** Remove the PIN. */
+  removePin: async (currentPin) => ipcRenderer.invoke('sunny:remove-pin', currentPin),
+
+  /** Get lockout status. */
+  getLockoutStatus: async () => ipcRenderer.invoke('sunny:get-lockout-status'),
+
+  /** Check if a PIN is configured. */
+  hasPin: async () => ipcRenderer.invoke('sunny:has-pin'),
+
+  /** Set or change the PIN. */
+  setPin: async (pin) => ipcRenderer.invoke('sunny:set-pin', pin),
+
+  /** Verify a PIN. */
+  verifyPin: async (pin) => ipcRenderer.invoke('sunny:verify-pin', pin),
+
+  /** Remove the PIN. */
+  removePin: async (currentPin) => ipcRenderer.invoke('sunny:remove-pin', currentPin),
+
+  /** Get lockout status. */
+  getLockoutStatus: async () => ipcRenderer.invoke('sunny:get-lockout-status'),
+
+  /** Subscribe to lock-app events. */
+  onLockApp: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('sunny:lock-app', handler);
+    return () => ipcRenderer.removeListener('sunny:lock-app', handler);
+  },
+
   /** Get emergency stop status. */
   getEmergencyStopStatus: async () => ipcRenderer.invoke('sunny:emergency-stop-status'),
 
   /** Reset emergency stop flag. */
   resetEmergencyStop: async () => ipcRenderer.invoke('sunny:reset-emergency-stop'),
+
+  /** Subscribe to lock-app events. */
+  onLockApp: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('sunny:lock-app', handler);
+    return () => ipcRenderer.removeListener('sunny:lock-app', handler);
+  },
 
   /** Subscribe to emergency stop events. */
   onEmergencyStop: (callback) => {

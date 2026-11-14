@@ -40,6 +40,7 @@ import OfflineFallback from "@/components/OfflineFallback";
 import Footer from "@/components/Footer";
 import { SettingsModal } from "@/components/SettingsModal";
 import { OnboardingScreen } from "@/components/OnboardingScreen";
+import LockScreen from "@/components/LockScreen";
 import { UpdateToast } from "@/components/UpdateToast";
 import { MicButton } from "@/components/MicButton";
 import {
@@ -98,6 +99,7 @@ function App() {
   const [debugLogCount, setDebugLogCount] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
   const [preferences, setPreferences] = useState<SunnyPreferences>(defaultPreferences);
   const [alwaysOnTop, setAlwaysOnTop] = useState(false);
   const [autoCheckUpdates, setAutoCheckUpdates] = useState(false);
@@ -305,6 +307,21 @@ function App() {
   // Load preferences on mount
   useEffect(() => {
     loadPreferences();
+    // Check if PIN lock is enabled
+    if (window.electronAPI?.hasPin) {
+      window.electronAPI.hasPin().then((result) => {
+        if (result?.hasPin) {
+          setIsLocked(true);
+        }
+      }).catch(() => {});
+    }
+    // Listen for lock-app events from main process (auto-lock)
+    if (window.electronAPI?.onLockApp) {
+      const unsub = window.electronAPI.onLockApp(() => {
+        setIsLocked(true);
+      });
+      return () => { unsub(); };
+    }
   }, [loadPreferences]);
 
   // Subscribe to model progress
@@ -671,6 +688,10 @@ function App() {
   // app behind the fallback would hide working features from the user, so the
   // fallback is shown as a notice and the UI stays usable.
   const showOfflineFallback = modelStatus?.status === "error" || modelError !== null;
+  if (isLocked) {
+    return <LockScreen onUnlock={() => setIsLocked(false)} />;
+  }
+
   return (
     <>
       <ErrorBoundary>
