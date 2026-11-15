@@ -20751,42 +20751,43 @@ textarea::placeholder { color: #65747b; }
 
 
 
-/* On Windows the OS draws minimise/maximise/close over the header top right. Reserve room there so the header never wraps to a second row, which made the bar look vertical on narrower screens. */
-.app-header.native-titlebar {
-  padding-right: 90px;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/* On Windows the OS draws minimise/maximise/close over the header top right. Reserve room there so the header never wraps to a second row, which made the bar look vertical on narrower screens. */
+.app-shell.native-titlebar .app-header {
+  padding-right: 90px;
 }
 
 
@@ -53686,10 +53687,4 @@ textarea::placeholder { color: #65747b; }
 
 
 
-}
-
-/* The native Windows title-bar overlay draws the OS buttons over the header,
-   so pad the right edge so they never cover the header actions. */
-.app-header.native-titlebar {
-  padding-right: 150px;
 }
