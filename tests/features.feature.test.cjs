@@ -97,9 +97,11 @@ test("section mascot caption CSS is present", () => {
 
 test("App.tsx renders digest weather when data is available", () => {
   assert.ok(/digest-weather/.test(APP), "App.tsx must render digest-weather");
-  assert.ok(/weather-feels/.test(APP), "App.tsx must render weather-feels");
   assert.ok(/weather-details/.test(APP), "App.tsx must render weather-details");
   assert.ok(/detail-label/.test(APP), "App.tsx must render detail-label");
+  assert.ok(/detail-value/.test(APP), "App.tsx must render the weather detail values");
+  assert.ok(/Feels Like/.test(APP), "App.tsx must render the Feels Like tile");
+  assert.ok(/UV Index/.test(APP), "App.tsx must render the UV Index tile");
 });
 
 test("App.tsx renders digest news when data is available", () => {

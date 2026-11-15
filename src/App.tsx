@@ -18,6 +18,15 @@ import {
   Pill,
   Newspaper,
   Sun,
+  Moon,
+  Thermometer,
+  Droplets,
+  Wind,
+  Gauge,
+  Eye,
+  CloudRain,
+  Sunrise,
+  ArrowUpDown,
   Contrast,
   ChevronLeft,
   ChevronRight,
@@ -58,6 +67,15 @@ import {
   type SectionState,
 } from "@/lib/section-state";
 import mascot from "/assets/mascot.png";
+
+/** UV index descriptor for the weather tiles (Low, Moderate, ...). */
+function uvIndexLabel(uv: number): string {
+  if (uv < 3) return "Low";
+  if (uv < 6) return "Moderate";
+  if (uv < 8) return "High";
+  if (uv < 11) return "Very High";
+  return "Extreme";
+}
 
 /**
  * Unwrap the envelope every tool call comes back in.
@@ -1238,27 +1256,89 @@ function App() {
                   {dailyDigest ? (
                     <div className="digest-display">
                       <div className="digest-weather">
-                        <h3><Sun size={18} /> Weather</h3>
+                        <h3>
+                          {dailyDigest.weather.isDay === false ? <Moon size={18} /> : <Sun size={18} />} Weather
+                        </h3>
                         <p className="weather-main">
                           <span className="temp">{dailyDigest.weather.temperature}°C</span>
                           <span className="condition">{dailyDigest.weather.condition}</span>
                         </p>
                         <p className="weather-location">{dailyDigest.weather.location}</p>
-                        {dailyDigest.weather.feelsLike !== undefined && (
-                          <p className="weather-feels">Feels like {dailyDigest.weather.feelsLike}°C</p>
-                        )}
                         <div className="weather-details">
+                          {dailyDigest.weather.feelsLike !== undefined && (
+                            <div className="weather-detail">
+                              <Thermometer size={18} className="detail-icon" aria-hidden="true" />
+                              <span className="detail-label">Feels Like</span>
+                              <span className="detail-value">{dailyDigest.weather.feelsLike}°C</span>
+                            </div>
+                          )}
                           {dailyDigest.weather.humidity !== undefined && (
-                            <span className="weather-detail"><span className="detail-label">Humidity:</span> {dailyDigest.weather.humidity}%</span>
+                            <div className="weather-detail">
+                              <Droplets size={18} className="detail-icon" aria-hidden="true" />
+                              <span className="detail-label">Humidity</span>
+                              <span className="detail-value">{dailyDigest.weather.humidity}%</span>
+                            </div>
                           )}
                           {dailyDigest.weather.windSpeed !== undefined && (
-                            <span className="weather-detail"><span className="detail-label">Wind:</span> {dailyDigest.weather.windSpeed} km/h</span>
+                            <div className="weather-detail">
+                              <Wind size={18} className="detail-icon" aria-hidden="true" />
+                              <span className="detail-label">Wind</span>
+                              <span className="detail-value">
+                                {dailyDigest.weather.windSpeed} km/h{dailyDigest.weather.windDirection ? ` ${dailyDigest.weather.windDirection}` : ""}
+                              </span>
+                            </div>
+                          )}
+                          {dailyDigest.weather.windGust !== undefined && (
+                            <div className="weather-detail">
+                              <Wind size={18} className="detail-icon" aria-hidden="true" />
+                              <span className="detail-label">Gusts</span>
+                              <span className="detail-value">{dailyDigest.weather.windGust} km/h</span>
+                            </div>
+                          )}
+                          {dailyDigest.weather.precipitationChance !== undefined && (
+                            <div className="weather-detail">
+                              <CloudRain size={18} className="detail-icon" aria-hidden="true" />
+                              <span className="detail-label">Chance of Rain</span>
+                              <span className="detail-value">{dailyDigest.weather.precipitationChance}%</span>
+                            </div>
+                          )}
+                          {dailyDigest.weather.uvIndex !== undefined && (
+                            <div className="weather-detail">
+                              <Sun size={18} className="detail-icon" aria-hidden="true" />
+                              <span className="detail-label">UV Index</span>
+                              <span className="detail-value">{dailyDigest.weather.uvIndex} ({uvIndexLabel(dailyDigest.weather.uvIndex)})</span>
+                            </div>
                           )}
                           {dailyDigest.weather.high !== undefined && dailyDigest.weather.low !== undefined && (
-                            <span className="weather-detail"><span className="detail-label">High/Low:</span> {dailyDigest.weather.high}°C / {dailyDigest.weather.low}°C</span>
+                            <div className="weather-detail">
+                              <ArrowUpDown size={18} className="detail-icon" aria-hidden="true" />
+                              <span className="detail-label">High / Low</span>
+                              <span className="detail-value">{dailyDigest.weather.high}° / {dailyDigest.weather.low}°</span>
+                            </div>
+                          )}
+                          {dailyDigest.weather.pressure !== undefined && (
+                            <div className="weather-detail">
+                              <Gauge size={18} className="detail-icon" aria-hidden="true" />
+                              <span className="detail-label">Pressure</span>
+                              <span className="detail-value">{dailyDigest.weather.pressure} hPa</span>
+                            </div>
+                          )}
+                          {dailyDigest.weather.visibility !== undefined && (
+                            <div className="weather-detail">
+                              <Eye size={18} className="detail-icon" aria-hidden="true" />
+                              <span className="detail-label">Visibility</span>
+                              <span className="detail-value">{dailyDigest.weather.visibility} km</span>
+                            </div>
                           )}
                           {dailyDigest.weather.sunrise && dailyDigest.weather.sunset && (
-                            <span className="weather-detail"><span className="detail-label">Sunrise/Sunset:</span> {new Date(dailyDigest.weather.sunrise).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})} / {new Date(dailyDigest.weather.sunset).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</span>
+                            <div className="weather-detail">
+                              <Sunrise size={18} className="detail-icon" aria-hidden="true" />
+                              <span className="detail-label">Sunrise / Sunset</span>
+                              <span className="detail-value">
+                                {new Date(dailyDigest.weather.sunrise).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} /{" "}
+                                {new Date(dailyDigest.weather.sunset).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                            </div>
                           )}
                         </div>
                       </div>

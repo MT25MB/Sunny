@@ -2010,18 +2010,37 @@ async function fetchDailyDigest(location = 'auto', newsCount = 5) {
       }
     }
 
-    const weatherUrl = `${OPEN_METEO_API}?latitude=${latitude}&longitude=${longitude}&current_weather=true&timezone=auto`;
-    const weatherData = await fetchWithTimeout(weatherUrl, 8_000, 'The weather service');
+    const richUrl = `${OPEN_METEO_API}?latitude=${latitude}&longitude=${longitude}` +
+      `&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,pressure_msl,wind_speed_10m,wind_direction_10m,visibility,is_day` +
+      `&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max,sunrise,sunset,wind_gusts_10m_max` +
+      `&timezone=auto&forecast_days=1`;
+    let weatherData;
+    try {
+      weatherData = await fetchWithTimeout(richUrl, 8_000, 'The weather service');
+    } catch (richErr) {
+      // A richer response is a bonus, never a reason to lose the weather
+      // entirely - fall back to the minimal legacy shape.
+      console.warn('[Digest] Rich weather fetch failed, using the basic shape:', richErr.message);
+      weatherData = await fetchWithTimeout(`${OPEN_METEO_API}?latitude=${latitude}&longitude=${longitude}&current_weather=true&timezone=auto`, 8_000, 'The weather service');
+    }
 
-    const current = weatherData.current_weather || {};
+    const raw = weatherData.current || weatherData.current_weather || {};
     const daily = weatherData.daily || {};
     const weather = {
-      temperature: Math.round(current?.temperature || 0),
-      condition: getWeatherCondition(current?.weathercode || 0),
+      temperature: Math.round(raw.temperature_2m ?? raw.temperature ?? 0),
+      condition: getWeatherCondition(raw.weather_code ?? raw.weathercode ?? 0),
       location: locationName,
-      humidity: current?.relativehumidity_2m ?? undefined,
-      windSpeed: current?.windspeed_10m ?? undefined,
-      feelsLike: current?.apparent_temperature ?? undefined,
+      humidity: raw.relative_humidity_2m,
+      windSpeed: raw.wind_speed_10m !== undefined ? Math.round(raw.wind_speed_10m)
+        : raw.windspeed_10m !== undefined ? Math.round(raw.windspeed_10m) : undefined,
+      windDirection: raw.wind_direction_10m !== undefined ? compassFromDegrees(raw.wind_direction_10m) : undefined,
+      windGust: daily.wind_gusts_10m_max?.[0] !== undefined ? Math.round(daily.wind_gusts_10m_max[0]) : undefined,
+      feelsLike: raw.apparent_temperature !== undefined ? Math.round(raw.apparent_temperature) : undefined,
+      pressure: raw.pressure_msl !== undefined ? Math.round(raw.pressure_msl) : undefined,
+      visibility: raw.visibility !== undefined ? Math.round((raw.visibility / 1000) * 10) / 10 : undefined,
+      isDay: raw.is_day === undefined ? undefined : Boolean(raw.is_day),
+      precipitationChance: daily.precipitation_probability_max?.[0],
+      uvIndex: daily.uv_index_max?.[0] !== undefined ? Math.round(daily.uv_index_max[0] * 10) / 10 : undefined,
       high: daily?.temperature_2m_max ? Math.round(daily.temperature_2m_max[0]) : undefined,
       low: daily?.temperature_2m_min ? Math.round(daily.temperature_2m_min[0]) : undefined,
       sunrise: daily?.sunrise ? daily.sunrise[0] : undefined,
@@ -2061,6 +2080,13 @@ function getWeatherCondition(code) {
     96: 'Thunderstorm with slight hail', 99: 'Thunderstorm with heavy hail',
   };
   return conditions[code] || 'Unknown';
+}
+
+/** Compass direction (N, NNE, NE, ...) for a wind bearing in degrees. */
+function compassFromDegrees(deg) {
+  const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+  const index = Math.round((((deg % 360) + 360) % 360) / 22.5) % 16;
+  return directions[index];
 }
 
 async function scheduleMedicationReminder(pillName, timeString) {

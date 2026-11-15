@@ -139,7 +139,14 @@ export interface DailyDigest {
     location: string;
     humidity?: number;           // percentage
     windSpeed?: number;          // km/h
+    windDirection?: string;      // compass direction, e.g. "NW"
+    windGust?: number;           // km/h
     feelsLike?: number;          // °C
+    pressure?: number;           // hPa
+    visibility?: number;         // km
+    isDay?: boolean;             // daytime at the location
+    precipitationChance?: number; // % chance of precipitation today
+    uvIndex?: number;            // max UV index today
     high?: number;               // daily high °C
     low?: number;                // daily low °C
     sunrise?: string;            // ISO time
