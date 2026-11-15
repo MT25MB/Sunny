@@ -302,22 +302,14 @@ async function decideAction(prompt, providedImage) {
 
   const providedBase64 = stripDataUrlPrefix(providedImage);
 
-  // Sanitize the user prompt before embedding it in the vision-check
-  // classifier so instruction-like text cannot manipulate it.
-  const safePromptForVisionCheck = sanitizeUntrustedContent(prompt);
-  const visionCheck = await runConfiguredInference(
-    withSystemGuardrail(
-      'Does this request require seeing the user\'s screen to answer? '
-        + 'Answer with exactly one word: YES or NO. '
-        + 'User request: ' + safePromptForVisionCheck
-    ),
-    null
-  );
-
-  const needsScreen = /^YES$/i.test(visionCheck.response || '');
+  // Only capture the screen when the request actually points at it. The old
+  // path always ran a second ("do I need the screen?") LLM inference first,
+  // doubling the latency of every command and blowing the tool timeout on
+  // the local model.
+  const wantsScreen = /\b(screen|on\s+(the|my)\s+(screen|monitor)|this\s+(page|window|image|picture|photo|document)|the\s+(page|window|image|picture|photo|screenshot)|shown\s+here|visible\s+here|what\s+(is\s+)?(on|in)\s+(the\s+)?(screen|page|image|photo))\b/i.test(prompt);
 
   let imageBase64 = providedBase64;
-  if (needsScreen && !imageBase64) {
+  if (wantsScreen && !imageBase64) {
     // Capture the screen so the model can see what the user sees.
     const capture = await captureScreen();
     imageBase64 = stripDataUrlPrefix(capture.dataUrl);
@@ -509,6 +501,10 @@ const TOOL_CALL_TIMEOUT_MS = 10_000;
  */
 const TOOL_TIMEOUTS = {
   get_daily_digest: 45_000,
+  // Local-LLM decisions used to share the 10s default and were always
+  // killed - two inferences on CPU take far longer, and the ask is
+  // interactive, so give it real headroom.
+  decide_action: 120_000,
 };
 const APP_LAUNCH_TIMEOUT_MS = 10_000;
 const MAX_ACTIONS_PER_BATCH = 30;
@@ -1329,6 +1325,14 @@ async function executeActions(actions) {
       // Screenshots are taken through captureScreen; nothing to do here.
     } else if (action.type === 'open_app' && typeof action.app === 'string') {
       await openApp(action.app.toLowerCase());
+    } else if (action.type === 'web_search' && typeof action.query === 'string') {
+      // Opens the default browser (the user's Chrome, in this case) on the
+      // search results page. No automation module needed.
+      const query = action.query.trim();
+      if (!query || query.length > 200) {
+        throw new Error('The search query is empty or too long.');
+      }
+      await shell.openExternal(`https://www.google.com/search?q=${encodeURIComponent(query)}`);
     } else if (action.type === 'copy') {
       await automation.keyboard.pressKey(automation.Key.LeftControl, automation.Key.C);
     } else if (action.type === 'paste') {

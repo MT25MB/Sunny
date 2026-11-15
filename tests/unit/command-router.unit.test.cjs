@@ -29,6 +29,50 @@ const APP = fs.readFileSync(path.join(REPO, 'src', 'App.tsx'), 'utf8');
 // parseCommand — recognised commands
 // ---------------------------------------------------------------------------
 
+test('parseCommand routes web searches to Chrome', () => {
+  const cases = [
+    ['search up pineapple on google chrome', 'pineapple'],
+    ['search up pineapple', 'pineapple'],
+    ['search for pasta recipes', 'pasta recipes'],
+    ['search pasta recipes', 'pasta recipes'],
+    ['google weather london', 'weather london'],
+    ['look up pasta recipes', 'pasta recipes'],
+    ['find flights to rome', 'flights to rome'],
+    ['web search cats', 'cats'],
+    ['search the web for cats', 'cats'],
+    ['search for the weather', 'weather'],
+  ];
+  for (const [input, expected] of cases) {
+    const decision = parseCommand(input);
+    assert.ok(decision, `expected a decision for ${JSON.stringify(input)}`);
+    assert.deepEqual(
+      decision.actions,
+      [{ type: 'web_search', query: expected }],
+      `wrong query for ${JSON.stringify(input)}`
+    );
+  }
+});
+
+test('parseCommand leaves non-search text to the model', () => {
+  assert.equal(parseCommand('what is the time'), null);
+  assert.equal(parseCommand('tell me about cats'), null);
+  assert.equal(parseCommand('search'), null);
+});
+
+test('sanitiseModelAction accepts web_search with a sane query', () => {
+  const action = sanitiseModelAction({ type: 'web_search', query: 'pineapple' });
+  assert.deepEqual(action, { type: 'web_search', query: 'pineapple' });
+  assert.equal(sanitiseModelAction({ type: 'web_search', query: '' }), null);
+  assert.equal(sanitiseModelAction({ type: 'web_search', query: 'x' }), null);
+  assert.equal(sanitiseModelAction({ type: 'web_search', query: 'y'.repeat(200) }), null);
+});
+
+test('the JSON envelope protocol accepts web_search', () => {
+  const envelope = extractActionEnvelope('{"response": "Searching.", "actions": [{"type": "web_search", "query": "pineapple"}]}');
+  assert.ok(envelope);
+  assert.deepEqual(envelope.actions, [{ type: 'web_search', query: 'pineapple' }]);
+});
+
 test('parseCommand opens the calculator for plain and polite phrasings', () => {
   for (const input of [
     'open calculator',

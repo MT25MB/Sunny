@@ -47,11 +47,11 @@ describe('IPC runtime — decide_action handler', () => {
     assert.ok(mainCjs.includes('withSystemGuardrail(prompt)'));
   });
 
-  it('checks if vision is needed', () => {
-    assert.ok(mainCjs.includes('Does this request require seeing'));
-  });
-
-  it('captures screen when needed', () => {
+  it('captures the screen only when the prompt points at it', () => {
+    // The old path asked the model "do you need the screen?" on every
+    // request, doubling latency for every command. The screen is now
+    // captured only when the prompt contains screen-related words.
+    assert.ok(mainCjs.includes('wantsScreen'), 'decideAction must gate screen capture on the prompt');
     assert.ok(mainCjs.includes('captureScreen()'));
   });
 

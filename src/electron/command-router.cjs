@@ -60,6 +60,29 @@ const OPEN_APP_NAMES = {
   photos: 'the Photos app',
 };
 
+/**
+ * "search up pineapple on google chrome", "google weather london",
+ * "look up pasta recipes", "find flights to rome" -> a web search.
+ * The trailing "on google chrome / on google / on the web" is optional.
+ */
+const WEB_SEARCH_RE = /^(?:search(?:\s+(?:up|for))?|google|look\s+up|web\s+search|search\s+the\s+web\s+for|find)\s+([a-z0-9 .,&+-]{2,120}?)(?:\s+(?:on|in)\s+(?:google(?:\s+chrome|\s+search)?|chrome|the\s+web|the\s+internet))?$/;
+
+function parseWebSearch(text) {
+  const match = text.match(WEB_SEARCH_RE);
+  if (!match) return null;
+  // Drop connector words the user didn't mean as part of the query
+  // ("search the web for X" -> "X").
+  let query = match[1].trim();
+  while (/^(?:up|for|the|a|an|web|internet)\s+/i.test(query)) {
+    query = query.replace(/^(?:up|for|the|a|an|web|internet)\s+/i, '');
+  }
+  if (query.length < 2) return null;
+  return {
+    response: `Searching for "${query}".`,
+    actions: [{ type: 'web_search', query }],
+  };
+}
+
 const TRAILING_FILLERS = /\s+(for me|please|now|thanks|thank you)\.?$/i;
 
 /** Collapse case, punctuation and spacing so pattern matching is stable. */
@@ -136,6 +159,9 @@ function parseCommand(input) {
     };
   }
 
+  const webSearch = parseWebSearch(text);
+  if (webSearch) return webSearch;
+
   if (parseScreenshot(text)) {
     return {
       response: 'Taking a screenshot for you.',
@@ -176,6 +202,7 @@ function parseCommand(input) {
  */
 const SAFE_ACTION_TYPES = new Set([
   'open_app',
+  'web_search',
   'screenshot',
   'window_action',
   'copy',
@@ -205,6 +232,11 @@ function sanitiseModelAction(action) {
         return null;
       }
       return { type: 'open_app', app };
+    }
+    case 'web_search': {
+      const query = typeof action.query === 'string' ? action.query.trim() : '';
+      if (query.length < 2 || query.length > 120) return null;
+      return { type: 'web_search', query };
     }
     case 'screenshot':
       return { type: 'screenshot' };
@@ -290,11 +322,12 @@ function extractActionEnvelope(modelText) {
 const ACTION_PROTOCOL_SUFFIX =
   '\n\nIf the user asked you to do something on the computer, answer with a single JSON object and nothing else, in this exact shape: ' +
   '{"response": "short reply for the user", "actions": [{"type": "open_app", "app": "calculator"}]}. ' +
-  'Allowed action types: open_app (app), screenshot, window_action (action: minimize, maximize, close, show, hide), copy, paste, select_all, wait (ms), scroll (amount). ' +
+  'Allowed action types: open_app (app), web_search (query), screenshot, window_action (action: minimize, maximize, close, show, hide), copy, paste, select_all, wait (ms), scroll (amount). ' +
   'Only include actions the user clearly asked for. If no action is needed, answer in plain words with no JSON.';
 
 module.exports = {
   parseCommand,
+  parseWebSearch,
   normaliseCommand,
   sanitiseModelAction,
   extractActionEnvelope,
