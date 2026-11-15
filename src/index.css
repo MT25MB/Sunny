@@ -52994,3 +52994,104 @@ html, body, #root {
   color: #6f7f86;
   font: 600 0.75rem 'Atkinson Hyperlegible', ui-monospace, system-ui, sans-serif;
 }
+
+/* ===== Chat history: user messages in a distinct amber hue =====
+   User bubbles use a filled amber treatment (dark text, amber fill) so they
+   stand out from the assistant/system history, which uses the dark slate
+   panels the rest of the app uses. */
+.chat-msg {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  max-width: 85%;
+}
+
+.chat-msg.user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+  background: linear-gradient(145deg, #f1b568 0%, #e0a458 100%);
+  color: #1d1a16;
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+.chat-msg.user .msg-role {
+  background: #1d1a16;
+  color: #f6c97a;
+}
+
+.chat-msg.user .msg-text {
+  color: #1d1a16;
+}
+
+.chat-msg.user .msg-time {
+  color: #5a4632;
+}
+
+.chat-msg.assistant {
+  align-self: flex-start;
+  background: #1d262c;
+  border-color: #3a474d;
+  color: #f7f9fb;
+}
+
+.chat-msg.assistant .msg-role {
+  background: rgba(241, 181, 104, 0.14);
+  color: #f6c97a;
+}
+
+.chat-msg.assistant .msg-text {
+  color: #e8edf0;
+}
+
+.chat-msg.assistant .msg-time {
+  color: #7d8a90;
+}
+
+.chat-msg.system {
+  align-self: center;
+  max-width: 100%;
+  background: transparent;
+  border-color: transparent;
+  color: #93a4aa;
+  font-size: 0.8rem;
+  font-style: italic;
+  text-align: center;
+}
+
+.msg-role {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.5rem;
+  border-radius: 6px;
+  font: 700 0.68rem 'Atkinson Hyperlegible', ui-monospace, system-ui, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.msg-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.msg-text {
+  margin: 0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.msg-time {
+  font-size: 0.72rem;
+}
+
+.chat-empty {
+  color: #6f7f86;
+  text-align: center;
+  padding: 1.5rem 0.5rem;
+  font-style: italic;
+}
