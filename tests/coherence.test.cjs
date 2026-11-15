@@ -54,24 +54,25 @@ function extractConstObject(source, name) {
 // 1. Every app the router can open, APP_EXE_OPENERS must be able to launch.
 // ---------------------------------------------------------------------------
 
-test('every app key the command router can emit is launchable on this platform', () => {
+test('every app key the command router can emit is launchable on every platform', () => {
   const openers = extractConstObject(MAIN, 'APP_EXE_OPENERS');
-  const platform = process.platform;
-  const table = openers[platform] || {};
 
   const routerApps = new Set(ROUTER.OPEN_APP_ALIASES.map(([, app]) => app));
   assert.ok(routerApps.size > 0, 'router must declare at least one app');
 
-  for (const app of routerApps) {
-    const entry = table[app];
-    assert.ok(
-      entry,
-      `APP_EXE_OPENERS[${platform}]['${app}'] is missing - the router can emit "open ${app}" but the desktop cannot launch it`
-    );
-    assert.ok(
-      entry.exe || entry.uri,
-      `APP_EXE_OPENERS[${platform}]['${app}'] has no exe or uri - it can never launch`
-    );
+  for (const platform of ['win32', 'darwin', 'linux']) {
+    const table = openers[platform] || {};
+    for (const app of routerApps) {
+      const entry = table[app];
+      assert.ok(
+        entry,
+        `APP_EXE_OPENERS[${platform}]['${app}'] is missing - the router can emit "open ${app}" but ${platform} cannot launch it`
+      );
+      assert.ok(
+        entry.exe || entry.uri,
+        `APP_EXE_OPENERS[${platform}]['${app}'] has no exe or uri - it can never launch`
+      );
+    }
   }
 });
 

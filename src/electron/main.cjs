@@ -1165,6 +1165,8 @@ const APP_EXE_OPENERS = {
     calculator: { exe: 'gnome-calculator' },
     files: { exe: 'nautilus' },
     notepad: { exe: 'gedit' },
+    word: { exe: 'soffice', args: ['--writer'] },
+    excel: { exe: 'soffice', args: ['--calc'] },
     settings: { exe: 'gnome-control-center' },
     calendar: { exe: 'gnome-calendar' },
     maps: { uri: 'https://maps.google.com' },
