@@ -1113,13 +1113,13 @@ function resolveOpener(appKey) {
   return { exe: entry.exe, args: entry.args || [] };
 }
 
-/** Spawn a process with no shell involved. */
+/** Spawn a process with no shell involved. GUI apps (calc, notepad, explorer…)
+   stay running after launch, so we must not await their exit — that would
+   block forever. Fire and forget instead. */
 async function launchExecutable(exe, args) {
   const { execFile } = require('node:child_process');
-  const { promisify } = require('node:util');
-  const execFileAsync = promisify(execFile);
   try {
-    await execFileAsync(exe, args, { timeout: APP_LAUNCH_TIMEOUT_MS, windowsHide: true });
+    execFile(exe, args, { windowsHide: false });
     return { launched: true };
   } catch (err) {
     const code = err && err.code;
