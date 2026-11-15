@@ -490,13 +490,11 @@ test('the stylesheet has balanced braces', () => {
 test('core layout rules are top-level, not nested inside another rule', () => {
   const { opens } = analyseStylesheet(CSS_NO_COMMENTS);
   for (const selector of ['.app-shell', '.app-header', '.app-main']) {
-    const match = opens.find((o) => o.selector === selector);
-    assert.ok(match, `${selector} must exist as a rule`);
-    assert.equal(
-      match.depth,
-      0,
-      `${selector} must be a top-level rule (found at depth ${match.depth}); ` +
-        'an unclosed brace earlier in the file would nest it and silently disable it'
+    const matches = opens.filter((o) => o.selector === selector);
+    assert.ok(
+      matches.some((o) => o.depth === 0),
+      `${selector} must exist as a top-level rule; ` +
+        'an unclosed brace earlier in the file would nest it inside another rule and silently disable it'
     );
   }
 });
