@@ -88,6 +88,10 @@ jobs:
 
           SHOTS=$(mktemp -d)
           find public/assets/screenshots -name '*.png' -exec cp {} "$SHOTS"/ \;
+          # Discard the working-tree copies we just captured — their originals
+          # are safely in $SHOTS, so checking out origin/main won't be blocked
+          # by local modifications.
+          git checkout -- public/assets/screenshots
 
           git fetch origin main
           git checkout -B main origin/main
