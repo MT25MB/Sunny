@@ -20590,7 +20590,8 @@ textarea::placeholder { color: #65747b; }
 
 
 
-  flex-wrap: wrap;
+
+  flex-wrap: nowrap;
 
 
 
@@ -20719,6 +20720,42 @@ textarea::placeholder { color: #65747b; }
 
 
   -webkit-app-region: drag;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* On Windows the OS draws minimise/maximise/close over the header top right. Reserve room there so the header never wraps to a second row, which made the bar look vertical on narrower screens. */
+.app-header.native-titlebar {
+  padding-right: 90px;
+}
+
 
 
 
