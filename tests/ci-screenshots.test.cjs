@@ -182,3 +182,32 @@ test('the release waits for every platform before publishing', () => {
     'an upload that matches nothing must fail the leg, not warn'
   );
 });
+
+test('main.cjs handles Squirrel installer events before taking the instance lock', () => {
+  // electron-squirrel-startup must run before app.requestSingleInstanceLock()
+  // so install/update/uninstall short-circuit before any window logic.
+  const main = fs.readFileSync(path.join(REPO, 'src', 'electron', 'main.cjs'), 'utf8');
+  const squirrelIdx = main.indexOf('electron-squirrel-startup');
+  const lockIdx = main.indexOf('app.requestSingleInstanceLock()');
+  assert.ok(squirrelIdx !== -1, 'main.cjs must require electron-squirrel-startup');
+  assert.ok(lockIdx !== -1, 'main.cjs must take the single-instance lock');
+  assert.ok(squirrelIdx < lockIdx, 'squirrel handling must come before the instance lock');
+});
+
+test('forge.config.js squirrel maker brands the installer with the app icon', () => {
+  const forge = fs.readFileSync(path.join(REPO, 'forge.config.js'), 'utf8');
+  const maker = forge.slice(forge.indexOf('@electron-forge/maker-squirrel'));
+  assert.ok(/setupIcon/.test(maker), 'squirrel maker must set setupIcon');
+  assert.ok(/mascot\.ico/.test(maker), 'setupIcon must point at mascot.ico');
+});
+
+test('app icon files exist for every platform', () => {
+  assert.ok(
+    fs.existsSync(path.join(REPO, 'public/assets/mascot.ico')),
+    'mascot.ico must exist (Windows exe + shortcut icon)'
+  );
+  assert.ok(
+    fs.existsSync(path.join(REPO, 'public/assets/mascot.icns')),
+    'mascot.icns must exist (macOS DMG icon)'
+  );
+});

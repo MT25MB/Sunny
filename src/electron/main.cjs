@@ -1,5 +1,18 @@
 const { app, BrowserWindow, Menu, Tray, desktopCapturer, globalShortcut, ipcMain, nativeImage, safeStorage, screen, session, shell, dialog } = require('electron');
 const path = require('node:path');
+
+// ============================================================================
+// Squirrel.Windows installer events (install / update / uninstall / firstrun)
+// ============================================================================
+// electron-squirrel-startup creates desktop + Start Menu shortcuts on
+// install/update, removes them on uninstall, and returns true when it has
+// handled an event that means the app should not open a window. On a normal
+// launch (or --squirrel-firstrun after install) it returns false, so the app
+// opens as usual — this is why the app launches right after installation and
+// why Windows Search starts finding "Sunny" instead of only the installer.
+if (require('electron-squirrel-startup')) {
+  return;
+}
 const fs = require('node:fs');
 const os = require('node:os');
 const { pathToFileURL } = require('node:url');

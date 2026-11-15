@@ -53652,33 +53652,8 @@ textarea::placeholder { color: #65747b; }
 
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/* The native Windows title-bar overlay draws the OS buttons over the header,
+   so pad the right edge so they never cover the header actions. */
+.app-header.native-titlebar {
+  padding-right: 150px;
+}

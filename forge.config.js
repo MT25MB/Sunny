@@ -1,4 +1,9 @@
 import process from 'node:process';
+import path, { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-natives';
 
 const ONNX_NAPI_DIR = '/node_modules/onnxruntime-node/bin/napi-v6';
@@ -138,6 +143,7 @@ export default {
       config: {
         name: 'Sunny',
         setupExe: 'Sunny-Setup.exe',
+        setupIcon: path.resolve(__dirname, 'public/assets/mascot.ico'),
         authors: 'Sunny',
       },
     },
