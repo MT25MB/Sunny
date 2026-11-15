@@ -242,29 +242,62 @@ test('security: model loading does not use showErrorBox', () => {
 // executeActions security
 // ============================================================================
 
-test('security: executeActions uses execFile not shell', () => {
-  assert.ok(MAIN.includes("const { execFile } = require('node:child_process');"));
+test('security: GUI launching goes through the spawn-based launcher, not shell', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const launchSrc = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'src', 'electron', 'launch-executable.cjs'),
+    'utf8'
+  );
+  assert.ok(launchSrc.includes("require('node:child_process')"));
+  assert.ok(launchSrc.includes('spawn('), 'launcher uses spawn (no shell)');
+  assert.ok(!launchSrc.includes('exec('), 'launcher never uses the shell');
+});
+
+test('security: launcher reports spawn failure (never claims success falsely)', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const launchSrc = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'src', 'electron', 'launch-executable.cjs'),
+    'utf8'
+  );
+  // A GUI app that cannot be spawned must resolve launched:false with a
+  // readable error, otherwise the UI claims "Done." while nothing opened.
+  assert.ok(launchSrc.includes("child.on('error'"));
+  assert.ok(launchSrc.includes('launched: false'));
+  // openApp must throw on launch failure so execute_actions reports the error
+  const mainSrc = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '..', '..', 'src', 'electron', 'main.cjs'),
+    'utf8'
+  );
+  assert.ok(mainSrc.includes('launched.launched === false'), 'openApp must throw when the launch fails');
 });
 
 test('security: executeActions launches GUI apps fire-and-forget', () => {
-  // launchExecutable calls execFile directly without promisify/await, so GUI
-  // apps (calc, notepad, explorer…) don't block the handler waiting for them
-  // to exit.
-  const launchStart = MAIN.indexOf('async function launchExecutable');
-  const launchEnd = MAIN.indexOf('async function', launchStart + 1);
-  const launchBody = MAIN.slice(launchStart, launchEnd === -1 ? undefined : launchEnd);
-  assert.ok(launchBody.includes('execFile('), 'launchExecutable calls execFile');
-  assert.ok(!launchBody.includes('promisify'), 'launchExecutable does not promisify execFile');
-  assert.ok(!launchBody.includes('await execFile'), 'launchExecutable does not await execFile');
+  // launchExecutable resolves on the 'spawn' event without ever awaiting
+  // the process exit, so GUI apps (calc, notepad, explorer…) don't block
+  // the handler waiting for them to exit.
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const launchSrc = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'src', 'electron', 'launch-executable.cjs'),
+    'utf8'
+  );
+  assert.ok(!launchSrc.includes('promisify'), 'launcher does not promisify execFile');
+  assert.ok(!launchSrc.includes('await execFile'), 'launcher does not await execFile');
+  assert.ok(launchSrc.includes("child.on('spawn'"), 'launcher resolves on spawn, not exit');
 });
 
 test('security: executeActions has no launch timeout for GUI apps', () => {
   // GUI apps stay running, so there is no timeout awaiting their exit.
-  const launchStart = MAIN.indexOf('async function launchExecutable');
-  const launchEnd = MAIN.indexOf('async function', launchStart + 1);
-  const launchBody = MAIN.slice(launchStart, launchEnd === -1 ? undefined : launchEnd);
-  assert.ok(!launchBody.includes('APP_LAUNCH_TIMEOUT_MS'), 'launchExecutable has no timeout');
-  assert.ok(!launchBody.includes('windowsHide: true'), 'launchExecutable does not hide the window');
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const launchSrc = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'src', 'electron', 'launch-executable.cjs'),
+    'utf8'
+  );
+  assert.ok(!launchSrc.includes('APP_LAUNCH_TIMEOUT_MS'), 'launchExecutable has no timeout');
+  assert.ok(!launchSrc.includes('windowsHide: true'), 'launchExecutable does not hide the window');
 });
 
 test('security: executeActions limits actions per batch', () => {

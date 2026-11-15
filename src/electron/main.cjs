@@ -1190,25 +1190,9 @@ function resolveOpener(appKey) {
   };
 }
 
-/** Spawn a process with no shell involved. GUI apps (calc, notepad, explorer…)
-   stay running after launch, so we must not await their exit — that would
-   block forever. Fire and forget instead. */
-async function launchExecutable(exe, args) {
-  const { execFile } = require('node:child_process');
-  try {
-    execFile(exe, args, { windowsHide: false });
-    return { launched: true };
-  } catch (err) {
-    const code = err && err.code;
-    if (code === 'ENOENT' || code === 127) {
-      return { launched: false, error: `"${exe}" was not found on this computer.` };
-    }
-    if (code === 'ETIMEDOUT') {
-      return { launched: false, error: `"${exe}" took too long to start.` };
-    }
-    return { launched: false, error: (err && err.message) || 'Unknown error while launching the application.' };
-  }
-}
+// Extracted into its own module: it reports spawn failures instead of
+// always claiming success, and it is unit tested in plain Node.
+const { launchExecutable } = require('./launch-executable.cjs');
 
 async function openApp(appKey) {
   const opener = resolveOpener(appKey);
@@ -1226,9 +1210,15 @@ async function openApp(appKey) {
       console.warn('[openApp] URI scheme failed, trying exe fallback:', err.message);
     }
   }
-  // Fall back to exe (fire-and-forget, no await)
+  // Fall back to the exe. GUI apps stay running after launch, so
+  // launchExecutable resolves on the 'spawn' event, never on exit - and a
+  // failure to spawn is reported to the user, not swallowed.
   if (opener.exe) {
-    return launchExecutable(opener.exe, opener.args);
+    const launched = await launchExecutable(opener.exe, opener.args);
+    if (launched && launched.launched === false) {
+      throw new Error(launched.error);
+    }
+    return launched;
   }
   return { launched: true };
 }

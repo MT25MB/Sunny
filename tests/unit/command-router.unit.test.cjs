@@ -196,3 +196,29 @@ test('App.tsx unwraps the { success, data } envelope before reading the decision
     'the old shape-mismatched cast must be gone'
   );
 });
+
+test('App.tsx tells the user when an action fails, instead of claiming it succeeded', () => {
+  // execute_actions errors come back as { success: false, error } INSIDE a
+  // successful IPC response; the renderer must surface that, not "Completed".
+  assert.ok(APP.includes('Execution failed: '), 'the chat must surface execution failures');
+  assert.ok(
+    APP.includes("execOutcome.success === false"),
+    'the chat must check the unwrapped outcome for failure'
+  );
+  assert.ok(
+    !APP.includes('"Completed: " + actions.map(a => a.type).join(", ")'),
+    'the unconditional success message must be gone'
+  );
+});
+
+test('App.tsx shows the friendly response instead of a generic "Done."', () => {
+  assert.ok(
+    APP.includes('decision.response || "Done."'),
+    'the assistant message should carry the model/router response when present'
+  );
+  // The error path for decide_action failures must exist too.
+  assert.ok(
+    APP.includes('Could not understand: '),
+    'the chat must surface decide_action failures'
+  );
+});

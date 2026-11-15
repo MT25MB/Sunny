@@ -408,19 +408,20 @@ test('the app shell is a flex column with constrained height', () => {
 });
 
 test('launchExecutable is fire-and-forget (does not await process exit)', () => {
-  // Awaiting execFile blocks until the GUI app exits, so the handler hangs
-  // for apps that stay running (calc, notepad, explorer...).
-  const fnStart = MAIN.indexOf('async function launchExecutable');
-  const fnEnd = MAIN.indexOf('async function', fnStart + 1);
-  const fnBody = MAIN.slice(fnStart, fnEnd === -1 ? undefined : fnEnd);
+  // Awaiting the process blocks until the GUI app exits, so the handler
+  // would hang for apps that stay running (calc, notepad, explorer...).
+  // Resolution must happen on the 'spawn' event, never on exit.
+  const LAUNCH = fs.readFileSync(path.join(REPO, 'src', 'electron', 'launch-executable.cjs'), 'utf8');
   assert.ok(
-    !fnBody.includes('await execFile'),
-    'launchExecutable must not await execFile (fire-and-forget)'
+    LAUNCH.includes("child.on('spawn'"),
+    'launchExecutable must resolve on the spawn event, not on process exit'
   );
   assert.ok(
-    !fnBody.includes('promisify'),
-    'launchExecutable must not promisify execFile'
+    LAUNCH.includes("child.on('error'"),
+    'launchExecutable must surface spawn failures instead of claiming success'
   );
+  assert.ok(!LAUNCH.includes('promisify'), 'launchExecutable must not promisify execFile');
+  assert.ok(!LAUNCH.includes('execFile('), 'launchExecutable must not use execFile');
 });
 
 test('fetchDigestNews uses the internet without invalid API key', () => {
@@ -538,5 +539,43 @@ test('the shell gets the letterboxed class when the window is filled', () => {
     APP,
     /windowFilled \? ' letterboxed'/,
     'App.tsx must add the letterboxed class to .app-shell when windowFilled is true'
+  );
+});
+
+test('the window restore is clamped to the work area (it cannot open off-screen)', () => {
+  // A persisted y below the screen top would hide the header above the
+  // screen edge; a persisted size larger than the display would clip the
+  // bottom. The restore path must clamp both to the display it lands on.
+  const start = MAIN.indexOf('function resolveInitialWindowBounds');
+  assert.notStrictEqual(start, -1, 'resolveInitialWindowBounds must exist');
+  const end = MAIN.indexOf('function persistWindowState', start);
+  const body = MAIN.slice(start, end === -1 ? undefined : end);
+  assert.match(body, /Math\.max\(saved\.y,\s*area\.y\)/, 'restore must clamp y to the work area');
+  assert.match(body, /Math\.min\(saved\.y \+ saved\.height, area\.y \+ area\.height\)/, 'restore must clamp the bottom edge');
+  assert.match(body, /Math\.min\(saved\.width, area\.width\)/, 'restore must clamp width to the screen');
+  assert.match(body, /Math\.min\(saved\.height, area\.height\)/, 'restore must clamp height to the screen');
+});
+
+test('the preload requires only Electron (the sandbox cannot see local files)', () => {
+  // A sandboxed preload runs before the app window exists and cannot load
+  // local files; requiring anything else made electronAPI undefined in the
+  // packaged build and showed the "previewing in a web browser" banner.
+  const PRELOAD = fs.readFileSync(path.join(REPO, 'src', 'electron', 'preload.cjs'), 'utf8');
+  const requires = [...PRELOAD.matchAll(/require\(([^)]+)\)/g)].map((m) => m[1]);
+  assert.deepEqual(requires, ["'electron'"], 'preload must require exactly electron and nothing else');
+});
+
+test('the browser-preview banner never shows inside the packaged app', () => {
+  // The banner is a development aid for the plain-browser preview. It must
+  // be conditioned on the bridge being absent, not render unconditionally.
+  const APP = fs.readFileSync(path.join(REPO, 'src', 'App.tsx'), 'utf8');
+  assert.match(
+    APP,
+    /const isBrowserPreview = typeof window !== "undefined" && !window\.electronAPI/,
+    'the preview banner must be gated on window.electronAPI being absent'
+  );
+  assert.ok(
+    APP.includes('{isBrowserPreview && ('),
+    'the banner must only render when previewing in a browser'
   );
 });
