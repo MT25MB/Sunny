@@ -1246,7 +1246,7 @@ button:focus-visible, textarea:focus-visible { outline: 3px solid #f6b86a; outli
 
 
 
-  min-height: 100vh;
+  min-height: 0;
 
 
 
@@ -23989,6 +23989,7 @@ textarea::placeholder { color: #65747b; }
 
 
   flex: 1 1 auto;
+  height: 0;
 
 
 
