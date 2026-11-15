@@ -577,3 +577,63 @@ test('the browser-preview banner never shows inside the packaged app', () => {
     'the banner must only render when previewing in a browser'
   );
 });
+
+// ============================================================================
+// System Health cards: stacked full-width horizontal rectangles with
+// wrapping text (the user's request - square cards squished label and value
+// until they wrapped one letter per line and values were ellipsized).
+// ============================================================================
+
+function stylesheetRules(selector) {
+  const matches = [];
+  let i = 0;
+  while (true) {
+    i = CSS.indexOf(selector, i);
+    if (i === -1) break;
+    const end = CSS.indexOf('}', i);
+    matches.push(CSS.slice(i, end + 1).replace(/\s+/g, ' '));
+    i = end + 1;
+  }
+  return matches;
+}
+function stylesheetRule(selector, mustContain) {
+  const rules = stylesheetRules(selector);
+  assert.ok(rules.length > 0, `${selector} rule must exist`);
+  if (mustContain) {
+    const hit = rules.find((r) => r.includes(mustContain));
+    assert.ok(hit, `${selector} must contain: ${mustContain}`);
+    return hit;
+  }
+  return rules[rules.length - 1];
+}
+
+test('the health grid stacks wide horizontal rows, not square cards', () => {
+  const rule = stylesheetRule('.status-grid');
+  assert.match(rule, /grid-template-columns: 1fr/, 'the health grid must be a single stacked column');
+  assert.ok(!rule.includes('auto-fit'), 'the health grid must not use square auto-fit columns');
+});
+
+test('the health values wrap instead of being ellipsized', () => {
+  const rule = stylesheetRule('.status-value');
+  assert.ok(!/white-space:\s*nowrap/.test(rule), 'values must be allowed to wrap');
+  assert.ok(!/text-overflow:\s*ellipsis/.test(rule), 'values must not be cut off with an ellipsis');
+  assert.match(rule, /overflow-wrap:\s*anywhere/, 'values must wrap rather than overflow their row');
+});
+
+test('the compact header is driven by the app column, not the viewport', () => {
+  // A viewport-width media query cannot see the letterboxed column, so the
+  // compact header never engaged inside one and the header overflowed.
+  assert.ok(
+    CSS.includes('@container app-shell (max-width: 560px)'),
+    'the compact header must be a container query on the app shell'
+  );
+  assert.ok(
+    !CSS.includes('@media (max-width: 560px)'),
+    'the compact header must not be a viewport media query'
+  );
+  // The shell must actually be a named container (the first .app-shell rule is
+  // a media-nested override; the Accessible UI Overrides rule is the container).
+  const shellRule = stylesheetRule('.app-shell {', 'container-type');
+  assert.match(shellRule, /container-type:\s*inline-size/, 'the shell must establish an inline-size container');
+  assert.match(shellRule, /container-name:\s*app-shell/, 'the shell must be named app-shell');
+});

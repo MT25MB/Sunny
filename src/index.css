@@ -19633,6 +19633,8 @@ textarea::placeholder { color: #65747b; }
 
 .app-shell {
   min-height: 0;
+  container-type: inline-size;
+  container-name: app-shell;
 
 
 
@@ -27224,229 +27226,11 @@ textarea::placeholder { color: #65747b; }
 
 
 .status-grid {
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   display: grid;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  /* min(100%, 160px): a track may never be wider than the grid itself. The
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-     old fixed 160px floor meant that on a narrow window two columns needed
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-     more room than the panel had, and the cards ran past its right border. */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  gap: 1rem;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  /* One column: wide horizontal rows stacked on top of each other,
+     instead of square cards that squish the label and the value. */
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
 }
 
 
@@ -28504,197 +28288,21 @@ textarea::placeholder { color: #65747b; }
 
 
 .status-content {
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   flex: 1;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   min-width: 0;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   display: flex;
 
+  flex-direction: row;
 
+  align-items: center;
 
+  justify-content: space-between;
 
+  gap: 0.5rem 1rem;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  flex-direction: column;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  gap: 0.25rem;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  flex-wrap: wrap;
 }
 
 
@@ -28760,168 +28368,21 @@ textarea::placeholder { color: #65747b; }
 
 
 .status-label {
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   color: #829298;
+
   overflow-wrap: anywhere;
+
   word-break: break-word;
+
   min-width: 0;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   font: 600 0.75rem 'Atkinson Hyperlegible', ui-monospace, 'SF Mono', Menlo, monospace;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   text-transform: uppercase;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   letter-spacing: 0.08em;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  white-space: nowrap;
 }
 
 
@@ -28987,197 +28448,15 @@ textarea::placeholder { color: #65747b; }
 
 
 .status-value {
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   color: #f7f9fb;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   font: 700 1rem 'Fraunces', serif;
 
+  text-align: right;
 
+  min-width: 0;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  white-space: nowrap;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  overflow: hidden;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  text-overflow: ellipsis;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  overflow-wrap: anywhere;
 }
 
 
@@ -51194,7 +50473,7 @@ textarea::placeholder { color: #65747b; }
 
 
 
-/* The app window is the viewport, so this media query tracks the real
+/* A container query tracks the app column, so the compact layout also engages
 
 
 
@@ -51226,7 +50505,7 @@ textarea::placeholder { color: #65747b; }
 
 
 
-   window width. At 420px the full-size header cannot fit on one row and
+   inside a narrow letterboxed column. At 420px the full-size header cannot fit on one row and
 
 
 
@@ -51290,7 +50569,7 @@ textarea::placeholder { color: #65747b; }
 
 
 
-@media (max-width: 560px) {
+@container app-shell (max-width: 560px) {
 
 
 
