@@ -1845,7 +1845,7 @@ async function fetchWithTimeout(url, ms, label) {
 async function fetchDigestNews(newsCount) {
   try {
     const newsData = await fetchWithTimeout(
-      `${NEWS_API}?rss_url=https://feeds.bbci.co.uk/news/rss.xml&api_key=demo&count=${newsCount}`,
+      `${NEWS_API}?rss_url=https://feeds.bbci.co.uk/news/rss.xml&count=${newsCount}`,
       15_000,
       'The news service'
     );
