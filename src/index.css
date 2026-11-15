@@ -37363,15 +37363,13 @@ textarea::placeholder { color: #65747b; }
 
 
 
-/* Section mascot */
+/* Section mascot: keep the asset's natural aspect ratio (the images are
+   portrait or near-square, never 512×512). Height is fixed; width follows. */
 .section-mascot {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: 0.5rem;
+  height: 88px;
+  width: auto;
+  display: block;
+  margin: 0.5rem auto 0;
 }
 
 .section-mascot-caption {

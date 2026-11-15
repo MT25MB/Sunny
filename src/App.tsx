@@ -1033,8 +1033,6 @@ function App() {
                       alt=""
                       className="section-mascot"
                       aria-hidden="true"
-                      width={512}
-                      height={512}
                     />
                     <p className="section-mascot-caption">
                       Search for a recipe and Sunny will read every step out loud, one giant screen at a time.
@@ -1192,8 +1190,6 @@ function App() {
                         alt=""
                         className="section-mascot"
                         aria-hidden="true"
-                        width={512}
-                        height={512}
                       />
                       <p className="section-mascot-caption">
                         No medication reminders set yet. Add one above and Sunny will call it out loud at the right time.
@@ -1388,8 +1384,6 @@ function App() {
                         alt=""
                         className="section-mascot"
                         aria-hidden="true"
-                        width={512}
-                        height={512}
                       />
                       <p className="section-mascot-caption">
                         Press the button below and Sunny will bring you today&apos;s weather and the top headlines.
