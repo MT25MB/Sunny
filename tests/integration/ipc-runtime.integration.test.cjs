@@ -40,7 +40,11 @@ describe('IPC runtime — handler wiring', () => {
 
 describe('IPC runtime — decide_action handler', () => {
   it('applies system guardrail to prompt', () => {
-    assert.ok(mainCjs.includes('withSystemGuardrail(params.prompt)'));
+    // The chat path and the dedicated handler both go through the shared
+    // decideAction helper, which is what applies the guardrail to the
+    // model-bound prompt.
+    assert.ok(mainCjs.includes('async function decideAction'));
+    assert.ok(mainCjs.includes('withSystemGuardrail(prompt)'));
   });
 
   it('checks if vision is needed', () => {
