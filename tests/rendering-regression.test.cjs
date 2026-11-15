@@ -513,3 +513,30 @@ test('the collapsible-section rule closes before the header rule', () => {
     'both rules must be top-level'
   );
 });
+
+// ============================================================================
+// Letterbox fullscreen: a filled window keeps the app at its comfortable
+// aspect ratio (640 x 900) and centres it, leaving empty bars either side.
+// ============================================================================
+
+test('the letterbox fullscreen rule exists and caps the app width', () => {
+  const { opens } = analyseStylesheet(CSS_NO_COMMENTS);
+  const match = opens.find((o) => o.selector === '.app-shell.letterboxed');
+  assert.ok(match, '.app-shell.letterboxed rule must exist');
+  assert.equal(match.depth, 0, 'the letterbox rule must be top-level');
+
+  const ruleStart = CSS.indexOf('.app-shell.letterboxed');
+  const ruleBody = CSS.slice(ruleStart, CSS.indexOf('}', ruleStart));
+  assert.match(ruleBody, /max-width:\s*calc\(\s*100dvh\s*\*\s*0\.71/, 'letterbox must cap width to the comfortable aspect ratio');
+  assert.match(ruleBody, /margin-left:\s*auto/, 'letterbox must centre the app');
+  assert.match(ruleBody, /margin-right:\s*auto/, 'letterbox must centre the app');
+});
+
+test('the shell gets the letterboxed class when the window is filled', () => {
+  const APP = fs.readFileSync(path.join(REPO, 'src', 'App.tsx'), 'utf8');
+  assert.match(
+    APP,
+    /windowFilled \? ' letterboxed'/,
+    'App.tsx must add the letterboxed class to .app-shell when windowFilled is true'
+  );
+});

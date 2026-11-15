@@ -713,7 +713,7 @@ function App() {
           <div
             className={`app-shell ${highContrast ? 'high-contrast' : ''}${
               window.windowControls?.nativeTitleBar ? ' native-titlebar' : ''
-            }`}
+            }${windowFilled ? ' letterboxed' : ''}`}
           >
             <header className="app-header" role="banner">
               <div className="header-left">

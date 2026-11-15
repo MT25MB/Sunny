@@ -53689,3 +53689,19 @@ textarea::placeholder { color: #65747b; }
 
 
 }
+
+/* ===== Letterbox fullscreen =====
+   When the window is filled (maximized/fullscreen), keep the app at its
+   comfortable aspect ratio (640 x 900) and center it, leaving empty bars
+   on the left and right instead of stretching the layout to fill the
+   entire screen. */
+html, body, #root {
+  height: 100%;
+  background: #05070a;
+}
+
+.app-shell.letterboxed {
+  max-width: calc(100dvh * 0.711); /* 640 / 900 */
+  margin-left: auto;
+  margin-right: auto;
+}
