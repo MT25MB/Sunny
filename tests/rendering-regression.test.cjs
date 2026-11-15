@@ -331,3 +331,116 @@ test('the microphone check uses the fake audio device', () => {
     'the check must confirm the microphone was released afterwards'
   );
 });
+
+// ============================================================================
+// Recurring layout bugs: vertical header, broken scrolling, fullscreen mascot
+// ============================================================================
+
+test('the app header does not wrap to a second row', () => {
+  // flex-wrap: wrap made the header stack vertically on narrow screens,
+  // which made the bar look vertical and consumed all vertical space.
+  const body = rule('.app-header');
+  assert.ok(body !== null, '.app-header rule must exist');
+  assert.ok(
+    !/flex-wrap\s*:\s*wrap/.test(body),
+    'the header must not wrap; use nowrap so items stay on one row'
+  );
+  assert.ok(
+    /flex-wrap\s*:\s*nowrap/.test(body),
+    'the header must explicitly use flex-wrap: nowrap'
+  );
+});
+
+test('the app main area is a flex child that can shrink', () => {
+  // min-height: 0 is required for a flex child to shrink below its content
+  // size, which is the precondition for overflow-y to actually scroll.
+  const body = rule('.app-main');
+  assert.ok(body !== null, '.app-main rule must exist');
+  assert.ok(
+    /flex\s*:\s*1/.test(body),
+    '.app-main must flex to fill remaining space'
+  );
+  assert.ok(
+    /min-height\s*:\s*0/.test(body),
+    '.app-main must allow shrinking below content size'
+  );
+  assert.ok(
+    /overflow-y\s*:\s*auto/.test(body),
+    '.app-main must scroll when content overflows'
+  );
+  assert.ok(
+    /height\s*:\s*0/.test(body),
+    '.app-main must have height: 0 to force flex height calculation'
+  );
+});
+
+test('the app main area is not constrained to 720px', () => {
+  // max-width: 720px centered content at 720px even when maximized,
+  // leaving large empty areas on wide screens and making the app look broken.
+  const body = rule('.app-main');
+  assert.ok(body !== null, '.app-main rule must exist');
+  assert.ok(
+    !/max-width\s*:\s*720px/.test(body),
+    '.app-main must not be constrained to 720px'
+  );
+});
+
+test('the app shell is a flex column with constrained height', () => {
+  // .app-shell must be display: flex with flex-direction: column and a
+  // defined height so .app-main can flex within it.
+  // There are two .app-shell rules; the second one (with display: flex)
+  // overrides the first (display: grid). Find the flex one.
+  const flexRule = CSS_BASE.match(/\.app-shell\s*\{[^}]*display\s*:\s*flex[^}]*\}/);
+  assert.ok(flexRule !== null, '.app-shell must have a flex rule');
+  const body = flexRule[0];
+  assert.ok(
+    /display\s*:\s*flex/.test(body),
+    '.app-shell must be a flex container'
+  );
+  assert.ok(
+    /flex-direction\s*:\s*column/.test(body),
+    '.app-shell must be a column layout'
+  );
+  assert.ok(
+    /height\s*:\s*100dvh/.test(body) || /height\s*:\s*100vh/.test(body),
+    '.app-shell must have a defined height'
+  );
+});
+
+test('launchExecutable is fire-and-forget (does not await process exit)', () => {
+  // Awaiting execFile blocks until the GUI app exits, so the handler hangs
+  // for apps that stay running (calc, notepad, explorer...).
+  const fnStart = MAIN.indexOf('async function launchExecutable');
+  const fnEnd = MAIN.indexOf('async function', fnStart + 1);
+  const fnBody = MAIN.slice(fnStart, fnEnd === -1 ? undefined : fnEnd);
+  assert.ok(
+    !fnBody.includes('await execFile'),
+    'launchExecutable must not await execFile (fire-and-forget)'
+  );
+  assert.ok(
+    !fnBody.includes('promisify'),
+    'launchExecutable must not promisify execFile'
+  );
+});
+
+test('fetchDigestNews uses the internet without invalid API key', () => {
+  // The rss2json API rejected requests with api_key=demo, returning
+  // 'api_key must be a valid API key.' The free tier works without it.
+  assert.ok(
+    !MAIN.includes('api_key=demo'),
+    'fetchDigestNews must not use invalid api_key=demo'
+  );
+  assert.ok(
+    MAIN.includes('rss_url=https://feeds.bbci.co.uk/news/rss.xml&count='),
+    'fetchDigestNews must fetch BBC News RSS via rss2json'
+  );
+});
+
+test('calculator opener uses reliable launch method', () => {
+  // On Windows 11, calc.exe is a stub that may not open a window.
+  // The opener should use explorer.exe with AppsFolder path.
+  assert.ok(
+    MAIN.includes("Microsoft.WindowsCalculator_8wekyb3d8bbwe!App"),
+    'calculator opener should use AppsFolder path for reliable launching'
+  );
+});
