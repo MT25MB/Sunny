@@ -11,7 +11,9 @@ const path = require('node:path');
 // opens as usual — this is why the app launches right after installation and
 // why Windows Search starts finding "Sunny" instead of only the installer.
 if (require('electron-squirrel-startup')) {
-  return;
+  // install / update / uninstall: shortcuts are created (or removed) by the
+  // spawned Update.exe; exit immediately so no window ever opens.
+  app.exit(0);
 }
 const fs = require('node:fs');
 const os = require('node:os');
