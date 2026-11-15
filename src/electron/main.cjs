@@ -1102,7 +1102,15 @@ function createWindow() {
 // ============================================================================
 
 async function getAutomation() {
-  if (!automationModule) automationModule = await import('@nut-tree-fork/nut-js');
+  if (!automationModule) {
+    try {
+      automationModule = await import('@nut-tree-fork/nut-js');
+    } catch (err) {
+      // Surface a readable message instead of an opaque module-resolution
+      // error. Actions that need OS automation cannot run without it.
+      throw new Error('The desktop automation module could not be loaded, so keyboard and mouse control is unavailable right now.');
+    }
+  }
   return automationModule;
 }
 
@@ -1225,8 +1233,20 @@ async function openApp(appKey) {
   return { launched: true };
 }
 
+// Actions that drive the mouse or keyboard need the OS automation module.
+// Everything else (open_app, wait, screenshot, window_action) does not, so a
+// missing automation module must not stop those.
+const AUTOMATION_TYPES = new Set([
+  'move', 'hover', 'click', 'double_click', 'drag',
+  'type', 'key', 'hotkey', 'scroll', 'scroll_horizontal',
+  'copy', 'paste', 'select_all',
+]);
+
 async function executeActions(actions) {
-  const automation = await getAutomation();
+  // Only load the heavy automation module when the batch actually uses it.
+  const automation = actions.some((a) => a && AUTOMATION_TYPES.has(a.type))
+    ? await getAutomation()
+    : null;
   automationCancelled = false;
   emergencyStop = false;
   const completed = [];

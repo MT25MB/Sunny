@@ -180,6 +180,42 @@ function normaliseAsarEntries(entries) {
 /**
  * Every asset the built renderer references must be inside the packaged asar.
  */
+/**
+ * Every runtime module the main process imports must ship inside the
+ * packaged app (in the asar, or as an unpacked directory next to it).
+ *
+ * The app once shipped with @nut-tree-fork/nut-js only in
+ * devDependencies, so every desktop action failed with "Cannot find
+ * package" in the packaged build.
+ *
+ * @param {string} resources the app's resources directory
+ * @param {Set<string>} entries normalised asar entries (leading slash)
+ * @returns {string[]} problems found (empty when everything ships)
+ */
+function checkRuntimeModules(resources, entries) {
+  const RUNTIME_MODULES = [
+    '@nut-tree-fork/nut-js',
+    'electron-squirrel-startup',
+    'electron-updater',
+    'electron-log',
+  ];
+  const found = [];
+  for (const mod of RUNTIME_MODULES) {
+    const inAsar = entries.has('/node_modules/' + mod + '/package.json');
+    const unpacked = path.join(
+      resources,
+      'app.asar.unpacked',
+      'node_modules',
+      mod,
+      'package.json'
+    );
+    if (!inAsar && !fs.existsSync(unpacked)) {
+      found.push('runtime module missing from the packaged app: ' + mod);
+    }
+  }
+  return found;
+}
+
 function checkPackagedApp(appDir) {
   const resources = path.join(appDir, 'resources');
   if (!fs.existsSync(resources)) {
@@ -195,6 +231,8 @@ function checkPackagedApp(appDir) {
 
   const asar = require('@electron/asar');
   const entries = normaliseAsarEntries(asar.listPackage(asarPath));
+
+  problems.push(...checkRuntimeModules(resources, entries));
 
   // Find the renderer's JS chunk inside the asar and read it.
   const bundleEntry = [...entries].find(
@@ -276,7 +314,7 @@ async function main() {
   console.log('\nAll referenced assets are present and not excluded from the package.');
 }
 
-module.exports = { normaliseAsarEntries, referencedAssetsFromBundle };
+module.exports = { normaliseAsarEntries, referencedAssetsFromBundle, checkRuntimeModules };
 
 if (require.main === module) {
   main().catch((err) => {
