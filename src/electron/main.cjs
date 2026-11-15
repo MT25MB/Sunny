@@ -1714,6 +1714,8 @@ async function searchRecipes(query, maxResults = 5) {
     // TheMealDB matches meal NAMES as substrings, so "cookie recipe" finds
     // nothing. Try candidate queries, best first: the raw phrase, then the
     // phrase without recipe/filler words, then the significant tokens.
+    // fetchWithTimeout returns the parsed JSON body (not a Response), so
+    // there is no .json() call here.
     const terms = buildRecipeSearchTerms(query).slice(0, 6);
     console.log('[Recipe] search terms:', JSON.stringify(terms));
 
@@ -1721,12 +1723,11 @@ async function searchRecipes(query, maxResults = 5) {
     let usedTerm = null;
     for (const term of terms) {
       try {
-        const response = await fetchWithTimeout(
+        const data = await fetchWithTimeout(
           `${RECIPE_API_BASE}/search.php?s=${encodeURIComponent(term)}`,
           8_000,
           'The recipe search'
         );
-        const data = await response.json();
         if (data && Array.isArray(data.meals) && data.meals.length > 0) {
           meals = data.meals;
           usedTerm = term;
