@@ -1065,7 +1065,9 @@ const APP_URI_OPENERS = {
 
 const APP_EXE_OPENERS = {
   win32: {
-    calculator: { exe: 'calc' },
+    // Windows Calculator: use explorer.exe with the AppsFolder path, which
+    // reliably opens the Store app on Windows 10/11 without needing a shell.
+    calculator: { exe: 'explorer', args: ['shell:AppsFolder\\Microsoft.WindowsCalculator_8wekyb3d8bbwe!App'] },
     files: { exe: 'explorer' },
     notepad: { exe: 'notepad' },
     word: { exe: 'winword' },
@@ -1109,8 +1111,13 @@ function resolveOpener(appKey) {
   const table = APP_EXE_OPENERS[process.platform] || {};
   const entry = table[appKey];
   if (!entry) return null;
-  if (entry.uri) return { uri: entry.uri };
-  return { exe: entry.exe, args: entry.args || [] };
+  // Return both uri and exe so openApp can try URI scheme first,
+  // then fall back to the exe if the URI scheme doesn't work.
+  return {
+    uri: entry.uri,
+    exe: entry.exe,
+    args: entry.args || [],
+  };
 }
 
 /** Spawn a process with no shell involved. GUI apps (calc, notepad, explorer…)
@@ -1138,11 +1145,22 @@ async function openApp(appKey) {
   if (!opener) {
     throw new Error(`Sunny does not know how to open "${appKey}".`);
   }
+  // Try URI scheme first (works for Store apps on Windows 10/11)
   if (opener.uri) {
-    await shell.openExternal(opener.uri);
-    return { launched: true };
+    try {
+      await shell.openExternal(opener.uri);
+      // shell.openExternal resolves when the OS accepts the request, but
+      // the Store app may not actually appear. Wait briefly and check.
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    } catch (err) {
+      console.warn('[openApp] URI scheme failed, trying exe fallback:', err.message);
+    }
   }
-  return launchExecutable(opener.exe, opener.args);
+  // Fall back to exe (fire-and-forget, no await)
+  if (opener.exe) {
+    return launchExecutable(opener.exe, opener.args);
+  }
+  return { launched: true };
 }
 
 async function executeActions(actions) {
