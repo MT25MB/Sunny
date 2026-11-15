@@ -166,6 +166,19 @@ jobs:
         # deleted by an ignore rule while the app still built cleanly.
         run: node scripts/verify-packaged-assets.cjs
 
+      - name: Upload Squirrel updater files
+        # The Windows auto-updater needs the nupkg and RELEASES manifest
+        # alongside the installer; without them installed copies stop
+        # updating. Uploaded under sunny-* so the publish job picks them up.
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: sunny-win-squirrel
+          path: |
+            out/make/**/*.nupkg
+            out/make/**/RELEASES
+          if-no-files-found: error
+
       - name: Upload Artifacts
         # Skipped when the installer was signed: the signed copy is uploaded
         # under the same artifact name, and two uploads with one name in a
@@ -231,6 +244,8 @@ jobs:
             out/make/**/*.exe
             out/make/**/*.dmg
             out/make/Sunny-Linux-amd64.deb
+            out/make/**/*.nupkg
+            out/make/**/RELEASES
           draft: false
           prerelease: false
         env:
