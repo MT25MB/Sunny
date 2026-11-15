@@ -444,3 +444,72 @@ test('calculator opener uses reliable launch method', () => {
     'calculator opener should use AppsFolder path for reliable launching'
   );
 });
+
+// ============================================================================
+// Stylesheet integrity: one missing brace nested ~27,000 lines of CSS inside
+// .collapsible-section, so .app-header / .app-main never applied. These tests
+// parse the stylesheet the way a browser does and fail if it ever regresses.
+// ============================================================================
+
+/**
+ * Walks the stylesheet tracking brace depth, skipping comments, and returns
+ * the depth at which each named selector's block opens plus the final depth.
+ */
+function analyseStylesheet(css) {
+  const opens = [];
+  let depth = 0;
+  let inComment = false;
+  let selectorStart = 0;
+  for (let i = 0; i < css.length; i++) {
+    const ch = css[i];
+    const nx = css[i + 1];
+    if (inComment) {
+      if (ch === '*' && nx === '/') { inComment = false; i++; }
+      continue;
+    }
+    if (ch === '/' && nx === '*') { inComment = true; i++; continue; }
+    if (ch === '{') {
+      const selector = css.slice(selectorStart, i).trim().replace(/\s+/g, ' ');
+      opens.push({ selector, depth });
+      depth++;
+      selectorStart = i + 1;
+    } else if (ch === '}') {
+      depth--;
+      selectorStart = i + 1;
+    }
+  }
+  return { opens, finalDepth: depth };
+}
+
+test('the stylesheet has balanced braces', () => {
+  const { finalDepth } = analyseStylesheet(CSS_NO_COMMENTS);
+  assert.equal(finalDepth, 0, 'the stylesheet must end at brace depth 0');
+});
+
+test('core layout rules are top-level, not nested inside another rule', () => {
+  const { opens } = analyseStylesheet(CSS_NO_COMMENTS);
+  for (const selector of ['.app-shell', '.app-header', '.app-main']) {
+    const match = opens.find((o) => o.selector === selector);
+    assert.ok(match, `${selector} must exist as a rule`);
+    assert.equal(
+      match.depth,
+      0,
+      `${selector} must be a top-level rule (found at depth ${match.depth}); ` +
+        'an unclosed brace earlier in the file would nest it and silently disable it'
+    );
+  }
+});
+
+test('the collapsible-section rule closes before the header rule', () => {
+  // The specific regression: .collapsible-section { flex-wrap: wrap; was
+  // missing its closing brace, so everything after it was nested.
+  const { opens } = analyseStylesheet(CSS_NO_COMMENTS);
+  const collapsible = opens.find((o) => o.selector === '.collapsible-section');
+  const header = opens.find((o) => o.selector === '.app-header');
+  assert.ok(collapsible, '.collapsible-section rule must exist');
+  assert.ok(header, '.app-header rule must exist');
+  assert.ok(
+    collapsible.depth === 0 && header.depth === 0,
+    'both rules must be top-level'
+  );
+});
