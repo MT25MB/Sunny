@@ -158,12 +158,24 @@ test('the release waits for every platform before publishing', () => {
     'utf8'
   );
 
+  // The publish job waits for both the build matrix and the detect gate.
+  // (It needs detect's outputs to know which tag to create, so the two are
+  // declared together as `needs: [detect, build]`.)
+  const publishSection = release.slice(release.indexOf('  publish:'));
+  const needsMatch = publishSection.match(/needs:\s*(\[[^\]]*\]|[^\n]+)/);
+  assert.ok(needsMatch, 'the publish job must declare what it needs');
   assert.ok(
-    /needs:\s*build/.test(release),
+    /build/.test(needsMatch[1]),
     'the publish job must wait for the build matrix'
   );
-  // Exactly one job may create the release, or they race on the assets.
-  const createCount = (release.match(/action-gh-release/g) || []).length;
+  assert.ok(
+    /detect/.test(needsMatch[1]),
+    'the publish job must wait for the detect gate'
+  );
+  // Exactly one job may invoke the release action, or the legs race on the
+  // assets. Count only actual `uses:` invocations, not comments that name it.
+  const createCount = (release.match(/uses:\s*\S*action-gh-release/g) || [])
+    .length;
   assert.equal(createCount, 1, 'only one job may create the release');
   assert.ok(
     /if-no-files-found:\s*error/.test(release),
