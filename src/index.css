@@ -52809,3 +52809,49 @@ html, body, #root {
   margin-left: auto;
   margin-right: auto;
 }
+
+/* ===== Medication section: Add Reminder docked in the header row =====
+   The button had no styles of its own and rendered as the browser default
+   white pill below the title. It now matches .digest-btn.primary in a compact
+   size, and the header is a flex row so it docks beside the toggle. */
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.add-medication-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: 0.5rem 0.9rem;
+  margin-left: auto;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #f6c97a;
+  border: 2px solid #f1b568;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #2a251e 0%, #1d1a16 100%);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-medication-btn:hover {
+  border-color: #f6c97a;
+  background: linear-gradient(145deg, #352d22 0%, #262018 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(241, 181, 104, 0.22);
+}
+
+.add-medication-btn:focus-visible {
+  outline: 2px solid #f6c97a;
+  outline-offset: 2px;
+}
+
+.add-medication-btn:active {
+  transform: translateY(0);
+}
