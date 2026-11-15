@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, Tray, desktopCapturer, globalShortcut, ipcMain, nativeImage, safeStorage, screen, session, shell, dialog } = require('electron');
+const { app, BrowserWindow, Menu, Tray, desktopCapturer, globalShortcut, ipcMain, nativeImage, safeStorage, screen, session, shell, dialog, Notification } = require('electron');
 const path = require('node:path');
 
 // ============================================================================
@@ -2027,6 +2027,60 @@ async function scheduleMedicationReminder(pillName, timeString) {
   return { success: true, reminderId: id };
 }
 
+/**
+ * Announce a medication reminder to the user wherever they are working:
+ *
+ * 1. Restore and raise the Sunny window above other windows for a few
+ *    seconds, so it cannot be missed even if it is minimised or behind.
+ * 2. A system toast (Windows Action Center) so it is visible without
+ *    the window being focused.
+ * 3. The renderer shows a large overlay on top of the app.
+ *
+ * Runs in the main process so it works even when the renderer is idle.
+ */
+function announceMedicationReminder(reminder) {
+  const name = (reminder && reminder.pillName) || 'your medication';
+
+  // Bring the window to the front, even from the tray.
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    try {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+      // A brief always-on-top pass actually raises the window above other
+      // applications instead of merely focusing it in place.
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
+      setTimeout(() => {
+        try {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.setAlwaysOnTop(false);
+          }
+        } catch (err) {
+          console.warn('[Medication] Could not release always-on-top:', err);
+        }
+      }, 2500);
+    } catch (err) {
+      console.error('[Medication] Failed to bring the window to the front:', err);
+    }
+  }
+
+  // System toast (Windows Action Center).
+  try {
+    if (Notification.isSupported()) {
+      const notification = new Notification({
+        title: 'Medication Reminder',
+        body: `Time to take your ${name}!`,
+        icon: getTrayImage(),
+        silent: false,
+        urgency: 'critical',
+      });
+      notification.show();
+    }
+  } catch (err) {
+    console.error('[Medication] Could not show system notification:', err);
+  }
+}
+
 function startMedicationChecker() {
   if (medicationCheckInterval) return;
 
@@ -2047,6 +2101,8 @@ function startMedicationChecker() {
       reminder.lastFiredOn = `${today} ${currentTime}`;
       medicationReminders.set(id, reminder);
       saveMedicationReminders();
+
+      announceMedicationReminder(reminder);
 
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('sunny:medication-reminder-triggered', {
@@ -2088,6 +2144,8 @@ function catchUpMissedReminders() {
 
     reminder.lastFiredOn = `${today} ${reminder.timeString}`;
     medicationReminders.set(id, reminder);
+
+    announceMedicationReminder(reminder);
 
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('sunny:medication-reminder-triggered', {

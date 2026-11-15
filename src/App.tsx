@@ -119,6 +119,9 @@ function App() {
   const [highContrast, setHighContrast] = useState(false);
   const [cookingMode, setCookingMode] = useState<{ recipe: Recipe; currentStep: number } | null>(null);
   const [medicationReminders, setMedicationReminders] = useState<Array<{ id: string; pillName: string; timeString: string; enabled: boolean; lastTaken?: string; triggeredAt?: string }>>([]);
+  // Set when a reminder fires; renders a big full-window overlay so the
+  // user cannot miss it even if they are not looking at the chat.
+  const [medicationPopup, setMedicationPopup] = useState<{ id: string; pillName: string; timeString: string } | null>(null);
   const [medModal, setMedModal] = useState<{ open: boolean; pillName: string; timeString: string; error: string | null }>({ open: false, pillName: "", timeString: "", error: null });
   const [dailyDigest, setDailyDigest] = useState<DailyDigest | null>(null);
   // The digest has its own error. The shared `error` state is rendered
@@ -396,6 +399,7 @@ function App() {
         }
         return [...prev, reminder];
       });
+      setMedicationPopup({ id: reminder.id, pillName: reminder.pillName, timeString: reminder.timeString });
       sunnyBrain.addMessage("system", `\u{1F48A} Medication Reminder: Time to take ${reminder.pillName}!`);
       expandSection("medication");
       sunnyBrain.speakNotification(`Time to take your ${reminder.pillName}!`, "high", 2);
@@ -1458,6 +1462,46 @@ function App() {
           </div>
         </>
       }
+      {medicationPopup && (
+        <div
+          className="medication-popup-overlay"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="medication-popup-title"
+          aria-describedby="medication-popup-desc"
+        >
+          <div className="medication-popup-card">
+            <div className="medication-popup-icon" aria-hidden="true">
+              <Pill size={64} strokeWidth={1.6} />
+            </div>
+            <p className="medication-popup-eyebrow">Medication Reminder</p>
+            <h2 id="medication-popup-title" className="medication-popup-title">Time to take</h2>
+            <p id="medication-popup-desc" className="medication-popup-name">{medicationPopup.pillName}</p>
+            <p className="medication-popup-time">Scheduled for {medicationPopup.timeString}</p>
+            <div className="medication-popup-actions">
+              <button
+                type="button"
+                className="medication-popup-btn taken-btn"
+                autoFocus
+                onClick={() => {
+                  void handleMedicationTaken(medicationPopup.id);
+                  setMedicationPopup(null);
+                }}
+              >
+                <Check size={22} aria-hidden="true" /> I&rsquo;ve taken it
+              </button>
+              <button
+                type="button"
+                className="medication-popup-btn secondary-btn"
+                onClick={() => setMedicationPopup(null)}
+              >
+                Not now
+              </button>
+            </div>
+            <p className="medication-popup-hint">This reminder repeats every day at the same time.</p>
+          </div>
+        </div>
+      )}
       {showSettings && (
         <SettingsModal
           open={showSettings}
