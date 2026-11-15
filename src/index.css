@@ -24179,7 +24179,6 @@ textarea::placeholder { color: #65747b; }
 
 
 
-  max-width: 720px;
 
 
 
@@ -24243,7 +24242,7 @@ textarea::placeholder { color: #65747b; }
 
 
 
-  margin: 0 auto;
+  margin: 0;
 
 
 
