@@ -21,6 +21,7 @@ const { pathToFileURL } = require('node:url');
 const inference = require('./inference.cjs');
 const speech = require('./speech.cjs');
 const windowState = require('./window-state.cjs');
+const { buildRecipeSearchTerms } = require('./recipe-terms.cjs');
 const { parseCommand, extractActionEnvelope, ACTION_PROTOCOL_SUFFIX } = require('./command-router.cjs');
 const { getCredentialPath: resolveCredentialPath } = require('./credential-path.cjs');
 const { interceptAction, sanitizeUntrustedContent, checkParameterAmbiguity, DESTRUCTIVE_TEXT_PATTERN } = require('../main/security/interceptor.cjs');
@@ -1710,12 +1711,34 @@ async function searchRecipes(query, maxResults = 5) {
   }
 
   try {
-    // First search by name using TheMealDB (free, no API key)
-    const searchResponse = await fetch(`${RECIPE_API_BASE}/search.php?s=${encodeURIComponent(query)}`);
-    const searchData = await searchResponse.json();
-    
-    if (searchData.meals && searchData.meals.length > 0) {
-      const recipes = searchData.meals.slice(0, maxResults).map(meal => {
+    // TheMealDB matches meal NAMES as substrings, so "cookie recipe" finds
+    // nothing. Try candidate queries, best first: the raw phrase, then the
+    // phrase without recipe/filler words, then the significant tokens.
+    const terms = buildRecipeSearchTerms(query).slice(0, 6);
+    console.log('[Recipe] search terms:', JSON.stringify(terms));
+
+    let meals = null;
+    let usedTerm = null;
+    for (const term of terms) {
+      try {
+        const response = await fetchWithTimeout(
+          `${RECIPE_API_BASE}/search.php?s=${encodeURIComponent(term)}`,
+          8_000,
+          'The recipe search'
+        );
+        const data = await response.json();
+        if (data && Array.isArray(data.meals) && data.meals.length > 0) {
+          meals = data.meals;
+          usedTerm = term;
+          break;
+        }
+      } catch (err) {
+        console.warn('[Recipe] query failed, trying the next term:', term, err.message);
+      }
+    }
+
+    if (meals) {
+      const recipes = meals.slice(0, maxResults).map(meal => {
         const ingredients = [];
         for (let i = 1; i <= 20; i++) {
           const ingredient = meal[`strIngredient${i}`];
@@ -1725,7 +1748,7 @@ async function searchRecipes(query, maxResults = 5) {
           }
         }
 
-        const instructions = meal.strInstructions
+        const instructions = (meal.strInstructions || '')
           .split('\r\n')
           .filter(step => step.trim())
           .map(step => step.trim());
@@ -1745,35 +1768,17 @@ async function searchRecipes(query, maxResults = 5) {
         };
       });
 
+      console.log(`[Recipe] ${recipes.length} result(s) for "${usedTerm}"`);
       return { recipes };
     }
 
-    // Fallback: DuckDuckGo HTML scraping for recipe links
-    console.log('[Recipe] TheMealDB returned no results, falling back to DuckDuckGo...');
-    const ddgResults = await searchDuckDuckGoRecipes(query, maxResults);
-    return { recipes: ddgResults };
+    console.log('[Recipe] no results for any term:', JSON.stringify(terms));
+    return { recipes: [] };
 
   } catch (error) {
     console.error('Recipe search error:', error);
     throw new Error('Failed to search for recipes. Please check your internet connection.');
   }
-}
-
-/**
- * Decode common HTML entities in a string.
- * Used to clean up recipe titles and URLs scraped from HTML.
- */
-function decodeHtmlEntities(text) {
-  if (!text) return '';
-  return text
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&#x27;/g, "'")
-    .replace(/&#x2F;/g, '/');
 }
 
 /**
@@ -1791,113 +1796,6 @@ function isSafeHttpUrl(candidate) {
     return parsed.protocol === 'http:' || parsed.protocol === 'https:';
   } catch {
     return false;
-  }
-}
-
-/**
- * Unwrap a DuckDuckGo redirect link.
- *
- * Results point at //duckduckgo.com/l/?uddg=<encoded target>&rut=..., so the
- * captured href is a wrapper rather than the recipe page. Without this the
- * domain filter below never sees the real hostname.
- */
-function unwrapDuckDuckGoUrl(href) {
-  if (typeof href !== 'string') return '';
-  const trimmed = href.trim();
-  if (!trimmed.startsWith('//duckduckgo.com/l/')) return trimmed;
-  try {
-    const parsed = new URL('https:' + trimmed);
-    const target = parsed.searchParams.get('uddg');
-    return target ? decodeURIComponent(target) : trimmed;
-  } catch {
-    return trimmed;
-  }
-}
-
-/**
- * Fallback recipe search using DuckDuckGo HTML scraping (free, no API key).
- * Extracts recipe links from search results.
- */
-async function searchDuckDuckGoRecipes(query, maxResults = 5) {
-  try {
-    const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query + ' recipe')}`;
-    const response = await fetch(searchUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      },
-    });
-    
-    const html = await response.text();
-    
-    // Extract result links from DuckDuckGo HTML.
-    // Only the title anchor is used; the old link and snippet patterns were
-    // never read and only cost a regex compile on every search.
-    const titleRegex = /<a[^>]*class="[^"]*result__title[^"]*"[^>]*href="([^"]+)"[^>]*>([^<]*)<\/a>/gi;
-
-    const results = [];
-    let match;
-
-    // Try to find result titles with links
-    while ((match = titleRegex.exec(html)) !== null && results.length < maxResults) {
-      const [, rawUrl, title] = match;
-      if (rawUrl && title && title.trim()) {
-        const cleanTitle = decodeHtmlEntities(title).trim();
-        const cleanUrl = unwrapDuckDuckGoUrl(decodeHtmlEntities(rawUrl)).trim();
-        if (!isSafeHttpUrl(cleanUrl)) continue;
-        
-        // Only include if it looks like a recipe URL
-        if (cleanTitle.length > 3 && (cleanUrl.includes('recipe') || cleanUrl.includes('food') || cleanUrl.includes('cook') || cleanUrl.includes('meal') || cleanUrl.includes('kitchen') || cleanUrl.includes('allrecipes') || cleanUrl.includes('foodnetwork') || cleanUrl.includes('epicurious') || cleanUrl.includes('thekitchn') || cleanUrl.includes('seriouseats') || cleanUrl.includes('simplyrecipes') || cleanUrl.includes('budgetbytes') || cleanUrl.includes('damndelicious') || cleanUrl.includes('gimmesomeoven') || cleanUrl.includes('sallysbakingaddiction'))) {
-          results.push({
-            id: `ddg_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
-            title: cleanTitle,
-            imageUrl: null,
-            ingredients: ['Recipe details available at source link'],
-            instructions: [`Visit the source link for full recipe instructions: ${cleanUrl}`],
-            servings: 4,
-            prepTimeMinutes: 0,
-            cookTimeMinutes: 0,
-            sourceUrl: cleanUrl,
-          });
-        }
-      }
-    }
-    
-    // If not enough results, try broader link extraction
-    if (results.length < maxResults) {
-      const generalLinkRegex = /<a[^>]*href="(https?:\/\/[^"]+)"[^>]*>([^<]{10,})<\/a>/gi;
-      while ((match = generalLinkRegex.exec(html)) !== null && results.length < maxResults) {
-        const [, url, title] = match;
-        if (url && title && title.trim()) {
-          const cleanTitle = decodeHtmlEntities(title).trim();
-          const cleanUrl = unwrapDuckDuckGoUrl(decodeHtmlEntities(url)).trim();
-          if (!isSafeHttpUrl(cleanUrl)) continue;
-
-          // Filter for likely recipe sites
-          const recipeDomains = ['allrecipes.com', 'foodnetwork.com', 'epicurious.com', 'thekitchn.com', 'seriouseats.com', 'simplyrecipes.com', 'budgetbytes.com', 'damndelicious.net', 'gimmesomeoven.com', 'sallysbakingaddiction.com', 'kingarthurbaking.com', 'tasty.co', 'delish.com', 'thepioneerwoman.com', 'minimalistbaker.com', 'cookieandkate.com', 'loveandlemons.com', 'pinchofyum.com', 'skinnytaste.com', 'wellplated.com'];
-          const isRecipeSite = recipeDomains.some(domain => cleanUrl.includes(domain));
-          
-          if (isRecipeSite && cleanTitle.length > 5) {
-            results.push({
-              id: `ddg_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
-              title: cleanTitle,
-              imageUrl: null,
-              ingredients: ['Recipe details available at source link'],
-              instructions: [`Visit the source link for full recipe instructions: ${cleanUrl}`],
-              servings: 4,
-              prepTimeMinutes: 0,
-              cookTimeMinutes: 0,
-              sourceUrl: cleanUrl,
-            });
-          }
-        }
-      }
-    }
-    
-    return results;
-  } catch (error) {
-    console.error('DuckDuckGo recipe search error:', error);
-    return [];
   }
 }
 

@@ -15,7 +15,7 @@ test('offline: searchRecipes checks internet reachability first', () => {
   assert.ok(MAIN.includes('async function searchRecipes'), 'searchRecipes function exists');
   const searchRecipesSection = MAIN.slice(
     MAIN.indexOf('async function searchRecipes'),
-    MAIN.indexOf('async function searchDuckDuckGoRecipes')
+    MAIN.indexOf('async function getDailyDigest')
   );
   assert.ok(searchRecipesSection.includes('readInternetStatus'), 'searchRecipes checks internet status');
   assert.ok(searchRecipesSection.includes('!reachable'), 'searchRecipes checks if not reachable');

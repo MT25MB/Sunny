@@ -509,8 +509,16 @@ function App() {
         maxResults: 5,
       });
       if (result.success) {
-        setSearchResults((result.result as { recipes: Recipe[] }).recipes);
-        sunnyBrain.addMessage("assistant", `Found ${(result.result as { recipes: Recipe[] }).recipes.length} recipe(s) for "${recipeSearchQuery}".`);
+        const recipes = (result.result as { recipes: Recipe[] }).recipes;
+        setSearchResults(recipes);
+        if (recipes.length === 0) {
+          sunnyBrain.addMessage(
+            "assistant",
+            `I couldn't find anything for "${recipeSearchQuery}". Try a simpler search - like "cookies", "chicken" or "pasta".`
+          );
+        } else {
+          sunnyBrain.addMessage("assistant", `Found ${recipes.length} recipe(s) for "${recipeSearchQuery}".`);
+        }
       } else {
         setRecipeSearchError(result.error ?? null);
         sunnyBrain.addMessage("system", "Recipe search failed: " + result.error);
