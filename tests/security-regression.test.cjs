@@ -223,7 +223,7 @@ test('main tool allowlist contains the registered cooking-step tool (H1 regressi
     // First try inline array: const SUNNY_TOOLS = [...]
     const inlineMatch = src.match(/const SUNNY_TOOLS = \[([^\]]+)\]/);
     if (inlineMatch) {
-      return inlineMatch[1].split(',').map((s) => s.trim().replace(/^'|'$/g, ''));
+      return inlineMatch[1].split(',').map((s) => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
     }
     // Fallback: required from external JSON file
     const reqMatch = src.match(/require\(['"]([^'"]*sunny-tools[^'"]*)['"]\)/);
@@ -1223,7 +1223,7 @@ test('decide_action and execute_actions are registered in SUNNY_TOOLS (H9 regres
     // First try inline array: const SUNNY_TOOLS = [...]
     const inlineMatch = src.match(/const SUNNY_TOOLS = \[([^\]]+)\]/);
     if (inlineMatch) {
-      return inlineMatch[1].split(',').map((s) => s.trim().replace(/^'|'$/g, ''));
+      return inlineMatch[1].split(',').map((s) => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
     }
     // Fallback: required from external JSON file
     const reqMatch = src.match(/require\(['"]([^'"]*sunny-tools[^'"]*)['"]\)/);

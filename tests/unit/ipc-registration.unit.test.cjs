@@ -93,7 +93,7 @@ function extractSUNNY_TOOLS(src, filePath) {
   // First try inline array: const SUNNY_TOOLS = [...]
   const inlineMatch = src.match(/const SUNNY_TOOLS = \[([^\]]+)\]/);
   if (inlineMatch) {
-    return inlineMatch[1].split(',').map((s) => s.trim().replace(/^['"]|['"]$/g, ''));
+    return inlineMatch[1].split(',').map((s) => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
   }
   // Fallback: required from external JSON file
   const reqMatch = src.match(/require\(['"]([^'"]*sunny-tools[^'"]*)['"]\)/);

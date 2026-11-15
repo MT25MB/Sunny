@@ -112,9 +112,12 @@ describe('IPC — SUNNY_TOOLS allowlist', () => {
     }
   });
 
-  it('SUNNY_TOOLS allowlist is sourced from shared JSON in both files', () => {
+  it('main.cjs sources SUNNY_TOOLS from shared JSON; preload inlines it', () => {
     assert.ok(mainCjs.includes("require('../shared/sunny-tools.json')"), 'main.cjs should require shared sunny-tools.json');
-    assert.ok(preloadCjs.includes("require('../shared/sunny-tools.json')"), 'preload.cjs should require shared sunny-tools.json');
+    // Preload runs in a sandbox where require cannot load local files,
+    // so the list is inlined there instead.
+    assert.ok(preloadCjs.includes('const SUNNY_TOOLS'), 'preload.cjs should declare an inline SUNNY_TOOLS array');
+    assert.ok(!preloadCjs.includes("require('../shared/sunny-tools.json')"), 'preload.cjs must not require the shared JSON (sandboxed)');
     const sharedPath = path.join(process.cwd(), 'src/shared/sunny-tools.json');
     assert.ok(fs.existsSync(sharedPath), 'shared sunny-tools.json should exist');
     const sharedTools = JSON.parse(fs.readFileSync(sharedPath, 'utf8'));

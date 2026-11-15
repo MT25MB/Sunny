@@ -27,8 +27,27 @@ function readMainArg(prefix) {
   return hit ? hit.slice(prefix.length) : '';
 }
 
-/** Names of every tool the main process will execute. Sourced from shared JSON. */
-const SUNNY_TOOLS = require('../shared/sunny-tools.json');
+/**
+ * Names of every tool the main process will execute.
+ *
+ * Sandboxed preload scripts (this file) cannot use Node's `require` on local
+ * files — only the `electron` module is loadable — so the list must be
+ * inlined here instead of read from `src/shared/sunny-tools.json`.
+ *
+ * Keep this array identical to `src/shared/sunny-tools.json`, which the main
+ * process (unsandboxed, so it CAN `require` the JSON) uses as the same list.
+ * The integration tests assert the two stay in sync.
+ */
+const SUNNY_TOOLS = [
+  "get_system_status",
+  "speak_notification",
+  "search_recipe",
+  "get_daily_digest",
+  "schedule_medication_reminder",
+  "emit_cooking_step",
+  "decide_action",
+  "execute_actions",
+];
 
 /**
  * Dangerous shell metacharacters / sequences that could enable command
