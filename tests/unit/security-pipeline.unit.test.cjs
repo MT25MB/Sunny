@@ -246,12 +246,25 @@ test('security: executeActions uses execFile not shell', () => {
   assert.ok(MAIN.includes("const { execFile } = require('node:child_process');"));
 });
 
-test('security: executeActions uses promisified execFile', () => {
-  assert.ok(MAIN.includes('const execFileAsync = promisify(execFile);'));
+test('security: executeActions launches GUI apps fire-and-forget', () => {
+  // launchExecutable calls execFile directly without promisify/await, so GUI
+  // apps (calc, notepad, explorer…) don't block the handler waiting for them
+  // to exit.
+  const launchStart = MAIN.indexOf('async function launchExecutable');
+  const launchEnd = MAIN.indexOf('async function', launchStart + 1);
+  const launchBody = MAIN.slice(launchStart, launchEnd === -1 ? undefined : launchEnd);
+  assert.ok(launchBody.includes('execFile('), 'launchExecutable calls execFile');
+  assert.ok(!launchBody.includes('promisify'), 'launchExecutable does not promisify execFile');
+  assert.ok(!launchBody.includes('await execFile'), 'launchExecutable does not await execFile');
 });
 
-test('security: executeActions has launch timeout', () => {
-  assert.ok(MAIN.includes('{ timeout: APP_LAUNCH_TIMEOUT_MS, windowsHide: true }'));
+test('security: executeActions has no launch timeout for GUI apps', () => {
+  // GUI apps stay running, so there is no timeout awaiting their exit.
+  const launchStart = MAIN.indexOf('async function launchExecutable');
+  const launchEnd = MAIN.indexOf('async function', launchStart + 1);
+  const launchBody = MAIN.slice(launchStart, launchEnd === -1 ? undefined : launchEnd);
+  assert.ok(!launchBody.includes('APP_LAUNCH_TIMEOUT_MS'), 'launchExecutable has no timeout');
+  assert.ok(!launchBody.includes('windowsHide: true'), 'launchExecutable does not hide the window');
 });
 
 test('security: executeActions limits actions per batch', () => {
