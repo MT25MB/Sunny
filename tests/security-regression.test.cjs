@@ -1262,29 +1262,47 @@ test('decide-action handler sanitizes vision output for injection', () => {
     'utf8'
   );
 
+  // Find the handler body by brace matching.
+  const braceBody = (start) => {
+    let depth = 0;
+    for (let i = start; i < mainSrc.length; i += 1) {
+      if (mainSrc[i] === '{') depth += 1;
+      else if (mainSrc[i] === '}') {
+        depth -= 1;
+        if (depth === 0) return mainSrc.slice(start, i);
+      }
+    }
+    return null;
+  };
+
+  // The handler must exist and must delegate to the shared decideAction
+  // helper, which is where sanitization now lives (it is shared with the
+  // sunny:execute-tool decide_action path).
   const start = mainSrc.indexOf("ipcMain.handle('sunny:decide-action'");
   assert.notStrictEqual(start, -1, 'sunny:decide-action handler must exist');
+  const handler = braceBody(start);
+  assert.ok(handler, 'decide-action handler must be closed');
+  assert.ok(
+    handler.includes('decideAction('),
+    'decide-action handler must delegate to the shared decideAction helper'
+  );
 
-  // Find the handler body by brace matching.
-  let depth = 0;
-  let end = -1;
-  for (let i = start; i < mainSrc.length; i += 1) {
-    if (mainSrc[i] === '{') depth += 1;
-    else if (mainSrc[i] === '}') {
-      depth -= 1;
-      if (depth === 0) { end = i; break; }
-    }
-  }
-  assert.notStrictEqual(end, -1, 'decide-action handler must be closed');
-  const handler = mainSrc.slice(start, end);
+  const helperStart = mainSrc.indexOf('async function decideAction');
+  assert.notStrictEqual(helperStart, -1, 'decideAction must exist');
+  const helper = braceBody(helperStart);
+  assert.ok(helper, 'decideAction must be closed');
 
   assert.ok(
-    handler.includes('sanitizeUntrustedContent'),
-    'decide-action must sanitize output with sanitizeUntrustedContent'
+    helper.includes('sanitizeUntrustedContent'),
+    'decideAction must sanitize model output with sanitizeUntrustedContent'
   );
   assert.ok(
-    /captureScreen\(\)/.test(handler),
-    'decide-action must capture the screen when the LLM decides vision is needed'
+    helper.includes('extractActionEnvelope'),
+    'decideAction must sanitize model-emitted actions through extractActionEnvelope'
+  );
+  assert.ok(
+    /captureScreen\(\)/.test(helper),
+    'decideAction must capture the screen when the LLM decides vision is needed'
   );
 });
 

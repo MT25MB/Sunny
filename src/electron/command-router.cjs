@@ -1,0 +1,304 @@
+/**
+ * Deterministic command router.
+ *
+ * The chat decides everything through the AI model: the model answers in
+ * prose and nothing reliable parses that prose back into desktop actions,
+ * so commands like "open calculator" never reached the desktop at all -
+ * the app told the user "Done." and did nothing.
+ *
+ * This router recognises the small set of safe, self-directed commands an
+ * older adult is most likely to type and returns fully built actions,
+ * without calling the model. It also lets the AI path return actions in a
+ * strict JSON envelope and sanitises those before anything executes.
+ *
+ * Anything not recognised returns null; the caller then falls back to the
+ * usual model path unchanged.
+ */
+
+'use strict';
+
+/**
+ * Apps the chat is allowed to open, keyed by every alias we accept.
+ * One entry per alias. The keys match APP_EXE_OPENERS in main.cjs.
+ */
+const OPEN_APP_ALIASES = [
+  ['calculator', 'calculator'],
+  ['calc', 'calculator'],
+  ['windows calculator', 'calculator'],
+  ['file explorer', 'files'],
+  ['file manager', 'files'],
+  ['explorer', 'files'],
+  ['files', 'files'],
+  ['my files', 'files'],
+  ['notepad', 'notepad'],
+  ['text editor', 'notepad'],
+  ['notes', 'notepad'],
+  ['microsoft word', 'word'],
+  ['word document', 'word'],
+  ['word', 'word'],
+  ['microsoft excel', 'excel'],
+  ['spreadsheet', 'excel'],
+  ['excel', 'excel'],
+  ['control panel', 'settings'],
+  ['system settings', 'settings'],
+  ['settings', 'settings'],
+  ['calendar', 'calendar'],
+  ['photo gallery', 'photos'],
+  ['gallery', 'photos'],
+  ['photos', 'photos'],
+  ['pictures', 'photos'],
+];
+
+const OPEN_APP_NAMES = {
+  calculator: 'the Calculator',
+  files: 'File Explorer',
+  notepad: 'Notepad',
+  word: 'Word',
+  excel: 'Excel',
+  settings: 'Settings',
+  calendar: 'the Calendar',
+  photos: 'the Photos app',
+};
+
+const TRAILING_FILLERS = /\s+(for me|please|now|thanks|thank you)\.?$/i;
+
+/** Collapse case, punctuation and spacing so pattern matching is stable. */
+function normaliseCommand(input) {
+  return String(input ?? '')
+    .toLowerCase()
+    .replace(/[“”‘’"'!?.,;:()\[\]{}]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(TRAILING_FILLERS, '')
+    .trim();
+}
+
+const LEADING_POLITE = /^(?:(?:please|kindly|hey|hi|hello|sunny|hey sunny)\s+)*/;
+
+function parseOpenApp(text) {
+  // "open the calculator", "launch my files", "can you open notepad", ...
+  const match = text.match(
+    new RegExp(
+      '^(?:can you\\s+|could you\\s+|would you\\s+|will you\\s+|may i\\s+)?' +
+        '(?:open|launch|start|run|show(?: me)?|bring up|fire up)\\s+' +
+        '(?:up\\s+)?(?:the\\s+|my\\s+|a\\s+|an\\s+)?([a-z ]+?)$'
+    )
+  );
+  if (!match) return null;
+  const rest = match[1].replace(/\s+/g, ' ').trim();
+  for (const [alias, app] of OPEN_APP_ALIASES) {
+    if (rest === alias) return app;
+  }
+  return null;
+}
+
+function parseScreenshot(text) {
+  if (/^(?:take|capture|grab|snap|save|get)\s+(?:a\s+|the\s+)?screen$/.test(text)) return true;
+  const match = text.match(
+    /^(?:take|capture|grab|snap|save|get)?\s*(?:a\s+|an\s+|the\s+)?(?:screenshot|screen shot|screen capture|screengrab|screengrab)(?:\s+of\s+(?:the\s+)?screen)?$|^screenshot(?:\s+(?:the|of)\s+(?:the\s+)?screen)?$/
+  );
+  return match !== null;
+}
+
+function parseWindowAction(text) {
+  // Require an explicit window noun - a bare "close" is ambiguous
+  // ("close calculator" must not close this app).
+  const match = text.match(
+    /^(minimize|maximize|maximise|close|hide|show|restore)\s+(?:the\s+|this\s+|my\s+)?(?:sunny\s+|(?:app|application|window)\s+)?window$/
+  );
+  if (!match) return null;
+  const verb = match[1].replace(/maximise/g, 'maximize');
+  const map = { minimize: 'minimize', maximize: 'maximize', close: 'close', hide: 'hide', show: 'show', restore: 'maximize' };
+  return map[verb] ?? null;
+}
+
+function parseClipboard(text) {
+  if (/^(?:copy|copy that|copy it)$/.test(text)) return 'copy';
+  if (/^(?:paste|paste that|paste it)$/.test(text)) return 'paste';
+  if (/^(?:select all|select everything|select all of it)$/.test(text)) return 'select_all';
+  return null;
+}
+
+/**
+ * @param {string} input raw user text
+ * @returns {{ response: string, actions: Array<{type: string, [key: string]: unknown}> } | null}
+ *   A fully built decision when the command is recognised, otherwise null.
+ */
+function parseCommand(input) {
+  const text = normaliseCommand(input).replace(LEADING_POLITE, '').trim();
+  if (!text) return null;
+
+  const app = parseOpenApp(text);
+  if (app) {
+    return {
+      response: `Opening ${OPEN_APP_NAMES[app] ?? app} for you.`,
+      actions: [{ type: 'open_app', app }],
+    };
+  }
+
+  if (parseScreenshot(text)) {
+    return {
+      response: 'Taking a screenshot for you.',
+      actions: [{ type: 'screenshot' }],
+    };
+  }
+
+  const windowAction = parseWindowAction(text);
+  if (windowAction) {
+    const sentences = { minimize: 'Minimizing the window.', maximize: 'Maximizing the window.', close: 'Closing the window.', hide: 'Hiding the window.', show: 'Showing the window.' };
+    return {
+      response: sentences[windowAction] ?? 'Done.',
+      actions: [{ type: 'window_action', action: windowAction }],
+    };
+  }
+
+  const clipboard = parseClipboard(text);
+  if (clipboard === 'copy') {
+    return { response: 'Copied that to the clipboard.', actions: [{ type: 'copy' }] };
+  }
+  if (clipboard === 'paste') {
+    return { response: 'Pasted from the clipboard.', actions: [{ type: 'paste' }] };
+  }
+  if (clipboard === 'select_all') {
+    return { response: 'Selected everything on the screen.', actions: [{ type: 'select_all' }] };
+  }
+
+  return null;
+}
+
+/**
+ * Action types the model is allowed to request through the JSON envelope.
+ * Mouse and keyboard injection (click, drag, type, hotkey, key, move, hover)
+ * are deliberately excluded: they drive other applications, and the generic
+ * tool path does not confirm them first. The model may open apps, take a
+ * screenshot, act on this window, clipboard and simple scrolls - nothing
+ * that touches anything else the user has open.
+ */
+const SAFE_ACTION_TYPES = new Set([
+  'open_app',
+  'screenshot',
+  'window_action',
+  'copy',
+  'paste',
+  'select_all',
+  'wait',
+  'scroll',
+]);
+
+const WINDOW_ACTIONS = new Set(['minimize', 'maximize', 'close', 'hide', 'show', 'focus', 'restore', 'get_info']);
+
+/**
+ * Validate a single action from the JSON envelope. Returns the action with
+ * only its known fields, or null when the action is not one of the safe,
+ * self-directed kinds.
+ */
+function sanitiseModelAction(action) {
+  if (!action || typeof action !== 'object' || Array.isArray(action)) return null;
+  const type = action.type;
+  if (typeof type !== 'string' || !SAFE_ACTION_TYPES.has(type)) return null;
+
+  switch (type) {
+    case 'open_app': {
+      const app = typeof action.app === 'string' ? action.app.trim().toLowerCase() : '';
+      // Only apps this build knows how to open.
+      if (!OPEN_APP_ALIASES.some(([, key]) => key === app) && !['calculator', 'files', 'notepad', 'word', 'excel', 'settings', 'calendar', 'photos', 'maps', 'weather', 'music'].includes(app)) {
+        return null;
+      }
+      return { type: 'open_app', app };
+    }
+    case 'screenshot':
+      return { type: 'screenshot' };
+    case 'window_action': {
+      const actionName = typeof action.action === 'string' ? action.action.trim().toLowerCase() : '';
+      if (!WINDOW_ACTIONS.has(actionName)) return null;
+      return { type: 'window_action', action: actionName };
+    }
+    case 'copy':
+    case 'paste':
+    case 'select_all':
+      return { type };
+    case 'wait': {
+      const ms = Number(action.ms);
+      if (!Number.isFinite(ms) || ms < 0 || ms > 10000) return null;
+      return { type: 'wait', ms: Math.round(ms) };
+    }
+    case 'scroll': {
+      const amount = Number(action.amount);
+      if (!Number.isFinite(amount) || Math.abs(amount) > 10000) return null;
+      return { type: 'scroll', amount: Math.trunc(amount) };
+    }
+    default:
+      return null;
+  }
+}
+
+/**
+ * Extract the strict action envelope from raw model prose.
+ *
+ * The model is asked to answer either with plain words (no action) or with
+ * a single JSON object {"response": "...", "actions": [...]}. We scan for a
+ * brace-balanced object rather than trusting the whole string to be JSON,
+ * then keep only the safe action types.
+ *
+ * @returns {{ response: string, actions?: Array<object> } | null}
+ *   null when there is no JSON envelope (plain text answer - caller keeps
+ *   the text as-is, with no actions).
+ */
+function extractActionEnvelope(modelText) {
+  const text = String(modelText ?? '');
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+
+  // Walk forward tracking depth so we can stop at the matching brace.
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escaped) { escaped = false; continue; }
+    if (ch === '\\') { escaped = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') depth++;
+    if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        const candidate = text.slice(start, i + 1);
+        let parsed;
+        try {
+          parsed = JSON.parse(candidate);
+        } catch {
+          return null;
+        }
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+        const response = typeof parsed.response === 'string' ? parsed.response.trim() : '';
+        const rawActions = Array.isArray(parsed.actions) ? parsed.actions : [];
+        const actions = rawActions.map(sanitiseModelAction).filter(Boolean);
+        const envelope = { response };
+        if (actions.length > 0) envelope.actions = actions;
+        return envelope;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Appended to the prompt on the AI path so the model has a chance of
+ * actually returning an action instead of only describing one.
+ */
+const ACTION_PROTOCOL_SUFFIX =
+  '\n\nIf the user asked you to do something on the computer, answer with a single JSON object and nothing else, in this exact shape: ' +
+  '{"response": "short reply for the user", "actions": [{"type": "open_app", "app": "calculator"}]}. ' +
+  'Allowed action types: open_app (app), screenshot, window_action (action: minimize, maximize, close, show, hide), copy, paste, select_all, wait (ms), scroll (amount). ' +
+  'Only include actions the user clearly asked for. If no action is needed, answer in plain words with no JSON.';
+
+module.exports = {
+  parseCommand,
+  normaliseCommand,
+  sanitiseModelAction,
+  extractActionEnvelope,
+  OPEN_APP_ALIASES,
+  ACTION_PROTOCOL_SUFFIX,
+  SAFE_ACTION_TYPES,
+};

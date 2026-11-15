@@ -21,6 +21,7 @@ const { pathToFileURL } = require('node:url');
 const inference = require('./inference.cjs');
 const speech = require('./speech.cjs');
 const windowState = require('./window-state.cjs');
+const { parseCommand, extractActionEnvelope, ACTION_PROTOCOL_SUFFIX } = require('./command-router.cjs');
 const { getCredentialPath: resolveCredentialPath } = require('./credential-path.cjs');
 const { interceptAction, sanitizeUntrustedContent, checkParameterAmbiguity, DESTRUCTIVE_TEXT_PATTERN } = require('../main/security/interceptor.cjs');
 const secureStorage = require('./secure-storage.cjs');
@@ -268,6 +269,75 @@ async function runConfiguredInference(guardedPrompt, imageBase64) {
       error: err && err.message ? err.message : 'The selected provider could not be reached.',
     };
   }
+}
+
+/** Strip the data-URL prefix from a base64 image, or return null. */
+function stripDataUrlPrefix(value) {
+  if (typeof value !== 'string') return null;
+  return value.replace(/^data:image\/[^;]+;base64,/, '');
+}
+
+/**
+ * Decide what to do with a chat prompt.
+ *
+ * Recognised commands ("open calculator", "take a screenshot") are answered
+ * deterministically with fully built actions, without touching the model.
+ * Everything else goes to the configured model. The model is asked to use a
+ * strict JSON envelope when it wants to act; whatever it answers is returned
+ * as prose or as a sanitised envelope (see command-router.cjs).
+ *
+ * Both the chat tool path (sunny:execute-tool) and the dedicated
+ * sunny:decide-action handler go through this one function so they cannot
+ * drift apart.
+ *
+ * @param {string} prompt the user's text
+ * @param {string|undefined} providedImage base64 image straight from the caller, if any
+ * @returns {Promise<{response: string, actions?: Array<object>}>}
+ */
+async function decideAction(prompt, providedImage) {
+  // The screen never has to be captured for a command we already understand.
+  const deterministic = parseCommand(prompt);
+  if (deterministic) return deterministic;
+
+  const providedBase64 = stripDataUrlPrefix(providedImage);
+
+  // Sanitize the user prompt before embedding it in the vision-check
+  // classifier so instruction-like text cannot manipulate it.
+  const safePromptForVisionCheck = sanitizeUntrustedContent(prompt);
+  const visionCheck = await runConfiguredInference(
+    withSystemGuardrail(
+      'Does this request require seeing the user\'s screen to answer? '
+        + 'Answer with exactly one word: YES or NO. '
+        + 'User request: ' + safePromptForVisionCheck
+    ),
+    null
+  );
+
+  const needsScreen = /^YES$/i.test(visionCheck.response || '');
+
+  let imageBase64 = providedBase64;
+  if (needsScreen && !imageBase64) {
+    // Capture the screen so the model can see what the user sees.
+    const capture = await captureScreen();
+    imageBase64 = stripDataUrlPrefix(capture.dataUrl);
+  }
+
+  // Apply the system guardrail and tell the model how to ask for an action.
+  const result = await runConfiguredInference(withSystemGuardrail(prompt) + ACTION_PROTOCOL_SUFFIX, imageBase64);
+  if (result.error) throw new Error(result.error);
+
+  const envelope = extractActionEnvelope(result.response);
+  if (envelope) {
+    // The response text is model output like any other - sanitise it. The
+    // actions were already sanitised by extractActionEnvelope.
+    const safeResponse = sanitizeUntrustedContent(envelope.response || '');
+    const out = { response: safeResponse };
+    if (envelope.actions) out.actions = envelope.actions;
+    return out;
+  }
+
+  // Plain prose: the model did not ask for any action.
+  return { response: sanitizeUntrustedContent(result.response || '') };
 }
 
 /**
@@ -1609,25 +1679,8 @@ async function runTool(toolName, params) {
   }
 
   if (toolName === 'decide_action') {
-    // Reuse the same logic as the dedicated sunny:decide-action handler.
-    const guardedPrompt = withSystemGuardrail(params.prompt);
-    // If an image is provided, use vision; otherwise ask the LLM if vision is needed.
-    const providedImage = params.image ? params.image.replace(/^data:image\/[^;]+;base64,/, '') : null;
-    const visionCheck = await runConfiguredInference(
-      withSystemGuardrail(
-        'Does this request require seeing the user\'s screen? Answer exactly YES or NO. Request: ' + params.prompt
-      ),
-      null
-    );
-    const needsScreen = /^YES$/i.test(visionCheck.response || '');
-    let imageBase64 = providedImage;
-    if (needsScreen && !imageBase64) {
-      const capture = await captureScreen();
-      imageBase64 = capture.dataUrl.replace(/^data:image\/[^;]+;base64,/, '');
-    }
-    const result = await runConfiguredInference(guardedPrompt, imageBase64);
-    if (result.error) throw new Error(result.error);
-    return { response: sanitizeUntrustedContent(result.response || '') };
+    // Shared with the dedicated sunny:decide-action handler.
+    return await decideAction(params.prompt, params.image);
   }
 
   if (toolName === 'execute_actions') {
@@ -2604,39 +2657,8 @@ app.whenReady().then(() => {
       const prompt = requireString(box.prompt, 'prompt');
       const providedImage = box.image === undefined ? undefined : requireString(box.image, 'image');
 
-      // Apply system guardrail to prevent prompt injection
-      const guardedPrompt = withSystemGuardrail(prompt);
-
-      // Step 1: Ask the LLM whether this request needs to see the screen.
-      // Sanitize the user prompt before embedding it in the vision check so
-      // that instruction-like text cannot manipulate the classifier.
-      const safePromptForVisionCheck = sanitizeUntrustedContent(prompt);
-      const visionCheck = await runConfiguredInference(
-        withSystemGuardrail(
-          'Does this request require seeing the user\'s screen to answer? '
-          + 'Answer with exactly one word: YES or NO. '
-          + 'User request: ' + safePromptForVisionCheck
-        ),
-        null
-      );
-
-      const needsScreen = /^YES$/i.test(visionCheck.response || '');
-
-      let imageBase64 = providedImage;
-      if (needsScreen && !imageBase64) {
-        // Capture the screen so the model can see what the user sees.
-        const capture = await captureScreen();
-        imageBase64 = capture.dataUrl.replace(/^data:image\/[^;]+;base64,/, '');
-      }
-
-      // Step 2: Run the actual inference, with vision if the screen was needed.
-      const result = await runConfiguredInference(guardedPrompt, imageBase64);
-      if (result.error) throw new Error(result.error);
-
-      // Step 3: Sanitize screen-derived text for prompt injection.
-      const safeResponse = sanitizeUntrustedContent(result.response || '');
-
-      return { response: safeResponse };
+      // Shared with the chat tool path (sunny:execute-tool).
+      return await decideAction(prompt, providedImage);
     }
   ));
 

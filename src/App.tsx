@@ -58,6 +58,27 @@ import {
   type SectionState,
 } from "@/lib/section-state";
 import mascot from "/assets/mascot.png";
+
+/**
+ * Unwrap the envelope every tool call comes back in.
+ *
+ * The main process answers tool calls with `{ success, data }`, sunnyBrain
+ * wraps that again in its own `{ success, toolName, result }`, and the chat
+ * handler acts on the inner object. Returns `{}` for anything the bridge
+ * could not produce so the caller can decide what "no answer" means.
+ */
+function unwrapToolResult(toolResult: unknown): Record<string, unknown> {
+  const result = (toolResult as { result?: unknown } | undefined)?.result;
+  if (result && typeof result === "object" && !Array.isArray(result)) {
+    const box = result as Record<string, unknown>;
+    const data = box.data;
+    if (data && typeof data === "object" && !Array.isArray(data)) {
+      return data as Record<string, unknown>;
+    }
+    return box;
+  }
+  return {};
+}
 // WebP keeps these illustrations ~7x smaller than the PNG fallback and is
 // supported natively by the Chromium engine Electron ships.
 import mascotChef from "/assets/sunny-mascot-chef.webp";
@@ -597,17 +618,26 @@ function App() {
     try {
       // Use the decide_action tool to interpret the command
       const result = await sunnyBrain.invokeTool("decide_action", { prompt: input });
-      
-      if (result.success && result.result) {
-        const decision = result.result as { response?: string; actions?: Array<{type: string}> };
+
+      const decision = unwrapToolResult(result) as {
+        response?: string;
+        actions?: Array<{ type: string }>;
+        success?: boolean;
+        error?: string;
+      };
+
+      if (result.success && decision.success === false) {
+        sunnyBrain.addMessage("system", "Could not understand: " + (decision.error || "Unknown error"));
+      } else if (result.success) {
         const actions = decision.actions;
         if (Array.isArray(actions) && actions.length > 0) {
           // Execute the actions
           const execResult = await sunnyBrain.invokeTool("execute_actions", { actions });
-          if (execResult.success) {
-            sunnyBrain.addMessage("assistant", "Completed: " + actions.map(a => a.type).join(", "));
+          const execOutcome = unwrapToolResult(execResult) as { success?: boolean; error?: string };
+          if (execOutcome.success === false) {
+            sunnyBrain.addMessage("system", "Execution failed: " + (execOutcome.error || "Unknown error"));
           } else {
-            sunnyBrain.addMessage("system", "Execution failed: " + execResult.error);
+            sunnyBrain.addMessage("assistant", decision.response || "Done.");
           }
         } else {
           // No actions to execute, just respond
