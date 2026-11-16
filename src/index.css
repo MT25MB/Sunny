@@ -1,3 +1,13 @@
+:root {
+  /* Periwinkle accent: complementary to the Sunny amber and distinct from
+     the existing status hues (green/success, blue/running, coral/error). */
+  --accent-soft: #BCC5F2;
+  --accent: #9DA9E8;
+  --accent-strong: #8493DC;
+  --accent-deep: #6E7FCB;
+}
+
+::selection { background: var(--accent-deep); color: #f7f9fb; }
 /* Local font faces — self-hosted, no external requests */
 
 
@@ -1150,7 +1160,7 @@ button { border: 0; cursor: pointer; }
 
 
 
-button:focus-visible, textarea:focus-visible { outline: 3px solid #f6b86a; outline-offset: 3px; }
+button:focus-visible, textarea:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 
 
 
@@ -2590,7 +2600,7 @@ textarea::placeholder { color: #65747b; }
 
 
 
-.secondary-button { color: #c7d0d0; border: 1px solid #3b474c; background: #293339; }.secondary-button:hover { border-color: #718187; background: #344149; }
+.secondary-button { color: #c7d0d0; border: 1px solid #3b474c; background: #293339; }.secondary-button:hover { border-color: var(--accent); background: #344149; color: var(--accent-soft); }
 
 
 
@@ -11537,7 +11547,7 @@ textarea::placeholder { color: #65747b; }
 
 
 
-.settings-section-title { display: flex; align-items: flex-start; gap: 11px; color: #f1b568; }
+.settings-section-title { display: flex; align-items: flex-start; gap: 11px; color: var(--accent-soft); }
 
 
 
@@ -24379,7 +24389,7 @@ textarea::placeholder { color: #65747b; }
 
 
 
-  color: #f1b568;
+  color: var(--accent-soft);
 
 
 
@@ -40487,7 +40497,7 @@ textarea::placeholder { color: #65747b; }
   list-style: none;
 }
 .footer-nav a { color: #93a4aa; text-decoration: none; }
-.footer-nav a:hover, .footer-nav a:focus-visible { color: #f1b568; text-decoration: underline; }
+.footer-nav a:hover, .footer-nav a:focus-visible { color: var(--accent-soft); text-decoration: underline; }
 
 /* Quit control. Styled to match the links so it does not read as a primary
    action, but still focusable and labelled like one. */
@@ -48122,7 +48132,7 @@ textarea::placeholder { color: #65747b; }
 
 
 
-  color: #f1b568;
+  color: var(--accent-soft);
 
 
 
@@ -53035,13 +53045,13 @@ html, body, #root {
 .chat-msg.assistant {
   align-self: flex-start;
   background: #1d262c;
-  border-color: #3a474d;
+  border-color: rgba(157, 169, 232, 0.45);
   color: #f7f9fb;
 }
 
 .chat-msg.assistant .msg-role {
-  background: rgba(241, 181, 104, 0.14);
-  color: #f6c97a;
+  background: rgba(157, 169, 232, 0.16);
+  color: var(--accent-soft);
 }
 
 .chat-msg.assistant .msg-text {

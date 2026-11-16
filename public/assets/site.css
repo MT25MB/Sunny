@@ -20,7 +20,11 @@
   --rule-soft: rgba(255, 255, 255, 0.07);
   --sun: #f1a95b;
   --sun-ink: #f6b86a;
-  --focus: #f6b86a;
+  --accent-soft: #BCC5F2;
+  --accent: #9DA9E8;
+  --accent-strong: #8493DC;
+  --accent-deep: #6E7FCB;
+  --focus: var(--accent);
   --radius-sm: 11px;
   --radius: 20px;
   --measure: 68ch;
