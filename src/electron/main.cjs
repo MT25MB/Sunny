@@ -2497,6 +2497,9 @@ app.whenReady().then(() => {
 
       autoUpdater.on('update-not-available', (info) => {
         log.info('No update available');
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('sunny:update-not-available', info);
+        }
       });
 
       autoUpdater.on('error', (err) => {

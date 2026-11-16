@@ -362,10 +362,6 @@ test('handlers: defines handleAutoCheckUpdatesChange', () => {
   assert.ok(APP.includes('const handleAutoCheckUpdatesChange = useCallback((enabled: boolean) => {'));
 });
 
-test('handlers: defines handleCheckForUpdates', () => {
-  assert.ok(APP.includes('const handleCheckForUpdates = useCallback(async () => {'));
-});
-
 // ============================================================================
 // Section state management
 // ============================================================================

@@ -102,7 +102,6 @@ type Props = {
   onInitModel: () => void;
   autoCheckUpdates: boolean;
   onAutoCheckUpdatesChange: (enabled: boolean) => void;
-  onCheckForUpdates: () => void;
 };
 
 export function SettingsModal({
@@ -129,7 +128,8 @@ export function SettingsModal({
   const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
   const [saveState, setSaveState] = useState<'idle' | 'saved'>('idle');
   const [windowPreset, setWindowPreset] = useState<WindowSizePreset>('comfortable');
-  const [checkState, setCheckState] = useState<'idle' | 'checking' | 'available' | 'up-to-date' | 'error'>('idle');
+  const [updatePhase, setUpdatePhase] = useState<'idle' | 'checking' | 'downloading' | 'ready' | 'up-to-date' | 'error'>('idle');
+  const [updateVersion, setUpdateVersion] = useState('');
   const [updateError, setUpdateError] = useState<string | null>(null);
 
   const activeConfig = PROVIDER_CONFIGS.find((p) => p.value === preferences.brain_provider) ?? PROVIDER_CONFIGS[0];
@@ -230,37 +230,70 @@ export function SettingsModal({
     }));
   }, [preferences.brain_provider, preferences.brain_model, preferences.ollama_endpoint, activeConfig.credentialKey, apiKeyValues]);
 
-  const handleCheckForUpdates = useCallback(async () => {
-    setCheckState('checking');
-    try {
-      if (!window.electronAPI?.checkForUpdates) {
-        throw new Error('Update check not available');
-      }
-      const result = await window.electronAPI.checkForUpdates();
-      if (result.success) {
-        if (result.updateInfo) {
-          setCheckState('available');
-        } else {
-          setCheckState('up-to-date');
+  // Unified one-click update flow: idle -> checking -> downloading -> ready -> restart
+  // Events from the main process drive downloading/ready/up-to-date/error.
+  const handleUpdateAction = useCallback(async () => {
+    if (updatePhase === 'idle' || updatePhase === 'up-to-date' || updatePhase === 'error') {
+      // Start a fresh check
+      setUpdatePhase('checking');
+      setUpdateError(null);
+      setUpdateVersion('');
+      try {
+        if (!window.electronAPI?.checkForUpdates) {
+          throw new Error('Update check not available');
         }
-      } else {
-        setCheckState('error');
+        // The result doesn't reliably tell us if an update exists;
+        // the main process events (update-available / update-not-available) do.
+        await window.electronAPI.checkForUpdates();
+      } catch (err) {
+        console.error('Update check failed:', err);
+        const message = err instanceof Error ? err.message : 'Failed to check for updates. Please try again.';
+        setUpdateError(message);
+        setUpdatePhase('error');
       }
-    } catch (err) {
-      console.error('Update check failed:', err);
-      const message = err instanceof Error ? err.message : 'Failed to check for updates. Please try again.';
-      setUpdateError(message);
-      setCheckState('error');
+    } else if (updatePhase === 'ready') {
+      // User confirmed restart — install and quit
+      try {
+        await window.electronAPI?.quitAndInstall?.();
+      } catch (err) {
+        console.error('Failed to quit and install:', err);
+      }
     }
-  }, []);
+    // 'checking' and 'downloading' are non-interactive — the button just shows progress
+  }, [updatePhase]);
 
-  const handleDownloadUpdate = useCallback(async () => {
-    if (!window.electronAPI?.quitAndInstall) return;
-    try {
-      await window.electronAPI.quitAndInstall();
-    } catch (err) {
-      console.error('Failed to quit and install:', err);
-    }
+  // Subscribe to updater events to drive the phase automatically
+  useEffect(() => {
+    if (!window.electronAPI) return;
+
+    const unsubAvailable = window.electronAPI.onUpdateAvailable?.((info) => {
+      setUpdateVersion(info.version || '');
+      setUpdatePhase('downloading');
+      // Auto-download immediately when an update is available
+      void window.electronAPI.downloadUpdate?.();
+    });
+
+    const unsubDownloaded = window.electronAPI.onUpdateDownloaded?.((info) => {
+      setUpdateVersion(info.version || '');
+      setUpdatePhase('ready');
+    });
+
+    const unsubNotAvailable = window.electronAPI.onUpdateNotAvailable?.(() => {
+      setUpdatePhase('up-to-date');
+    });
+
+    const unsubError = window.electronAPI.onUpdateError?.((message) => {
+      console.warn('[Sunny] Update error:', message);
+      setUpdateError(message);
+      setUpdatePhase('error');
+    });
+
+    return () => {
+      unsubAvailable?.();
+      unsubDownloaded?.();
+      unsubNotAvailable?.();
+      unsubError?.();
+    };
   }, []);
 
   if (!open) return null;
@@ -576,19 +609,25 @@ export function SettingsModal({
             <div className="update-controls">
               <button
                 className="update-check-button"
-                onClick={handleCheckForUpdates}
-                disabled={checkState === 'checking'}
+                onClick={handleUpdateAction}
+                disabled={updatePhase === 'checking' || updatePhase === 'downloading'}
+                aria-busy={updatePhase === 'checking' || updatePhase === 'downloading'}
               >
-                {checkState === 'checking' ? (
+                {updatePhase === 'checking' ? (
                   <>
                     <Loader2 size={14} className="spin" />
                     Checking…
                   </>
-                ) : checkState === 'available' ? (
+                ) : updatePhase === 'downloading' ? (
                   <>
-                    <Download size={14} /> Update available
+                    <RotateCcw size={14} className="spin" />
+                    Downloading…
                   </>
-                ) : checkState === 'up-to-date' ? (
+                ) : updatePhase === 'ready' ? (
+                  <>
+                    <RotateCcw size={14} /> Restart now
+                  </>
+                ) : updatePhase === 'up-to-date' ? (
                   <>
                     <Check size={14} /> Up to date
                   </>
@@ -598,13 +637,14 @@ export function SettingsModal({
                   </>
                 )}
               </button>
-              {checkState === 'error' && (
+              {updateVersion && updatePhase !== 'idle' && updatePhase !== 'ready' && (
+                <span className="update-version">Version {updateVersion}</span>
+              )}
+              {updatePhase === 'error' && (
                 <span className="update-error">{updateError || 'Failed to check for updates. Please try again.'}</span>
               )}
-              {checkState === 'available' && (
-                <button className="update-download-button" onClick={handleDownloadUpdate}>
-                  <Download size={14} /> Download and install
-                </button>
+              {updatePhase === 'up-to-date' && (
+                <span className="update-success">You&rsquo;re up to date</span>
               )}
               <div className="toggle-row {autoCheckUpdates ? 'enabled' : ''}">
                 <span>Automatically check for updates</span>

@@ -338,6 +338,13 @@ const electronAPI = {
     return () => ipcRenderer.removeListener('sunny:update-error', handler);
   },
 
+  /** Subscribe to update-not-available event */
+  onUpdateNotAvailable: (callback) => {
+    const handler = (_event, info) => callback(info);
+    ipcRenderer.on('sunny:update-not-available', handler);
+    return () => ipcRenderer.removeListener('sunny:update-not-available', handler);
+  },
+
   /** Synchronous list of tool names, for code that cannot await. */
   listTools: () => SUNNY_TOOLS.slice(),
 

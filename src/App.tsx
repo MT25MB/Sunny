@@ -337,15 +337,6 @@ function App() {
     void window.electronAPI?.setAutoCheckUpdates?.(enabled);
   }, []);
 
-  const handleCheckForUpdates = useCallback(async () => {
-    if (!window.electronAPI?.checkForUpdates) return;
-    try {
-      await window.electronAPI.checkForUpdates();
-    } catch (e) {
-      console.error('Manual update check failed:', e);
-    }
-  }, []);
-
   // Load preferences on mount
   useEffect(() => {
     loadPreferences();
@@ -1516,7 +1507,6 @@ function App() {
           onInitModel={handleInitModel}
           autoCheckUpdates={autoCheckUpdates}
           onAutoCheckUpdatesChange={handleAutoCheckUpdatesChange}
-          onCheckForUpdates={handleCheckForUpdates}
         />
       )}
       {showOnboarding && (

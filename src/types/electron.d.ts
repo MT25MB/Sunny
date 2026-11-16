@@ -343,6 +343,9 @@ export interface ElectronAPI {
   /** Subscribe to update-error event. */
   onUpdateError(callback: (message: string) => void): Unsubscribe;
 
+  /** Subscribe to update-not-available event. */
+  onUpdateNotAvailable(callback: () => void): Unsubscribe;
+
   /** Host platform: 'win32' | 'darwin' | 'linux' | ... */
   readonly platform: NodeJS.Platform;
 
