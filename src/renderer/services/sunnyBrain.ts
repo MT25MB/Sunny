@@ -391,6 +391,49 @@ class SunnyBrain {
   }
 
   // -------------------------------------------------------------------------
+  // Weather (full forecast, geocoding, US alerts, radar)
+  // -------------------------------------------------------------------------
+
+  /** Get the full forecast (current + 24h hourly + 7-day daily). */
+  async getWeatherForecast(params?: {
+    location?: string | { latitude: number; longitude: number; name?: string };
+    unit?: 'celsius' | 'fahrenheit';
+  }): Promise<import('@/types/electron').WeatherForecast> {
+    if (typeof window === 'undefined' || !window.electronAPI) {
+      throw new Error('Electron API is not available. Weather requires the Sunny desktop app.');
+    }
+    return window.electronAPI.getWeatherForecast(params);
+  }
+
+  /** Geocode a place name into candidate locations. */
+  async searchLocations(query: string): Promise<import('@/types/electron').WeatherLocation[]> {
+    if (typeof window === 'undefined' || !window.electronAPI) {
+      throw new Error('Electron API is not available. Location search requires the Sunny desktop app.');
+    }
+    return window.electronAPI.searchLocations(query);
+  }
+
+  /** Active severe-weather alerts (US locations only). */
+  async getWeatherAlerts(params: {
+    latitude: number;
+    longitude: number;
+    countryCode?: string;
+  }): Promise<import('@/types/electron').WeatherAlert[]> {
+    if (typeof window === 'undefined' || !window.electronAPI) {
+      return [];
+    }
+    return window.electronAPI.getWeatherAlerts(params);
+  }
+
+  /** RainViewer radar frame timestamps. */
+  async getRadarFrames(): Promise<import('@/types/electron').RadarData> {
+    if (typeof window === 'undefined' || !window.electronAPI) {
+      throw new Error('Electron API is not available. Radar requires the Sunny desktop app.');
+    }
+    return window.electronAPI.getRadarFrames();
+  }
+
+  // -------------------------------------------------------------------------
   // Medication reminders
   // -------------------------------------------------------------------------
 
