@@ -7398,9 +7398,11 @@ textarea::placeholder { color: #65747b; }
 
      pixels wide and broke the words in half -- "Medi / catio / n". The
 
-     title takes the line and the button goes underneath it. */
+     title takes the line and the button goes underneath it. This belongs
+     to .collapsible-header; wrapping the SECTION itself makes its panel sit
+     beside the header (the tall Activity Log conversation got clipped). */
 
-  .collapsible-section {
+  .collapsible-header {
 
     flex-wrap: wrap;
   }
