@@ -1871,6 +1871,166 @@ async function fetchDigestNews(newsCount) {
 let digestCache = { at: 0, value: null };
 const DIGEST_CACHE_MS = 60 * 1000;
 
+// ---------------------------------------------------------------------------
+// Weather — shared forecast pipeline (current + hourly + 7-day daily)
+// ---------------------------------------------------------------------------
+
+// One forecast feed serves both the Morning Digest card and the dedicated
+// Weather screen, so they never disagree or make duplicate network calls.
+const FORECAST_CACHE_MS = 60 * 1000;
+const forecastCache = new Map(); // key: "lat,lon|unit" -> { at, value }
+const GEOCODING_API = 'https://geocoding-api.open-meteo.com/v1/search';
+const ALERTS_API = 'https://api.weather.gov/alerts/active';
+const RADAR_API = 'https://api.rainviewer.com/api/weather-maps.json';
+
+/**
+ * Build the Open-Meteo URL for a full forecast. The current/daily fields are
+ * unchanged from the digest's original request (kept for backwards
+ * compatibility); hourly and 7-day data are added for the Weather screen.
+ */
+function buildWeatherUrl({ latitude, longitude, unit = 'celsius', days = 7 }) {
+  const tempUnit = unit === 'fahrenheit' ? 'fahrenheit' : 'celsius';
+  const windUnit = unit === 'fahrenheit' ? 'mph' : 'kmh';
+  return `${OPEN_METEO_API}?latitude=${latitude}&longitude=${longitude}` +
+    `&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,pressure_msl,wind_speed_10m,wind_direction_10m,visibility,is_day` +
+    `&hourly=temperature_2m,weather_code,precipitation_probability` +
+    `&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max,sunrise,sunset,wind_gusts_10m_max,weather_code` +
+    `&temperature_unit=${tempUnit}&wind_speed_unit=${windUnit}` +
+    `&timezone=auto&forecast_days=${days}&forecast_hours=24`;
+}
+
+/**
+ * Normalize an Open-Meteo response into the weather object the UI renders.
+ * Keeps the original digest fields and adds `hourly`, `forecast`, `unit`,
+ * `fetchedAt` and `timezone` for the Weather screen.
+ */
+function normalizeWeather(data, { locationName, unit = 'celsius' }) {
+  const raw = data.current || data.current_weather || {};
+  const daily = data.daily || {};
+  const hourlyRaw = data.hourly || {};
+
+  const weather = {
+    temperature: Math.round(raw.temperature_2m ?? raw.temperature ?? 0),
+    condition: getWeatherCondition(raw.weather_code ?? raw.weathercode ?? 0),
+    location: locationName,
+    humidity: raw.relative_humidity_2m,
+    windSpeed: raw.wind_speed_10m !== undefined ? Math.round(raw.wind_speed_10m)
+      : raw.windspeed_10m !== undefined ? Math.round(raw.windspeed_10m) : undefined,
+    windDirection: raw.wind_direction_10m !== undefined ? compassFromDegrees(raw.wind_direction_10m) : undefined,
+    windGust: daily.wind_gusts_10m_max?.[0] !== undefined ? Math.round(daily.wind_gusts_10m_max[0]) : undefined,
+    feelsLike: raw.apparent_temperature !== undefined ? Math.round(raw.apparent_temperature) : undefined,
+    pressure: raw.pressure_msl !== undefined ? Math.round(raw.pressure_msl) : undefined,
+    visibility: raw.visibility !== undefined ? Math.round((raw.visibility / 1000) * 10) / 10 : undefined,
+    isDay: raw.is_day === undefined ? undefined : Boolean(raw.is_day),
+    precipitationChance: daily.precipitation_probability_max?.[0],
+    uvIndex: daily.uv_index_max?.[0] !== undefined ? Math.round(daily.uv_index_max[0] * 10) / 10 : undefined,
+    high: daily.temperature_2m_max ? Math.round(daily.temperature_2m_max[0]) : undefined,
+    low: daily.temperature_2m_min ? Math.round(daily.temperature_2m_min[0]) : undefined,
+    sunrise: daily.sunrise ? daily.sunrise[0] : undefined,
+    sunset: daily.sunset ? daily.sunset[0] : undefined,
+    unit,
+    fetchedAt: new Date().toISOString(),
+    timezone: data.timezone,
+  };
+
+  // Next 24 hourly points: time, temperature, condition, rain chance.
+  weather.hourly = (hourlyRaw.time || []).slice(0, 24).map((time, i) => ({
+    time,
+    temperature: Math.round(hourlyRaw.temperature_2m?.[i] ?? 0),
+    weatherCode: hourlyRaw.weather_code?.[i] ?? 0,
+    condition: getWeatherCondition(hourlyRaw.weather_code?.[i] ?? 0),
+    precipitationChance: hourlyRaw.precipitation_probability?.[i],
+  }));
+
+  // 7-day outlook: day, icon, rain chance, high/low, sun times.
+  weather.forecast = (daily.time || []).slice(0, 7).map((date, i) => ({
+    date,
+    dayName: new Date(`${date}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short' }),
+    weatherCode: daily.weather_code?.[i] ?? 0,
+    condition: getWeatherCondition(daily.weather_code?.[i] ?? 0),
+    high: daily.temperature_2m_max?.[i] !== undefined ? Math.round(daily.temperature_2m_max[i]) : undefined,
+    low: daily.temperature_2m_min?.[i] !== undefined ? Math.round(daily.temperature_2m_min[i]) : undefined,
+    precipitationChance: daily.precipitation_probability_max?.[i],
+    uvIndex: daily.uv_index_max?.[i],
+    sunrise: daily.sunrise?.[i],
+    sunset: daily.sunset?.[i],
+  }));
+
+  return weather;
+}
+
+/**
+ * Resolve a location input into coordinates + display name.
+ * @param {string | { latitude: number, longitude: number, name?: string }} [location]
+ */
+async function resolveLocation(location = 'auto') {
+  if (location && typeof location === 'object' &&
+      Number.isFinite(location.latitude) && Number.isFinite(location.longitude)) {
+    return {
+      latitude: location.latitude,
+      longitude: location.longitude,
+      locationName: String(location.name || 'Selected location').slice(0, 120),
+    };
+  }
+  if (typeof location === 'string' && location.trim() && location.trim() !== 'auto') {
+    const places = await searchLocations(location.trim());
+    if (!places.length) throw new Error(`No location found for "${location.trim()}".`);
+    return { latitude: places[0].latitude, longitude: places[0].longitude, locationName: places[0].name };
+  }
+  try {
+    const ipData = await fetchWithTimeout('https://ip-api.com/json/', 8_000, 'The location lookup');
+    if (ipData.status === 'success') {
+      return {
+        latitude: ipData.lat,
+        longitude: ipData.lon,
+        locationName: `${ipData.city}, ${ipData.regionName}`,
+      };
+    }
+  } catch {
+    // fall through to the default below
+  }
+  return { latitude: 40.7128, longitude: -74.0060, locationName: 'New York, NY' };
+}
+
+/** Get a full forecast, cached by coordinates + unit. */
+async function getForecast({ location = 'auto', unit = 'celsius' } = {}) {
+  const normalizedUnit = unit === 'fahrenheit' ? 'fahrenheit' : 'celsius';
+  const { latitude, longitude, locationName } = await resolveLocation(location);
+  const key = `${latitude.toFixed(3)},${longitude.toFixed(3)}|${normalizedUnit}`;
+  const cached = forecastCache.get(key);
+  if (cached && Date.now() - cached.at < FORECAST_CACHE_MS) return cached.value;
+
+  let data;
+  try {
+    data = await fetchWithTimeout(buildWeatherUrl({ latitude, longitude, unit: normalizedUnit }), 8_000, 'The weather service');
+  } catch (richErr) {
+    // A richer response is a bonus, never a reason to lose the weather.
+    console.warn('[Weather] Rich forecast failed, using the basic shape:', richErr.message);
+    data = await fetchWithTimeout(
+      `${OPEN_METEO_API}?latitude=${latitude}&longitude=${longitude}&current_weather=true&timezone=auto`,
+      8_000, 'The weather service'
+    );
+  }
+  const weather = normalizeWeather(data, { locationName, unit: normalizedUnit });
+  forecastCache.set(key, { at: Date.now(), value: weather });
+  return weather;
+}
+
+/** Geocode a place name via Open-Meteo's free, key-less geocoding API. */
+async function searchLocations(query) {
+  const name = requireString(query, 'location query').slice(0, 100);
+  const data = await fetchWithTimeout(
+    `${GEOCODING_API}?name=${encodeURIComponent(name)}&count=5&language=en&format=json`,
+    8_000, 'The location search'
+  );
+  return (data.results || []).map((r) => ({
+    name: [r.name, r.admin1, r.country].filter(Boolean).join(', '),
+    latitude: r.latitude,
+    longitude: r.longitude,
+    countryCode: r.country_code || '',
+  }));
+}
+
 async function getDailyDigest(location = 'auto', newsCount = 5) {
   if (digestCache.value && Date.now() - digestCache.at < DIGEST_CACHE_MS) {
     return digestCache.value;
@@ -1894,61 +2054,10 @@ async function fetchDailyDigest(location = 'auto', newsCount = 5) {
     // alongside the location lookup instead of after it.
     const newsPromise = fetchDigestNews(newsCount);
 
-    let latitude = 0;
-    let longitude = 0;
-    let locationName = 'Your Location';
-
-    if (location === 'auto') {
-      try {
-        const ipData = await fetchWithTimeout('https://ip-api.com/json/', 8_000, 'The location lookup');
-        if (ipData.status === 'success') {
-          latitude = ipData.lat;
-          longitude = ipData.lon;
-          locationName = `${ipData.city}, ${ipData.regionName}`;
-        }
-      } catch {
-        latitude = 40.7128;
-        longitude = -74.0060;
-        locationName = 'New York, NY';
-      }
-    }
-
-    const richUrl = `${OPEN_METEO_API}?latitude=${latitude}&longitude=${longitude}` +
-      `&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,pressure_msl,wind_speed_10m,wind_direction_10m,visibility,is_day` +
-      `&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max,sunrise,sunset,wind_gusts_10m_max` +
-      `&timezone=auto&forecast_days=1`;
-    let weatherData;
-    try {
-      weatherData = await fetchWithTimeout(richUrl, 8_000, 'The weather service');
-    } catch (richErr) {
-      // A richer response is a bonus, never a reason to lose the weather
-      // entirely - fall back to the minimal legacy shape.
-      console.warn('[Digest] Rich weather fetch failed, using the basic shape:', richErr.message);
-      weatherData = await fetchWithTimeout(`${OPEN_METEO_API}?latitude=${latitude}&longitude=${longitude}&current_weather=true&timezone=auto`, 8_000, 'The weather service');
-    }
-
-    const raw = weatherData.current || weatherData.current_weather || {};
-    const daily = weatherData.daily || {};
-    const weather = {
-      temperature: Math.round(raw.temperature_2m ?? raw.temperature ?? 0),
-      condition: getWeatherCondition(raw.weather_code ?? raw.weathercode ?? 0),
-      location: locationName,
-      humidity: raw.relative_humidity_2m,
-      windSpeed: raw.wind_speed_10m !== undefined ? Math.round(raw.wind_speed_10m)
-        : raw.windspeed_10m !== undefined ? Math.round(raw.windspeed_10m) : undefined,
-      windDirection: raw.wind_direction_10m !== undefined ? compassFromDegrees(raw.wind_direction_10m) : undefined,
-      windGust: daily.wind_gusts_10m_max?.[0] !== undefined ? Math.round(daily.wind_gusts_10m_max[0]) : undefined,
-      feelsLike: raw.apparent_temperature !== undefined ? Math.round(raw.apparent_temperature) : undefined,
-      pressure: raw.pressure_msl !== undefined ? Math.round(raw.pressure_msl) : undefined,
-      visibility: raw.visibility !== undefined ? Math.round((raw.visibility / 1000) * 10) / 10 : undefined,
-      isDay: raw.is_day === undefined ? undefined : Boolean(raw.is_day),
-      precipitationChance: daily.precipitation_probability_max?.[0],
-      uvIndex: daily.uv_index_max?.[0] !== undefined ? Math.round(daily.uv_index_max[0] * 10) / 10 : undefined,
-      high: daily?.temperature_2m_max ? Math.round(daily.temperature_2m_max[0]) : undefined,
-      low: daily?.temperature_2m_min ? Math.round(daily.temperature_2m_min[0]) : undefined,
-      sunrise: daily?.sunrise ? daily.sunrise[0] : undefined,
-      sunset: daily?.sunset ? daily.sunset[0] : undefined,
-    };
+    // One shared forecast feed serves both the digest card and the Weather
+    // screen. The digest keeps using its original fields; the extra hourly
+    // and 7-day data travels along with it for the Weather screen.
+    const weather = await getForecast({ location });
 
     const news = await newsPromise;
     // Already passed newsCount via closure
