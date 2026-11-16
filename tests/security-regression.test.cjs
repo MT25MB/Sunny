@@ -484,7 +484,7 @@ test('speech repeats use a fresh utterance each time (M5 regression)', () => {
     require('node:path').join(__dirname, '..', 'src', 'renderer', 'services', 'sunnyBrain.ts'),
     'utf8'
   );
-  const fn = src.slice(src.indexOf('private speakLocally'));
+  const fn = src.slice(src.indexOf('speakLocally(message: string'));
   assert.ok(
     /for \(let i = 0; i < repeat; i \+= 1\) \{\s*const utterance = new SpeechSynthesisUtterance\(message\)/.test(fn),
     'the utterance must be constructed inside the repeat loop'

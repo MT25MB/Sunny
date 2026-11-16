@@ -287,6 +287,14 @@ const electronAPI = {
     return ipcRenderer.invoke('sunny:speak-notification', params);
   },
 
+  /** Speak text using the operating system's TTS (main process). */
+  speakText: async (text, rate) => {
+    if (typeof text !== 'string' || text.trim() === '') {
+      throw new Error('speakText requires a non-empty string.');
+    }
+    return ipcRenderer.invoke('sunny:speak-text', { text, rate });
+  },
+
   // -------------------------------------------------------------------------
   // Main-process -> renderer subscriptions
   // -------------------------------------------------------------------------

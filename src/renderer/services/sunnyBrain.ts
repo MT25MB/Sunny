@@ -172,7 +172,7 @@ class SunnyBrain {
 
     // Speak each chunk sequentially with a tiny gap
     for (const chunk of chunks) {
-      this.speakLocally(chunk, clampedRepeat);
+      await this.speakLocally(chunk, clampedRepeat);
       if (chunks.length > 1) await new Promise((r) => setTimeout(r, CHUNK_GAP_MS));
     }
   }
@@ -605,22 +605,38 @@ class SunnyBrain {
     return window.electronAPI;
   }
 
-  private speakLocally(message: string, repeat: number): void {
+  /**
+   * Speak through the operating system's TTS engine in the main process.
+   * Returns false when unavailable so the caller can use Web Speech instead.
+   */
+  private async speakWithOS(message: string, repeat: number): Promise<boolean> {
+    if (typeof window === 'undefined' || !window.electronAPI?.speakText) return false;
+    try {
+      for (let i = 0; i < repeat; i += 1) {
+        // Slightly slower than normal suits older listeners.
+        await window.electronAPI.speakText(message, -1);
+      }
+      return true;
+    } catch (err) {
+      console.warn('[Sunny] OS speech failed, falling back to Web Speech:', err);
+      return false;
+    }
+  }
+
+  private async speakLocally(message: string, repeat: number): Promise<void> {
+    // Primary path: OS voices via the main process (works in packaged builds).
+    if (await this.speakWithOS(message, repeat)) return;
+
+    // Fallback: the renderer's Web Speech API (browser preview, or if the OS
+    // engine is unavailable). The sandboxed renderer is not reliable in the
+    // packaged app, so this is only reached when OS speech fails.
     if (typeof window === 'undefined' || !('speechSynthesis' in window) || !window.speechSynthesis) {
-      // Speech synthesis unavailable (e.g. some Linux setups): log and
-      // continue rather than crashing the caller.
       console.warn('[Sunny] Text-to-speech is unavailable in this environment.');
       return;
     }
 
     try {
-      // Cancel any in-flight speech so repeat requests start cleanly.
       window.speechSynthesis.cancel();
-
-      // A slower rate, normal pitch, and full volume suit older listeners.
-      // Each repeat needs its own utterance instance: the Web Speech API
-      // treats an already-spoken utterance as consumed, so re-queuing the
-      // same object silently drops the repeats.
       for (let i = 0; i < repeat; i += 1) {
         const utterance = new SpeechSynthesisUtterance(message);
         utterance.rate = 0.9;
@@ -629,7 +645,6 @@ class SunnyBrain {
         window.speechSynthesis.speak(utterance);
       }
     } catch (error) {
-      // A speech failure must never break the calling flow.
       console.warn('[Sunny] Speech playback failed:', error);
     }
   }

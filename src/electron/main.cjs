@@ -24,6 +24,7 @@ const windowState = require('./window-state.cjs');
 const { buildRecipeSearchTerms } = require('./recipe-terms.cjs');
 const { parseCommand, extractActionEnvelope, ACTION_PROTOCOL_SUFFIX } = require('./command-router.cjs');
 const { extractFileName, findUserFile } = require('./file-finder.cjs');
+const osTts = require('./os-tts.cjs');
 const { getCredentialPath: resolveCredentialPath } = require('./credential-path.cjs');
 const { interceptAction, sanitizeUntrustedContent, checkParameterAmbiguity, DESTRUCTIVE_TEXT_PATTERN } = require('../main/security/interceptor.cjs');
 const secureStorage = require('./secure-storage.cjs');
@@ -3102,6 +3103,20 @@ app.whenReady().then(() => {
     assertTrustedSender(event);
     const box = requirePlainObject(payload, 'notification');
     return handleExecuteTool('sunny:speak-notification', 'speak_notification', box);
+  });
+
+  // OS-level TTS: the sandboxed renderer's Web Speech API is not reliable in
+  // packaged builds. The main process speaks with the installed OS voices and
+  // the renderer keeps Web Speech only as a fallback.
+  ipcMain.handle('sunny:speak-text', async (event, payload) => {
+    assertTrustedSender(event);
+    rateLimit('sunny:speak-text');
+    const box = requirePlainObject(payload || {}, 'speech');
+    const text = requireString(box.text, 'text');
+    if (text.length > 3000) throw new Error('Speech text must be 3000 characters or fewer.');
+    const rate = box.rate === undefined ? -1 : Number(box.rate);
+    await osTts.speak(text, { rate: Number.isFinite(rate) ? rate : -1 });
+    return { success: true };
   });
 
   ipcMain.handle('sunny:search-recipe', (event, payload) => {

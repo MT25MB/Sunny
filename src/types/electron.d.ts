@@ -271,6 +271,9 @@ export interface ElectronAPI {
   speakNotification(message: string): Promise<void>;
   speakNotification(params: SpeakNotificationParams): Promise<void>;
 
+  /** Speak text with the OS text-to-speech engine. */
+  speakText(text: string, rate?: number): Promise<{ success: boolean }>;
+
   /**
    * Execute a Sunny tool by name (canonical form).
    */
