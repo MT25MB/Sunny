@@ -25,6 +25,9 @@ import {
   Gauge,
   Eye,
   CloudRain,
+  CloudSnow,
+  CloudLightning,
+  CloudSun,
   Sunrise,
   ArrowUpDown,
   Contrast,
@@ -51,6 +54,7 @@ import { SettingsModal } from "@/components/SettingsModal";
 import { OnboardingScreen } from "@/components/OnboardingScreen";
 import LockScreen from "@/components/LockScreen";
 import { UpdateToast } from "@/components/UpdateToast";
+import { WeatherPanel } from "@/components/WeatherPanel";
 import { MicButton } from "@/components/MicButton";
 import {
   loadLocalPreferences,
@@ -116,6 +120,7 @@ function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [showChat, setShowChat] = useState(true);
+  const [showWeather, setShowWeather] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const [cookingMode, setCookingMode] = useState<{ recipe: Recipe; currentStep: number } | null>(null);
   const [medicationReminders, setMedicationReminders] = useState<Array<{ id: string; pillName: string; timeString: string; enabled: boolean; lastTaken?: string; triggeredAt?: string }>>([]);
@@ -786,6 +791,17 @@ function App() {
                 </button>
                 <button
                   className="icon-btn"
+                  onClick={() => {
+                    setShowWeather(!showWeather);
+                    if (!showWeather) expandSection("weather");
+                  }}
+                  aria-label={showWeather ? "Hide weather" : "Show weather"}
+                  aria-pressed={showWeather}
+                >
+                  <CloudSun size={24} />
+                </button>
+                <button
+                  className="icon-btn"
                   onClick={() => setShowChat(!showChat)}
                   aria-label={showChat ? "Hide chat history" : "Show chat history"}
                   aria-pressed={showChat}
@@ -1340,6 +1356,25 @@ function App() {
                             </div>
                           )}
                         </div>
+                        {dailyDigest.weather.forecast && dailyDigest.weather.forecast.length > 0 && (
+                          <div className="digest-forecast-strip" aria-label="7-day forecast">
+                            {dailyDigest.weather.forecast.map((day) => (
+                              <div className="digest-forecast-day" key={day.date}>
+                                <span className="day-name">{day.dayName}</span>
+                                {day.weatherCode !== undefined && (
+                                  day.weatherCode >= 95 ? <CloudLightning size={22} aria-hidden="true" />
+                                    : day.weatherCode >= 71 ? <CloudSnow size={22} aria-hidden="true" />
+                                    : day.weatherCode >= 51 ? <CloudRain size={22} aria-hidden="true" />
+                                    : <CloudSun size={22} aria-hidden="true" />
+                                )}
+                                {day.precipitationChance !== undefined && (
+                                  <span className="day-rain">{day.precipitationChance}%</span>
+                                )}
+                                <span className="day-temps">{day.high}° / {day.low}°</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <div className="digest-news">
                         <h3><Newspaper size={18} /> Top News</h3>
@@ -1405,6 +1440,19 @@ function App() {
                   )}
                 </div>
               </CollapsibleSection>
+
+              {showWeather && (
+                <CollapsibleSection
+                  id="weather"
+                  className="weather-section"
+                  title="Weather"
+                  icon={<CloudSun size={20} />}
+                  open={openSections.weather}
+                  onToggle={() => toggleSection("weather")}
+                >
+                  <WeatherPanel />
+                </CollapsibleSection>
+              )}
 
               {showChat && (
                                 <CollapsibleSection

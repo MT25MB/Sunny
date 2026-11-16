@@ -13,6 +13,7 @@ export const SECTION_IDS = [
   'recipes',
   'medication',
   'digest',
+  'weather',
   'activity',
 ] as const;
 
@@ -28,6 +29,7 @@ export const defaultSectionState: SectionState = {
   recipes: false,
   medication: false,
   digest: false,
+  weather: false,
   activity: false,
 };
 
