@@ -1,7 +1,6 @@
 /**
- * Regression tests for the Weather panel UI: all the parts of a normal weather
- * app (current, hourly, 7-day, alerts, radar, locations, units) and its
- * offline/stale behavior.
+ * Regression tests for the vertical, Dark Sky-inspired full-weather sheet:
+ * each section of a normal weather app must be present in a single column.
  */
 
 const test = require('node:test');
@@ -14,51 +13,55 @@ const read = (rel) => fs.readFileSync(path.join(REPO, rel), 'utf8');
 const PANEL = read('src/components/WeatherPanel.tsx');
 const CSS = read('src/index.css');
 
-test('the panel renders current conditions with high/low', () => {
-  for (const token of ['weather-current-temp', 'weather-current-condition', 'weather-current-place', 'weather-current-highlow']) {
-    assert.ok(PANEL.includes(token), `must render ${token}`);
+test('the sheet is a vertical, scrollable column', () => {
+  assert.ok(PANEL.includes('className="weather-sheet"'), 'must be a sheet');
+  assert.ok(CSS.includes('.weather-sheet') && CSS.includes('overflow-y: auto'), 'must scroll vertically');
+  assert.ok(CSS.includes('flex-direction: column'), 'must be a column');
+});
+
+test('the header shows location and the unit toggle', () => {
+  for (const token of ['weather-sheet-title', 'Switch to', 'setWeatherUnit']) {
+    assert.ok(PANEL.includes(token), `header must wire ${token}`);
   }
 });
 
-test('the panel renders a 24-hour hourly strip', () => {
-  assert.ok(PANEL.includes('Next 24 hours'), 'hourly section must have a heading');
-  assert.ok(PANEL.includes('weather-hourly-track'), 'hourly track must exist');
-  assert.ok(PANEL.includes('forecast.hourly.map'), 'must map hourly data');
-  assert.ok(PANEL.includes('formatHour'), 'must format hourly times');
-});
-
-test('the panel renders the 7-day forecast', () => {
-  assert.ok(PANEL.includes('7-day forecast'), 'daily section must have a heading');
-  assert.ok(PANEL.includes('forecast.forecast.map'), 'must map daily data');
-  assert.ok(PANEL.includes('dayName'), 'must show weekday names');
-  assert.ok(PANEL.includes('weather-day-bar-fill'), 'must show high/low temperature bars');
-});
-
-test('the panel supports location search and saved places', () => {
-  for (const token of ['handleSearch', 'searchLocations', 'handleSelectPlace', 'addSavedPlace', 'removeSavedPlace', 'setActiveLocation']) {
-    assert.ok(PANEL.includes(token), `must wire ${token}`);
+test('the hero shows a big current temperature and feels-like', () => {
+  for (const token of ['weather-hero', 'weather-hero-temp', 'weather-hero-feels', 'weather-hero-range']) {
+    assert.ok(PANEL.includes(token), `hero must render ${token}`);
   }
-  assert.ok(PANEL.includes('maxLength={100}'), 'search input must be bounded');
+  assert.ok(CSS.includes('5rem'), 'temperature must be large');
 });
 
-test('the panel supports the °C / °F unit toggle', () => {
-  assert.ok(PANEL.includes('setWeatherUnit'), 'must persist unit changes');
-  assert.ok(PANEL.includes('°C') && PANEL.includes('°F'), 'must offer both units');
-  assert.ok(PANEL.includes("aria-pressed={unit === 'celsius'}"), 'unit buttons must expose pressed state');
-});
-
-test('the panel shows US alerts and hides them elsewhere', () => {
+test('alerts appear as a compact banner', () => {
   assert.ok(PANEL.includes('getWeatherAlerts'), 'must fetch alerts');
-  assert.ok(PANEL.includes("countryCode.toUpperCase() !== 'US'"), 'must skip alerts outside the US');
-  assert.ok(PANEL.includes('weather-alert'), 'must render alert cards');
+  assert.ok(PANEL.includes('weather-alert-banner'), 'must render a banner');
+  assert.ok(PANEL.includes("countryCode.toUpperCase() !== 'US'"), 'non-US must be skipped');
 });
 
-test('the radar is lazy-loaded with a time slider', () => {
-  assert.ok(PANEL.includes('showRadar'), 'radar must be toggled by the user');
-  assert.ok(PANEL.includes('getRadarFrames'), 'radar frames must load on demand');
-  assert.ok(PANEL.includes('type="range"'), 'radar must have a time slider');
-  assert.ok(PANEL.includes('latLonToTile'), 'must position tiles from coordinates');
-  assert.ok(PANEL.includes('tile.openstreetmap.org') && PANEL.includes('radar.host'), 'must overlay radar on map tiles');
+test('the radar strip is near the top with a time slider', () => {
+  assert.ok(PANEL.includes('weather-sheet-radar'), 'must have a radar section');
+  assert.ok(PANEL.includes('getRadarFrames'), 'must load radar frames');
+  assert.ok(PANEL.includes('type="range"'), 'must have a time slider');
+  assert.ok(PANEL.includes('tile.openstreetmap.org') && PANEL.includes('radar.host'), 'must overlay radar on a map');
+});
+
+test('the precipitation section summarizes rain and shows mini bars', () => {
+  assert.ok(PANEL.includes('weather-precip'), 'must have precipitation section');
+  assert.ok(PANEL.includes('weather-precip-label'), 'must have a plain-language summary');
+  assert.ok(PANEL.includes('weather-precip-bar'), 'must render mini bars');
+});
+
+test('hourly and daily are vertical lists in Dark Sky order', () => {
+  assert.ok(PANEL.includes('weather-hour-list') && PANEL.includes('weather-hour-row'), 'hourly list');
+  assert.ok(PANEL.includes('weather-day-list') && PANEL.includes('weather-day-row'), 'daily list');
+  assert.ok(PANEL.includes('weather-hour-mini-bar'), 'hourly precipitation bar');
+  assert.ok(PANEL.includes('weather-day-range-fill'), 'daily temperature range bar');
+});
+
+test('details, sun times and refresh are present', () => {
+  assert.ok(PANEL.includes('weather-detail-grid'), 'must show detail tiles');
+  assert.ok(PANEL.includes('weather-sun-times'), 'must show sunrise/sunset');
+  assert.ok(PANEL.includes('weather-updated'), 'must show last updated');
 });
 
 test('offline and stale states are explicit and recoverable', () => {
@@ -68,20 +71,21 @@ test('offline and stale states are explicit and recoverable', () => {
   assert.ok(PANEL.includes('could not refresh'), 'stale banner must say it could not refresh');
 });
 
-test('the stylesheet covers the whole panel and the compact digest strip', () => {
+test('location search and saved places remain available', () => {
+  assert.ok(PANEL.includes('searchLocations'), 'must geocode');
+  assert.ok(PANEL.includes('addSavedPlace') && PANEL.includes('removeSavedPlace'), 'must manage saved places');
+  assert.ok(PANEL.includes('maxLength={100}'), 'search input must be bounded');
+});
+
+test('the stylesheet covers every sheet section', () => {
   for (const cls of [
-    '.weather-panel', '.weather-current', '.weather-stats', '.weather-hourly-track',
-    '.weather-day-list', '.weather-alerts', '.weather-radar-map', '.weather-error',
-    '.weather-stale', '.digest-forecast-strip',
+    '.weather-overlay', '.weather-sheet', '.weather-hero', '.weather-alert-banner',
+    '.weather-sheet-radar', '.weather-precip', '.weather-hour-list', '.weather-day-list',
+    '.weather-detail-grid', '.weather-error', '.weather-stale',
   ]) {
     assert.ok(CSS.includes(cls), `stylesheet must define ${cls}`);
   }
-});
-
-test('wide forecast tracks are contained inside the narrow window', () => {
-  assert.ok(CSS.includes('.weather-panel') && CSS.includes('min-width: 0'), 'panel must allow shrinking');
-  assert.ok(CSS.includes('.collapsible-panel { min-width: 0; }'), 'section wrapper must allow shrinking');
-  assert.ok(CSS.includes('max-width: 100%'), 'track must be capped to its parent');
+  assert.ok(!CSS.includes('digest-forecast-strip'), 'old digest strip styles must be gone');
 });
 
 test('weather icons cover the full WMO code range', () => {
