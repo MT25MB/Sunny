@@ -78,6 +78,12 @@ test('the stylesheet covers the whole panel and the compact digest strip', () =>
   }
 });
 
+test('wide forecast tracks are contained inside the narrow window', () => {
+  assert.ok(CSS.includes('.weather-panel') && CSS.includes('min-width: 0'), 'panel must allow shrinking');
+  assert.ok(CSS.includes('.collapsible-panel { min-width: 0; }'), 'section wrapper must allow shrinking');
+  assert.ok(CSS.includes('max-width: 100%'), 'track must be capped to its parent');
+});
+
 test('weather icons cover the full WMO code range', () => {
   assert.ok(PANEL.includes('code >= 95'), 'thunderstorms');
   assert.ok(PANEL.includes('code >= 71 && code <= 86'), 'snow');

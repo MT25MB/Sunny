@@ -53098,7 +53098,7 @@ html, body, #root {
 
 /* ===== Weather screen: full forecast panel =====
    Large, high-contrast controls tuned for the narrow desktop window. */
-.weather-panel { display: flex; flex-direction: column; gap: 1rem; color: #e8edf0; }
+.weather-panel { display: flex; flex-direction: column; gap: 1rem; color: #e8edf0; min-width: 0; }
 .weather-controls { display: flex; flex-direction: column; gap: 0.6rem; padding: 0.85rem; background: #131a1f; border: 1px solid #2a353b; border-radius: 14px; }
 .weather-search { display: flex; gap: 0.5rem; }
 .weather-search input { flex: 1; min-width: 0; padding: 0.65rem 0.8rem; font: 600 1rem 'Atkinson Hyperlegible', ui-monospace, system-ui, sans-serif; color: #f7f9fb; background: #1d262c; border: 2px solid #3a474d; border-radius: 10px; outline: none; }
@@ -53122,7 +53122,7 @@ html, body, #root {
 .weather-error, .weather-stale { display: flex; align-items: center; gap: 0.6rem; padding: 0.85rem; background: rgba(240, 160, 160, 0.08); border: 1px solid rgba(240, 160, 160, 0.35); border-radius: 12px; font: 600 0.95rem 'Atkinson Hyperlegible', ui-monospace, system-ui, sans-serif; color: #f4c9c9; }
 .weather-stale { background: rgba(241, 181, 104, 0.08); border-color: rgba(241, 181, 104, 0.35); color: #f6c97a; }
 .weather-retry { display: inline-flex; align-items: center; gap: 0.3rem; margin-left: auto; padding: 0.4rem 0.7rem; font: 700 0.85rem 'Atkinson Hyperlegible', ui-monospace, system-ui, sans-serif; color: #f7f9fb; background: #1d262c; border: 1px solid #3a474d; border-radius: 8px; cursor: pointer; white-space: nowrap; }
-.weather-content { display: flex; flex-direction: column; gap: 1rem; }
+.weather-content { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
 .weather-current { display: flex; align-items: center; gap: 1rem; padding: 1.1rem; background: linear-gradient(145deg, #2a251e 0%, #1d1a16 100%); border: 2px solid #f1b568; border-radius: 18px; }
 .weather-current-icon { color: #f6c97a; flex: 0 0 auto; }
 .weather-current-main { flex: 1; min-width: 0; }
@@ -53134,7 +53134,8 @@ html, body, #root {
 .weather-stats > div { display: flex; align-items: center; gap: 0.35rem; padding: 0.6rem 0.7rem; background: #131a1f; border: 1px solid #2a353b; border-radius: 10px; font: 600 0.85rem 'Atkinson Hyperlegible', ui-monospace, system-ui, sans-serif; color: #93a4aa; }
 .weather-stats strong { margin-left: auto; color: #f7f9fb; }
 .weather-hourly h4, .weather-daily h4, .weather-alerts h4 { margin: 0 0 0.5rem; font: 700 1.05rem 'Fraunces', serif; color: #f6c97a; }
-.weather-hourly-track { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem; }
+.weather-hourly { min-width: 0; }
+.weather-hourly-track { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem; min-width: 0; max-width: 100%; }
 .weather-hour { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0.25rem; min-width: 62px; padding: 0.6rem 0.4rem; background: #131a1f; border: 1px solid #2a353b; border-radius: 10px; color: #f6c97a; }
 .weather-hour-time { font: 700 0.8rem 'Atkinson Hyperlegible', ui-monospace, system-ui, sans-serif; color: #93a4aa; }
 .weather-hour-temp { font: 800 1.1rem 'Atkinson Hyperlegible', ui-monospace, system-ui, sans-serif; color: #f7f9fb; }
@@ -53166,3 +53167,10 @@ html, body, #root {
 .digest-forecast-day .day-name { font: 700 0.78rem 'Atkinson Hyperlegible', ui-monospace, system-ui, sans-serif; color: #93a4aa; }
 .digest-forecast-day .day-temps { font: 700 0.85rem 'Atkinson Hyperlegible', ui-monospace, system-ui, sans-serif; color: #f7f9fb; }
 .digest-forecast-day .day-rain { font: 600 0.7rem 'Atkinson Hyperlegible', ui-monospace, system-ui, sans-serif; color: #8fc7e8; }
+
+/* Contain wide forecast tracks inside the narrow app window. */
+.collapsible-section { min-width: 0; }
+.collapsible-panel { min-width: 0; }
+
+.weather-panel, .weather-content, .weather-hourly { width: 100%; max-width: 100%; }
+.weather-hourly-track { width: 100%; }
