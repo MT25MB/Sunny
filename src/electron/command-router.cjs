@@ -210,6 +210,7 @@ const SAFE_ACTION_TYPES = new Set([
   'select_all',
   'wait',
   'scroll',
+  'reveal_file',
 ]);
 
 const WINDOW_ACTIONS = new Set(['minimize', 'maximize', 'close', 'hide', 'show', 'focus', 'restore', 'get_info']);
@@ -258,6 +259,12 @@ function sanitiseModelAction(action) {
       const amount = Number(action.amount);
       if (!Number.isFinite(amount) || Math.abs(amount) > 10000) return null;
       return { type: 'scroll', amount: Math.trunc(amount) };
+    }
+    case 'reveal_file': {
+      const filePath = typeof action.path === 'string' ? action.path.trim() : '';
+      if (!filePath || filePath.length > 500 || filePath.includes('\0')) return null;
+      // main.cjs additionally checks the path is inside a known user folder.
+      return { type: 'reveal_file', path: filePath };
     }
     default:
       return null;
@@ -316,14 +323,23 @@ function extractActionEnvelope(modelText) {
 }
 
 /**
- * Appended to the prompt on the AI path so the model has a chance of
- * actually returning an action instead of only describing one.
+ * Chat protocol for the AI path. This is an instruction block, NOT a suffix:
+ * it must come BEFORE the user's question so the question is the last thing
+ * the model reads. A previous version ended the prompt with a concrete
+ * `{"response": "short reply for the user", "actions": [open calculator]}`
+ * example. Small models copied that example verbatim for every prompt they
+ * could not handle, replying "short reply..." and launching the calculator
+ * even for plain questions. Placeholders and an explicit "never copy" rule
+ * prevent that; ordinary questions are answered in prose with no JSON.
  */
 const ACTION_PROTOCOL_SUFFIX =
-  '\n\nIf the user asked you to do something on the computer, answer with a single JSON object and nothing else, in this exact shape: ' +
-  '{"response": "short reply for the user", "actions": [{"type": "open_app", "app": "calculator"}]}. ' +
-  'Allowed action types: open_app (app), web_search (query), screenshot, window_action (action: minimize, maximize, close, show, hide), copy, paste, select_all, wait (ms), scroll (amount). ' +
-  'Only include actions the user clearly asked for. If no action is needed, answer in plain words with no JSON.';
+  '\n\nAnswer the user directly and conversationally. ' +
+  'For ordinary questions — what, when, where, why, how, who — and for anything that does not require controlling this computer, reply in plain words. Do not output JSON. ' +
+  'Only when the user explicitly asks you to operate this computer may you reply with a single JSON object and nothing else, in this shape: ' +
+  '{"response": "<your own short answer>", "actions": [{"type": "<action type>", "<field>": "<value>"}]}. ' +
+  'Replace <your own short answer> with your own words about what you did. Never copy placeholder text or example values into your answer. ' +
+  'Allowed action types: open_app (app), web_search (query), screenshot, window_action (action: minimize, maximize, close, show, hide), copy, paste, select_all, wait (ms), scroll (amount), reveal_file (path). ' +
+  'Only include actions the user clearly asked for. If the user did not ask you to control the computer, answer in plain words with no JSON.';
 
 module.exports = {
   parseCommand,

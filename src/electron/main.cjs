@@ -23,6 +23,7 @@ const speech = require('./speech.cjs');
 const windowState = require('./window-state.cjs');
 const { buildRecipeSearchTerms } = require('./recipe-terms.cjs');
 const { parseCommand, extractActionEnvelope, ACTION_PROTOCOL_SUFFIX } = require('./command-router.cjs');
+const { extractFileName, findUserFile } = require('./file-finder.cjs');
 const { getCredentialPath: resolveCredentialPath } = require('./credential-path.cjs');
 const { interceptAction, sanitizeUntrustedContent, checkParameterAmbiguity, DESTRUCTIVE_TEXT_PATTERN } = require('../main/security/interceptor.cjs');
 const secureStorage = require('./secure-storage.cjs');
@@ -295,10 +296,45 @@ function stripDataUrlPrefix(value) {
  * @param {string|undefined} providedImage base64 image straight from the caller, if any
  * @returns {Promise<{response: string, actions?: Array<object>}>}
  */
+/**
+ * File-location requests are handled without the model. A model asked to find
+ * a file had no suitable action and fell back to copying the action-protocol
+ * example (replying "short reply..." and opening the calculator).
+ * @param {string} prompt
+ */
+async function parseFileFind(prompt) {
+  if (typeof prompt !== 'string') return null;
+  if (!/\b(find|locate|where\s+is|search\s+for)\b/i.test(prompt)) return null;
+  const name = extractFileName(prompt);
+  if (!name) return null;
+
+  const roots = [
+    app.getPath('documents'),
+    app.getPath('desktop'),
+    app.getPath('downloads'),
+    app.getPath('home'),
+  ];
+  const found = await findUserFile(name, roots);
+  if (!found) {
+    return { response: `I could not find ${name} in your Documents, Desktop, Downloads, or Home folder.` };
+  }
+
+  const base = `I found ${name} in ${path.dirname(found)}.`;
+  if (!/\b(open|show|reveal|explorer)\b/i.test(prompt)) return { response: base };
+  return {
+    response: `${base} Opening its folder in File Explorer for you.`,
+    actions: [{ type: 'reveal_file', path: found }],
+  };
+}
+
 async function decideAction(prompt, providedImage) {
   // The screen never has to be captured for a command we already understand.
   const deterministic = parseCommand(prompt);
   if (deterministic) return deterministic;
+
+  // File lookups are safe, bounded and need no model inference.
+  const fileFind = await parseFileFind(prompt);
+  if (fileFind) return fileFind;
 
   const providedBase64 = stripDataUrlPrefix(providedImage);
 
@@ -315,8 +351,9 @@ async function decideAction(prompt, providedImage) {
     imageBase64 = stripDataUrlPrefix(capture.dataUrl);
   }
 
-  // Apply the system guardrail and tell the model how to ask for an action.
-  const result = await runConfiguredInference(withSystemGuardrail(prompt) + ACTION_PROTOCOL_SUFFIX, imageBase64);
+  // Guardrail + action protocol come first; the user's question is last so
+  // the model answers it instead of parroting a trailing example.
+  const result = await runConfiguredInference(withChatProtocol(prompt), imageBase64);
   if (result.error) throw new Error(result.error);
 
   const envelope = extractActionEnvelope(result.response);
@@ -529,6 +566,16 @@ const SUNNY_SYSTEM_GUARDRAIL = `You are Sunny, a safe desktop assistant for olde
  */
 function withSystemGuardrail(userPrompt) {
   return `${SUNNY_SYSTEM_GUARDRAIL}\n\nUser: ${userPrompt}`;
+}
+
+/**
+ * Build the chat prompt: guardrail + action protocol first, the user's
+ * question LAST. Ending the prompt with a concrete action example made small
+ * models echo it ("short reply..." + calculator) instead of answering.
+ * @param {string} userPrompt
+ */
+function withChatProtocol(userPrompt) {
+  return `${SUNNY_SYSTEM_GUARDRAIL}${ACTION_PROTOCOL_SUFFIX}\n\nUser: ${userPrompt}`;
 }
 
 // Recipe API - using TheMealDB (free, no API key required)
@@ -1333,6 +1380,24 @@ async function executeActions(actions) {
         throw new Error('The search query is empty or too long.');
       }
       await shell.openExternal(`https://www.google.com/search?q=${encodeURIComponent(query)}`);
+    } else if (action.type === 'reveal_file' && typeof action.path === 'string') {
+      // Only reveal files inside the user's own folders — never an arbitrary
+      // path supplied by model output or a chat message.
+      const resolved = path.resolve(action.path);
+      const userRoots = [
+        app.getPath('documents'), app.getPath('desktop'),
+        app.getPath('downloads'), app.getPath('home'),
+      ].map((root) => path.resolve(root));
+      const inside = userRoots.some((root) => resolved === root || resolved.startsWith(root + path.sep));
+      if (!inside) throw new Error('Sunny stopped because that file is outside your folders.');
+      let stat;
+      try {
+        stat = fs.statSync(resolved);
+      } catch {
+        throw new Error('That file could not be found.');
+      }
+      if (!stat.isFile()) throw new Error('That file could not be found.');
+      shell.showItemInFolder(resolved);
     } else if (action.type === 'copy') {
       await automation.keyboard.pressKey(automation.Key.LeftControl, automation.Key.C);
     } else if (action.type === 'paste') {
