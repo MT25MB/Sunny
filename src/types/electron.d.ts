@@ -151,6 +151,12 @@ export interface DailyDigest {
     low?: number;                // daily low °C
     sunrise?: string;            // ISO time
     sunset?: string;             // ISO time
+    // Present when the shared forecast feed is used (always in the app).
+    unit?: 'celsius' | 'fahrenheit';
+    fetchedAt?: string;
+    timezone?: string;
+    hourly?: WeatherHour[];
+    forecast?: WeatherDay[];
   };
   news: Array<{
     title: string;
@@ -161,6 +167,61 @@ export interface DailyDigest {
     publishedAt?: string;      // ISO timestamp
   }>;
   date: string;
+}
+
+/** One hourly weather point (next 24 hours). */
+export interface WeatherHour {
+  time: string;                  // ISO local time
+  temperature: number;
+  weatherCode: number;
+  condition: string;
+  precipitationChance?: number;
+}
+
+/** One day of the 7-day outlook. */
+export interface WeatherDay {
+  date: string;                  // YYYY-MM-DD
+  dayName: string;               // e.g. "Mon"
+  weatherCode: number;
+  condition: string;
+  high?: number;
+  low?: number;
+  precipitationChance?: number;
+  uvIndex?: number;
+  sunrise?: string;
+  sunset?: string;
+}
+
+/** A geocoding result from Open-Meteo. */
+export interface WeatherLocation {
+  name: string;
+  latitude: number;
+  longitude: number;
+  countryCode: string;
+}
+
+/** An active severe-weather alert (weather.gov, US only). */
+export interface WeatherAlert {
+  event: string;
+  headline: string;
+  description: string;
+  severity: string;
+  start: string;
+  end: string;
+}
+
+/** RainViewer radar frames for the in-app radar panel. */
+export interface RadarData {
+  host: string;
+  frames: Array<{ time: number; path: string }>;
+}
+
+/** Full weather forecast returned by the shared pipeline. */
+export interface WeatherForecast extends NonNullable<DailyDigest['weather']> {
+  unit: 'celsius' | 'fahrenheit';
+  fetchedAt: string;
+  hourly: WeatherHour[];
+  forecast: WeatherDay[];
 }
 
 /** Cooking step data */
@@ -244,6 +305,25 @@ export interface ElectronAPI {
 
   /** Get daily weather and news digest */
   getDailyDigest(params?: DailyDigestParams): Promise<DailyDigest>;
+
+  /** Get a full weather forecast (current + 24h hourly + 7-day daily). */
+  getWeatherForecast(params?: {
+    location?: string | { latitude: number; longitude: number; name?: string };
+    unit?: 'celsius' | 'fahrenheit';
+  }): Promise<WeatherForecast>;
+
+  /** Geocode a place name into candidate locations. */
+  searchLocations(query: string): Promise<WeatherLocation[]>;
+
+  /** Active severe-weather alerts (US locations only). */
+  getWeatherAlerts(params: {
+    latitude: number;
+    longitude: number;
+    countryCode?: string;
+  }): Promise<WeatherAlert[]>;
+
+  /** RainViewer radar frame timestamps. */
+  getRadarFrames(): Promise<RadarData>;
 
   /** Schedule a medication reminder */
   scheduleMedicationReminder(params: ScheduleMedicationParams): Promise<{ success: boolean; reminderId: string }>;

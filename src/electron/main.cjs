@@ -1811,11 +1811,20 @@ function isSafeHttpUrl(candidate) {
  * the tool timeout fires, and every request still runs to completion in the
  * background afterwards.
  */
-async function fetchWithTimeout(url, ms, label) {
+/**
+ * @param {string} url
+ * @param {number} ms
+ * @param {string} label
+ * @param {Record<string, string>} [headers]
+ */
+async function fetchWithTimeout(url, ms, label, headers) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetch(url, { signal: controller.signal, headers });
+    if (!response.ok) {
+      throw new Error(`${label} returned ${response.status}.`);
+    }
     return await response.json();
   } catch (err) {
     if (err && err.name === 'AbortError') {
@@ -1992,7 +2001,10 @@ async function resolveLocation(location = 'auto') {
   return { latitude: 40.7128, longitude: -74.0060, locationName: 'New York, NY' };
 }
 
-/** Get a full forecast, cached by coordinates + unit. */
+/**
+ * Get a full forecast, cached by coordinates + unit.
+ * @param {{ location?: string | { latitude: number, longitude: number, name?: string }, unit?: string }} [params]
+ */
 async function getForecast({ location = 'auto', unit = 'celsius' } = {}) {
   const normalizedUnit = unit === 'fahrenheit' ? 'fahrenheit' : 'celsius';
   const { latitude, longitude, locationName } = await resolveLocation(location);
@@ -2029,6 +2041,44 @@ async function searchLocations(query) {
     longitude: r.longitude,
     countryCode: r.country_code || '',
   }));
+}
+
+/**
+ * Active severe-weather alerts from weather.gov. This source is US-only; for
+ * every other country we return an empty list rather than a wrong answer.
+ * weather.gov requires a User-Agent that identifies the app with a contact.
+ * @param {{ latitude?: number, longitude?: number, countryCode?: string }} [params]
+ */
+async function getWeatherAlerts({ latitude, longitude, countryCode } = {}) {
+  if (countryCode && String(countryCode).toUpperCase() !== 'US') return [];
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
+  const data = await fetchWithTimeout(
+    `${ALERTS_API}?point=${latitude},${longitude}`,
+    8_000,
+    'The weather alerts service',
+    {
+      'User-Agent': 'Sunny Desktop Companion (contact: support@mt25mb.example)',
+      'Accept': 'application/geo+json',
+    }
+  );
+  return (data.features || []).slice(0, 5).map((f) => {
+    const p = f.properties || {};
+    return {
+      event: p.event || 'Weather alert',
+      headline: p.headline || '',
+      description: (p.description || '').slice(0, 1000),
+      severity: p.severity || 'Unknown',
+      start: p.effective || p.onset || '',
+      end: p.expires || p.ends || '',
+    };
+  });
+}
+
+/** RainViewer radar frame timestamps + host for the in-app radar panel. */
+async function getRadarFrames() {
+  const data = await fetchWithTimeout(RADAR_API, 8_000, 'The radar service');
+  const frames = [...(data.radar?.past || []), ...(data.radar?.nowcast || [])].slice(-12);
+  return { host: data.host || '', frames };
 }
 
 async function getDailyDigest(location = 'auto', newsCount = 5) {
@@ -3001,6 +3051,66 @@ app.whenReady().then(() => {
     const box = requirePlainObject(payload || {}, 'daily digest');
     console.log('[IPC Main] get-daily-digest invoked:', box.location, box.newsCount);
     return handleExecuteTool('sunny:get-daily-digest', 'get_daily_digest', box);
+  });
+
+  // -------------------------------------------------------------------------
+  // Weather (full forecast, geocoding, US alerts, radar)
+  // -------------------------------------------------------------------------
+
+  ipcMain.handle('sunny:get-weather-forecast', async (event, payload) => {
+    assertTrustedSender(event);
+    rateLimit('sunny:get-weather-forecast');
+    const box = requirePlainObject(payload || {}, 'weather forecast');
+    assertPayloadSize(box, 'weather forecast');
+    const unit = box.unit === 'fahrenheit' ? 'fahrenheit' : 'celsius';
+    /** @type {string | { latitude: number, longitude: number, name?: string }} */
+    let location = 'auto';
+    if (box.location !== undefined && box.location !== null) {
+      if (typeof box.location === 'string') {
+        location = requireString(box.location, 'location').slice(0, 100);
+      } else {
+        const loc = requirePlainObject(box.location, 'location');
+        const latitude = Number(loc.latitude);
+        const longitude = Number(loc.longitude);
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude) ||
+            Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+          throw new Error('Invalid location coordinates.');
+        }
+        location = { latitude, longitude, name: String(loc.name || '').slice(0, 120) };
+      }
+    }
+    return getForecast({ location, unit });
+  });
+
+  ipcMain.handle('sunny:search-locations', async (event, payload) => {
+    assertTrustedSender(event);
+    rateLimit('sunny:search-locations');
+    const box = requirePlainObject(payload || {}, 'location search');
+    assertPayloadSize(box, 'location search');
+    return searchLocations(box.query);
+  });
+
+  ipcMain.handle('sunny:get-weather-alerts', async (event, payload) => {
+    assertTrustedSender(event);
+    rateLimit('sunny:get-weather-alerts');
+    const box = requirePlainObject(payload || {}, 'weather alerts');
+    assertPayloadSize(box, 'weather alerts');
+    const latitude = Number(box.latitude);
+    const longitude = Number(box.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      throw new Error('Valid coordinates are required for weather alerts.');
+    }
+    return getWeatherAlerts({
+      latitude,
+      longitude,
+      countryCode: typeof box.countryCode === 'string' ? box.countryCode : '',
+    });
+  });
+
+  ipcMain.handle('sunny:get-radar-frames', async (event) => {
+    assertTrustedSender(event);
+    rateLimit('sunny:get-radar-frames');
+    return getRadarFrames();
   });
 
   ipcMain.handle('sunny:schedule-medication-reminder', (event, payload) => {

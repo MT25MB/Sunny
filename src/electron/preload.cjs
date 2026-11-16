@@ -177,6 +177,36 @@ const electronAPI = {
   },
 
   // -------------------------------------------------------------------------
+  // Weather (full forecast, geocoding, US alerts, radar)
+  // -------------------------------------------------------------------------
+
+  getWeatherForecast: async (params) => {
+    if (params !== undefined && (params === null || typeof params !== 'object' || Array.isArray(params))) {
+      throw new Error('getWeatherForecast requires an object.');
+    }
+    return ipcRenderer.invoke('sunny:get-weather-forecast', params || {});
+  },
+
+  searchLocations: async (query) => {
+    if (typeof query !== 'string' || query.trim() === '') {
+      throw new Error('searchLocations requires a non-empty string.');
+    }
+    if (query.length > 100) throw new Error('Location query is too long.');
+    return ipcRenderer.invoke('sunny:search-locations', { query: query.trim() });
+  },
+
+  getWeatherAlerts: async (params) => {
+    const box = params && typeof params === 'object' && !Array.isArray(params) ? params : {};
+    return ipcRenderer.invoke('sunny:get-weather-alerts', {
+      latitude: Number(box.latitude),
+      longitude: Number(box.longitude),
+      countryCode: typeof box.countryCode === 'string' ? box.countryCode : '',
+    });
+  },
+
+  getRadarFrames: async () => ipcRenderer.invoke('sunny:get-radar-frames'),
+
+  // -------------------------------------------------------------------------
   // Medication reminders
   // -------------------------------------------------------------------------
 
