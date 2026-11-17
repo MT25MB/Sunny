@@ -24,7 +24,7 @@ const windowState = require('./window-state.cjs');
 const { buildRecipeSearchTerms } = require('./recipe-terms.cjs');
 const {
   parseCommand, extractActionEnvelope, ACTION_PROTOCOL_SUFFIX,
-  isConversationalPrompt, buildChatPrompt, sanitizeChatAnswer,
+  isConversationalPrompt, buildChatPrompt, sanitizeChatAnswer, sanitizeModelReply,
 } = require('./command-router.cjs');
 const { extractFileName, findUserFile } = require('./file-finder.cjs');
 const osTts = require('./os-tts.cjs');
@@ -361,7 +361,7 @@ async function decideAction(prompt, providedImage) {
   if (isConversationalPrompt(prompt)) {
     const chat = await runConfiguredInference(withChatProtocol(prompt), imageBase64);
     if (chat.error) throw new Error(chat.error);
-    const answer = sanitizeChatAnswer(chat.response);
+    const answer = sanitizeChatAnswer(chat.response) && sanitizeModelReply(chat.response, prompt);
     return {
       response: answer || "I'm not sure I can answer that. Try rephrasing, or switch to a cloud model in Settings for better answers.",
     };
@@ -374,14 +374,23 @@ async function decideAction(prompt, providedImage) {
   if (envelope) {
     // The response text is model output like any other - sanitise it. The
     // actions were already sanitised by extractActionEnvelope.
-    const safeResponse = sanitizeUntrustedContent(envelope.response || '');
+    const safeResponse = sanitizeModelReply(
+      sanitizeUntrustedContent(envelope.response || ''), prompt
+    );
+    if (!safeResponse) {
+      return { response: "I'm not sure I can answer that. Try rephrasing, or switch to a cloud model in Settings for better answers." };
+    }
     const out = { response: safeResponse };
     if (envelope.actions) out.actions = envelope.actions;
     return out;
   }
 
-  // Plain prose: the model did not ask for any action.
-  return { response: sanitizeUntrustedContent(result.response || '') };
+  // Plain prose: the model did not ask for any action. Still guard against
+  // echoed prompt text before it reaches the chat.
+  const plain = sanitizeModelReply(sanitizeUntrustedContent(result.response || ''), prompt);
+  return {
+    response: plain || "I'm not sure I can answer that. Try rephrasing, or switch to a cloud model in Settings for better answers.",
+  };
 }
 
 /**

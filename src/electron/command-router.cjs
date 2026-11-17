@@ -351,7 +351,7 @@ function isConversationalPrompt(text) {
   const t = String(text ?? '').trim();
   if (!t) return false;
   if (/\?$/.test(t)) return true;
-  return /^(what|when|where|why|how|who|which|tell me|explain|define|describe|is|are|do|does|did|can you tell|could you tell|i want to know)\b/i.test(t);
+  return /^(what|when|where|why|how|who|which|tell me|explain|define|describe|is|are|do|does|did|can you|could you|i want|i need|i'm|i am|help me|hi|hello|hey|good morning|good afternoon|good evening)\b/i.test(t);
 }
 
 /** Build a clean prompt for a conversational question. */
@@ -374,7 +374,41 @@ function sanitizeChatAnswer(text) {
   return answer;
 }
 
+/**
+ * SECURITY: never let prompt text reach the chat. Small local models can echo
+ * their instructions verbatim; this is the last line of defence on EVERY model
+ * reply, whichever prompt path produced it.
+ * @param {string} text raw model output
+ * @param {string} [userPrompt] the original user question
+ * @returns {string} the safe answer, or '' when the reply must be discarded
+ */
+function sanitizeModelReply(text, userPrompt) {
+  const answer = String(text ?? '').trim();
+  if (!answer) return '';
+  if (/<your own short answer>|<action type>|<field>|<value>|short reply for the user|short reply from the user/i.test(answer)) return '';
+  if (/^\{[\s\S]*\}$/.test(answer)) return '';
+  // Fragments of the system prompt or action protocol that must never be shown.
+  const leakMarkers = [
+    /you are sunny/i,
+    /allowed action types/i,
+    /i am designed solely to assist/i,
+    /must never execute terminal scripts/i,
+    /reply with a single json object/i,
+    /if the user explicitly asks you to operate/i,
+    /never copy instruction text/i,
+    /for everything else, answer in plain words/i,
+  ];
+  if (leakMarkers.some((re) => re.test(answer))) return '';
+  // An echoed "User: <their question>" pair is a full prompt replay.
+  const cleanPrompt = String(userPrompt ?? '').trim();
+  if (cleanPrompt.length >= 3 && answer.includes('User: ' + cleanPrompt.slice(0, 40))) return '';
+  // A normal chat reply is short; a wall of text is almost always a leak.
+  if (answer.length > 4000) return '';
+  return answer;
+}
+
 module.exports = {
+  sanitizeModelReply,
   parseCommand,
   parseWebSearch,
   normaliseCommand,
