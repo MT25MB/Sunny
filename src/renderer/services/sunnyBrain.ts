@@ -387,7 +387,18 @@ class SunnyBrain {
     if (typeof window === 'undefined' || !window.electronAPI) {
       throw new Error('Electron API is not available. Daily digest requires the Sunny desktop app.');
     }
-    return window.electronAPI.getDailyDigest({ location, newsCount });
+    // The sunny:get-daily-digest main handler goes through handleExecuteTool,
+    // which wraps the digest as { success, data }. Returning that envelope
+    // made callers read `digest.weather.location` on undefined and fail with
+    // "Cannot read properties of undefined (reading 'location')". Accept the
+    // unwrapped shape too so browser-preview mocks keep working.
+    const result = await window.electronAPI.getDailyDigest({ location, newsCount });
+    const envelope = result as { success?: boolean; data?: unknown; error?: string };
+    if (envelope && envelope.success === false) {
+      throw new Error(envelope.error || 'Could not load the daily digest.');
+    }
+    const data = envelope && envelope.data !== undefined ? envelope.data : result;
+    return data as DailyDigest;
   }
 
   // -------------------------------------------------------------------------
@@ -523,9 +534,15 @@ class SunnyBrain {
       throw new Error('Electron API is not available. Daily digest requires the Sunny desktop app.');
     }
     const digest = await this.getDailyDigest(location, newsCount);
-    const weatherText = `Current weather in ${digest.weather.location}: ${digest.weather.temperature} degrees, ${digest.weather.condition}.`;
-    const newsText = digest.news.length > 0
-      ? `Top news: ${digest.news.slice(0, 3).map(n => n.title).join('. ')}.`
+    // Guard the third-party-shaped data: a missing weather/news field must
+    // still produce a spoken sentence, not a TypeError in the UI.
+    const weather = digest?.weather;
+    const weatherText = weather
+      ? `Current weather in ${weather.location}: ${weather.temperature} degrees, ${weather.condition}.`
+      : 'Weather is not available right now.';
+    const headlines = Array.isArray(digest?.news) ? digest.news : [];
+    const newsText = headlines.length > 0
+      ? `Top news: ${headlines.slice(0, 3).map(n => n.title).join('. ')}.`
       : 'No news available at this time.';
     const fullText = `Good morning! ${weatherText} ${newsText}`;
     await this.speakNotification(fullText, 'normal', 1);
