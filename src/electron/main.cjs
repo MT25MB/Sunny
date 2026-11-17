@@ -1934,6 +1934,10 @@ async function fetchDigestNews(newsCount) {
       'The news service'
     );
     if (newsData.items) {
+      // The proxy gives the publication name on the FEED, not on each item
+      // (BBC items have no source/author/publisher). Use the feed title so the
+      // UI shows a real name like "BBC News" instead of "Unknown".
+      const feedSource = sanitizeUntrustedContent(String(newsData.feed?.title || '').slice(0, 80));
       // Headlines come from a third-party RSS proxy and are genuinely
       // untrusted: a compromised feed could otherwise smuggle
       // instruction-like text into anything Sunny later reads. React escapes
@@ -1943,7 +1947,7 @@ async function fetchDigestNews(newsCount) {
         title: sanitizeUntrustedContent(String(item.title || '').slice(0, 200)),
         summary: sanitizeUntrustedContent(String(item.description || '').replace(/[<>]/g, '').substring(0, 200)),
         url: item.link,
-        source: item.source?.name || item.author || item.publisher || 'Unknown',
+        source: sanitizeUntrustedContent(String(item.source?.name || item.author || item.publisher || '').slice(0, 80)) || feedSource || 'Unknown',
         imageUrl: item.thumbnail || item.enclosure?.url || item.image || item.media_thumbnail?.[0]?.url,
         publishedAt: item.pubDate || item.published || item.created,
       }));
