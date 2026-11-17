@@ -720,9 +720,9 @@ function App() {
       const { location, unit } = getDigestWeatherParams();
       await sunnyBrain.speakDailyDigest(location, unit);
       sunnyBrain.addMessage("assistant", "Morning digest spoken aloud.");
-    } catch (e) {
-      setDigestError(describeError(e));
-      sunnyBrain.addMessage("system", "Could not speak the digest: " + describeError(e));
+    } catch {
+      setDigestError("Sorry, I couldn't read the digest aloud just now. Please try again in a moment.");
+      sunnyBrain.addMessage("system", "Sorry, I couldn't read the digest aloud just now. Please try again in a moment.");
     }
   }, [dailyDigest, describeError, getDigestWeatherParams]);
 
