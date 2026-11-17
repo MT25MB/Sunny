@@ -44,6 +44,8 @@ export function loadWeatherPreferences(): WeatherPreferences {
   }
 }
 
+export const WEATHER_PREFS_CHANGED_EVENT = 'sunny:weather-prefs-changed';
+
 export function saveWeatherPreferences(prefs: WeatherPreferences): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -52,6 +54,11 @@ export function saveWeatherPreferences(prefs: WeatherPreferences): void {
     }));
   } catch {
     // localStorage may be unavailable in a sandboxed context.
+  }
+  // Let the main-screen digest know it should refetch for the new location or
+  // unit. Guarded for non-browser test contexts.
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+    window.dispatchEvent(new CustomEvent(WEATHER_PREFS_CHANGED_EVENT));
   }
 }
 

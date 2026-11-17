@@ -245,8 +245,9 @@ export interface SearchRecipeParams {
 
 /** Daily digest parameters */
 export interface DailyDigestParams {
-  location?: string;
+  location?: string | { latitude: number; longitude: number; name?: string };
   newsCount?: number;
+  unit?: 'celsius' | 'fahrenheit';
 }
 
 /**

@@ -74,7 +74,7 @@ test('location search uses the free geocoding API with encoded input', () => {
 });
 
 test('the digest uses the shared forecast instead of a second fetch', () => {
-  assert.ok(MAIN.includes('const weather = await getForecast({ location });'));
+  assert.ok(MAIN.includes('const weather = await getForecast({ location, unit });'));
   // The old inline digest URL with forecast_days=1 must be gone.
   assert.ok(!MAIN.includes('forecast_days=1'), 'digest must not fetch its own 1-day forecast');
 });

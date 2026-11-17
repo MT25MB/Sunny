@@ -270,16 +270,16 @@ test('handlers: defines handleFetchDailyDigest', () => {
   assert.ok(APP.includes('const handleFetchDailyDigest = useCallback(async () => {'));
 });
 
-test('handlers: handleFetchDailyDigest calls triggerQuickAction news', () => {
-  assert.ok(APP.includes("sunnyBrain.triggerQuickAction('news');"));
+test('handlers: handleFetchDailyDigest calls triggerQuickAction news with saved params', () => {
+  assert.ok(APP.includes("sunnyBrain.triggerQuickAction('news', getDigestWeatherParams())"));
 });
 
 test('handlers: defines handleSpeakDailyDigest', () => {
   assert.ok(APP.includes('const handleSpeakDailyDigest = useCallback(async () => {'));
 });
 
-test('handlers: handleSpeakDailyDigest calls speakDailyDigest', () => {
-  assert.ok(APP.includes('await sunnyBrain.speakDailyDigest();'));
+test('handlers: handleSpeakDailyDigest calls speakDailyDigest with saved location', () => {
+  assert.ok(APP.includes('await sunnyBrain.speakDailyDigest(location, unit);'));
 });
 
 // ============================================================================

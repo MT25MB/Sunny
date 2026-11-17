@@ -61,6 +61,7 @@ import {
   defaultPreferences,
   type SunnyPreferences,
 } from "@/lib/local-preferences";
+import { loadWeatherPreferences, WEATHER_PREFS_CHANGED_EVENT } from "@/lib/weather-preferences";
 import CollapsibleSection from "@/components/CollapsibleSection";
 import {
   defaultSectionState,
@@ -619,11 +620,24 @@ function App() {
     }
   }, [describeError]);
 
+  // The Morning Digest follows the location and unit the user saved in the
+  // full weather view, so the main screen and the overlay never disagree.
+  const getDigestWeatherParams = useCallback(() => {
+    const prefs = loadWeatherPreferences();
+    const active = prefs.activeLocation;
+    return {
+      location: active
+        ? { latitude: active.latitude, longitude: active.longitude, name: active.name }
+        : 'auto',
+      unit: prefs.unit,
+    };
+  }, []);
+
   const handleFetchDailyDigest = useCallback(async () => {
     setIsFetchingDigest(true);
     setDigestError(null);
     try {
-      const result = await sunnyBrain.triggerQuickAction('news');
+      const result = await sunnyBrain.triggerQuickAction('news', getDigestWeatherParams());
       if (result.success) {
         setDailyDigest(result.result as DailyDigest | null);
         expandSection("digest");
@@ -638,7 +652,16 @@ function App() {
     } finally {
       setIsFetchingDigest(false);
     }
-  }, [describeError, expandSection]);
+  }, [describeError, expandSection, getDigestWeatherParams]);
+
+  // Keep the main-screen digest in sync when the user saves a new location or
+  // switches units in the full weather view.
+  useEffect(() => {
+    if (!dailyDigest) return;
+    const onWeatherPrefsChanged = () => { void handleFetchDailyDigest(); };
+    window.addEventListener(WEATHER_PREFS_CHANGED_EVENT, onWeatherPrefsChanged);
+    return () => window.removeEventListener(WEATHER_PREFS_CHANGED_EVENT, onWeatherPrefsChanged);
+  }, [dailyDigest, handleFetchDailyDigest]);
 
   const handleChatSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -694,13 +717,14 @@ function App() {
     if (!dailyDigest) return;
     try {
       sunnyBrain.addMessage("system", "Speaking the morning digest aloud…");
-      await sunnyBrain.speakDailyDigest();
+      const { location, unit } = getDigestWeatherParams();
+      await sunnyBrain.speakDailyDigest(location, unit);
       sunnyBrain.addMessage("assistant", "Morning digest spoken aloud.");
     } catch (e) {
       setDigestError(describeError(e));
       sunnyBrain.addMessage("system", "Could not speak the digest: " + describeError(e));
     }
-  }, [dailyDigest, describeError]);
+  }, [dailyDigest, describeError, getDigestWeatherParams]);
 
   const handleToggleHighContrast = useCallback(() => {
     setHighContrast((prev) => !prev);

@@ -1706,7 +1706,8 @@ function validateToolParams(toolName, params) {
     if (!Number.isInteger(newsCount) || newsCount < 1 || newsCount > 10) {
       throw new Error('newsCount must be a whole number between 1 and 10.');
     }
-    return { location, newsCount };
+    const unit = box.unit === 'fahrenheit' ? 'fahrenheit' : 'celsius';
+    return { location, newsCount, unit };
   }
 
   if (toolName === 'schedule_medication_reminder') {
@@ -1771,7 +1772,7 @@ async function runTool(toolName, params) {
   }
 
   if (toolName === 'get_daily_digest') {
-    return await getDailyDigest(params.location, params.newsCount);
+    return await getDailyDigest(params.location, params.newsCount, params.unit);
   }
 
   if (toolName === 'schedule_medication_reminder') {
@@ -1963,9 +1964,9 @@ async function fetchDigestNews(newsCount) {
  * pressing it again expects fresh headlines rather than the ones from a
  * quarter of an hour ago.
  *
- * @type {{ at: number, value: any }}
+ * @type {{ at: number, value: any, key: string }}
  */
-let digestCache = { at: 0, value: null };
+let digestCache = { at: 0, value: null, key: '' };
 const DIGEST_CACHE_MS = 60 * 1000;
 
 // ---------------------------------------------------------------------------
@@ -2169,14 +2170,18 @@ async function getRadarFrames() {
   return { host: data.host || '', frames };
 }
 
-async function getDailyDigest(location = 'auto', newsCount = 5) {
-  if (digestCache.value && Date.now() - digestCache.at < DIGEST_CACHE_MS) {
+async function getDailyDigest(location = 'auto', newsCount = 5, unit = 'celsius') {
+  const normalizedUnit = unit === 'fahrenheit' ? 'fahrenheit' : 'celsius';
+  // Key the cache by location + unit so switching the saved city or temperature
+  // scale cannot hand back a digest for the old choice.
+  const key = JSON.stringify([location, newsCount, normalizedUnit]);
+  if (digestCache.value && digestCache.key === key && Date.now() - digestCache.at < DIGEST_CACHE_MS) {
     return digestCache.value;
   }
-  return fetchDailyDigest(location, newsCount);
+  return fetchDailyDigest(location, newsCount, normalizedUnit);
 }
 
-async function fetchDailyDigest(location = 'auto', newsCount = 5) {
+async function fetchDailyDigest(location = 'auto', newsCount = 5, unit = 'celsius') {
   try {
     // Digest requires internet. Return a stub when offline.
     const { reachable } = await readInternetStatus();
@@ -2195,7 +2200,7 @@ async function fetchDailyDigest(location = 'auto', newsCount = 5) {
     // One shared forecast feed serves both the digest card and the Weather
     // screen. The digest keeps using its original fields; the extra hourly
     // and 7-day data travels along with it for the Weather screen.
-    const weather = await getForecast({ location });
+    const weather = await getForecast({ location, unit });
 
     const news = await newsPromise;
     // Already passed newsCount via closure
@@ -2205,7 +2210,11 @@ async function fetchDailyDigest(location = 'auto', newsCount = 5) {
       news,
       date: new Date().toISOString().split('T')[0],
     };
-    digestCache = { at: Date.now(), value: result };
+    digestCache = {
+      at: Date.now(),
+      value: result,
+      key: JSON.stringify([location, newsCount, unit]),
+    };
     return result;
   } catch (error) {
     console.error('Daily digest error:', error);

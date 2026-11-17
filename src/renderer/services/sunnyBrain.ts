@@ -383,7 +383,11 @@ class SunnyBrain {
    * @param newsCount - Number of news items to fetch (default 5, max 10)
    * @returns Daily digest with weather and news
    */
-  async getDailyDigest(location?: string, newsCount: number = 5): Promise<DailyDigest> {
+  async getDailyDigest(
+    location?: string | { latitude: number; longitude: number; name?: string },
+    newsCount: number = 5,
+    unit?: 'celsius' | 'fahrenheit'
+  ): Promise<DailyDigest> {
     if (typeof window === 'undefined' || !window.electronAPI) {
       throw new Error('Electron API is not available. Daily digest requires the Sunny desktop app.');
     }
@@ -392,7 +396,7 @@ class SunnyBrain {
     // made callers read `digest.weather.location` on undefined and fail with
     // "Cannot read properties of undefined (reading 'location')". Accept the
     // unwrapped shape too so browser-preview mocks keep working.
-    const result = await window.electronAPI.getDailyDigest({ location, newsCount });
+    const result = await window.electronAPI.getDailyDigest({ location, newsCount, unit });
     const envelope = result as { success?: boolean; data?: unknown; error?: string };
     if (envelope && envelope.success === false) {
       throw new Error(envelope.error || 'Could not load the daily digest.');
@@ -529,11 +533,15 @@ class SunnyBrain {
    * @param location - Optional location for weather
    * @param newsCount - Number of news items to include
    */
-  async speakDailyDigest(location?: string, newsCount: number = 5): Promise<void> {
+  async speakDailyDigest(
+    location?: string | { latitude: number; longitude: number; name?: string },
+    unit?: 'celsius' | 'fahrenheit',
+    newsCount: number = 5
+  ): Promise<void> {
     if (typeof window === 'undefined' || !window.electronAPI) {
       throw new Error('Electron API is not available. Daily digest requires the Sunny desktop app.');
     }
-    const digest = await this.getDailyDigest(location, newsCount);
+    const digest = await this.getDailyDigest(location, newsCount, unit);
     // Guard the third-party-shaped data: a missing weather/news field must
     // still produce a spoken sentence, not a TypeError in the UI.
     const weather = digest?.weather;
