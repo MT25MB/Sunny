@@ -22,7 +22,10 @@ const inference = require('./inference.cjs');
 const speech = require('./speech.cjs');
 const windowState = require('./window-state.cjs');
 const { buildRecipeSearchTerms } = require('./recipe-terms.cjs');
-const { parseCommand, extractActionEnvelope, ACTION_PROTOCOL_SUFFIX } = require('./command-router.cjs');
+const {
+  parseCommand, extractActionEnvelope, ACTION_PROTOCOL_SUFFIX,
+  isConversationalPrompt, buildChatPrompt, sanitizeChatAnswer,
+} = require('./command-router.cjs');
 const { extractFileName, findUserFile } = require('./file-finder.cjs');
 const osTts = require('./os-tts.cjs');
 const { getCredentialPath: resolveCredentialPath } = require('./credential-path.cjs');
@@ -352,9 +355,19 @@ async function decideAction(prompt, providedImage) {
     imageBase64 = stripDataUrlPrefix(capture.dataUrl);
   }
 
-  // Guardrail + action protocol come first; the user's question is last so
-  // the model answers it instead of parroting a trailing example.
-  const result = await runConfiguredInference(withChatProtocol(prompt), imageBase64);
+  // Plain questions get a clean conversational prompt with no action
+  // envelope to copy. The deterministic router above already handled every
+  // action this build supports, so anything left is a question.
+  if (isConversationalPrompt(prompt)) {
+    const chat = await runConfiguredInference(withChatProtocol(prompt), imageBase64);
+    if (chat.error) throw new Error(chat.error);
+    const answer = sanitizeChatAnswer(chat.response);
+    return {
+      response: answer || "I'm not sure I can answer that. Try rephrasing, or switch to a cloud model in Settings for better answers.",
+    };
+  }
+
+  const result = await runConfiguredInference(withActionProtocol(prompt), imageBase64);
   if (result.error) throw new Error(result.error);
 
   const envelope = extractActionEnvelope(result.response);
@@ -570,12 +583,21 @@ function withSystemGuardrail(userPrompt) {
 }
 
 /**
- * Build the chat prompt: guardrail + action protocol first, the user's
- * question LAST. Ending the prompt with a concrete action example made small
- * models echo it ("short reply..." + calculator) instead of answering.
+ * Plain questions use a clean conversational prompt with NO action protocol.
+ * Small models copy whatever example string is in the prompt, so the action
+ * envelope (with its JSON example) is never shown for a normal question.
  * @param {string} userPrompt
  */
 function withChatProtocol(userPrompt) {
+  return `${SUNNY_SYSTEM_GUARDRAIL}\n\n${buildChatPrompt(userPrompt)}`;
+}
+
+/**
+ * Action requests still use the strict action protocol. Kept separate so a
+ * conversational question can never be contaminated by its examples.
+ * @param {string} userPrompt
+ */
+function withActionProtocol(userPrompt) {
   return `${SUNNY_SYSTEM_GUARDRAIL}${ACTION_PROTOCOL_SUFFIX}\n\nUser: ${userPrompt}`;
 }
 

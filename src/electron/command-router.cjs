@@ -333,13 +333,46 @@ function extractActionEnvelope(modelText) {
  * prevent that; ordinary questions are answered in prose with no JSON.
  */
 const ACTION_PROTOCOL_SUFFIX =
-  '\n\nAnswer the user directly and conversationally. ' +
-  'For ordinary questions — what, when, where, why, how, who — and for anything that does not require controlling this computer, reply in plain words. Do not output JSON. ' +
-  'Only when the user explicitly asks you to operate this computer may you reply with a single JSON object and nothing else, in this shape: ' +
-  '{"response": "<your own short answer>", "actions": [{"type": "<action type>", "<field>": "<value>"}]}. ' +
-  'Replace <your own short answer> with your own words about what you did. Never copy placeholder text or example values into your answer. ' +
+  '\n\nIf the user explicitly asks you to operate this computer, reply with a single JSON object and nothing else. ' +
+  'It must have a "response" field containing your own short answer and an "actions" array when an action is needed. ' +
+  'Each action has a "type" field plus the fields that type requires. ' +
+  'Never copy instruction text into your answer. ' +
   'Allowed action types: open_app (app), web_search (query), screenshot, window_action (action: minimize, maximize, close, show, hide), copy, paste, select_all, wait (ms), scroll (amount), reveal_file (path). ' +
-  'Only include actions the user clearly asked for. If the user did not ask you to control the computer, answer in plain words with no JSON.';
+  'Only include actions the user clearly asked for. For everything else, answer in plain words with no JSON.';
+
+/**
+ * A plain question must NOT be sent with the action protocol. Small models
+ * copy whatever example string is in the prompt, so a conversational prompt
+ * contains no JSON, no examples and no placeholders — just the question.
+ * @param {string} text
+ * @returns {boolean}
+ */
+function isConversationalPrompt(text) {
+  const t = String(text ?? '').trim();
+  if (!t) return false;
+  if (/\?$/.test(t)) return true;
+  return /^(what|when|where|why|how|who|which|tell me|explain|define|describe|is|are|do|does|did|can you tell|could you tell|i want to know)\b/i.test(t);
+}
+
+/** Build a clean prompt for a conversational question. */
+function buildChatPrompt(userPrompt) {
+  return 'Answer the user\'s question in one short, friendly paragraph. ' +
+    'If you do not know, say so plainly.\n\n' +
+    `User: ${String(userPrompt ?? '').trim()}\nAssistant:`;
+}
+
+/**
+ * Reject model output that is just an echoed placeholder from an old prompt.
+ * @param {string} text
+ * @returns {string} the cleaned answer, or '' when it must not be shown
+ */
+function sanitizeChatAnswer(text) {
+  const answer = String(text ?? '').trim();
+  if (!answer) return '';
+  if (/<your own short answer>|<action type>|<field>|<value>|short reply for the user|short reply from the user/i.test(answer)) return '';
+  if (/^\{[\s\S]*\}$/.test(answer)) return '';
+  return answer;
+}
 
 module.exports = {
   parseCommand,
@@ -347,6 +380,9 @@ module.exports = {
   normaliseCommand,
   sanitiseModelAction,
   extractActionEnvelope,
+  isConversationalPrompt,
+  buildChatPrompt,
+  sanitizeChatAnswer,
   OPEN_APP_ALIASES,
   ACTION_PROTOCOL_SUFFIX,
   SAFE_ACTION_TYPES,

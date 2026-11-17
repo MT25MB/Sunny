@@ -19,19 +19,21 @@ const MAIN = fs.readFileSync(path.join(REPO, 'src', 'electron', 'main.cjs'), 'ut
 
 test('the action protocol does not contain a copyable calculator example', () => {
   const start = ROUTER.indexOf('const ACTION_PROTOCOL_SUFFIX');
-  const end = ROUTER.indexOf('module.exports', start);
-  const protocol = ROUTER.slice(start, end);
+  const nextDecl = ROUTER.indexOf('\n/**', start + 10);
+  const protocol = ROUTER.slice(start, nextDecl === -1 ? start + 2000 : nextDecl);
   assert.ok(!/short reply for the user/i.test(protocol), 'no canned response text in the protocol');
   assert.ok(!/"app":\s*"calculator"/i.test(protocol), 'no concrete app name in the protocol');
 });
 
-test('the protocol tells the model to answer questions in plain words', () => {
+test('the action protocol carries no copyable examples, questions use a clean prompt', () => {
   const start = ROUTER.indexOf('const ACTION_PROTOCOL_SUFFIX');
-  const end = ROUTER.indexOf('module.exports', start);
-  const protocol = ROUTER.slice(start, end).toLowerCase();
+  const nextDecl = ROUTER.indexOf('\n/**', start + 10);
+  const protocol = ROUTER.slice(start, nextDecl).toLowerCase();
   assert.ok(protocol.includes('plain words'), 'must instruct prose answers');
-  assert.ok(protocol.includes('never copy'), 'must forbid copying example values');
-  assert.ok(/what, when, where|ordinary questions/.test(protocol), 'must call out question-style prompts');
+  assert.ok(protocol.includes('never copy'), 'must forbid copying instruction text');
+  assert.ok(!protocol.includes('{"response"'), 'no copyable JSON example');
+  const chatPrompt = require('../src/electron/command-router.cjs').buildChatPrompt('what is the weather?');
+  assert.match(chatPrompt, /answer the user's question/i, 'questions get a direct conversational prompt');
 });
 
 test('the user question is the last thing in the chat prompt', () => {
