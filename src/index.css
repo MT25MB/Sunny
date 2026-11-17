@@ -53129,7 +53129,10 @@ html, body, #root {
   position: absolute;
   top: 0.6rem;
   right: 0.6rem;
-  z-index: 2;
+  z-index: 3;
+  /* The frameless window's header is a drag region; the corner X sits over it,
+     so it must opt out or Electron swallows the click in packaged builds. */
+  -webkit-app-region: no-drag;
   display: grid;
   place-items: center;
   width: 44px;

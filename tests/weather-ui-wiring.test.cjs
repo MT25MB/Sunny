@@ -25,7 +25,7 @@ test('the overlay covers everything and has a close control', () => {
   assert.ok(APP.includes('className="weather-overlay"'), 'must be the overlay container');
   assert.ok(APP.includes('role="dialog"') && APP.includes('aria-modal="true"'), 'must be a modal dialog');
   assert.ok(APP.includes('className="weather-overlay-close"'), 'must have a close button');
-  assert.ok(APP.includes('<WeatherPanel />'), 'must render the weather sheet');
+  assert.ok(APP.includes('<WeatherPanel onClose='), 'must render the weather sheet with a close callback');
 });
 
 test('the Morning Digest card remains basic weather only', () => {

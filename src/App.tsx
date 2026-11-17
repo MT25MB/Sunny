@@ -361,6 +361,17 @@ function App() {
     }
   }, [loadPreferences]);
 
+  // Escape dismisses the full weather overlay (the corner X can sit in the
+  // frameless window's title-bar drag region in packaged builds).
+  useEffect(() => {
+    if (!showWeather) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowWeather(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showWeather]);
+
   // Subscribe to model progress
   useEffect(() => {
     if (!window.sunnyDesktop?.onModelProgress) return;
@@ -1512,6 +1523,7 @@ function App() {
           role="dialog"
           aria-modal="true"
           aria-label="Full weather forecast"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowWeather(false); }}
         >
           <button
             type="button"
@@ -1521,7 +1533,7 @@ function App() {
           >
             <X size={28} />
           </button>
-          <WeatherPanel />
+          <WeatherPanel onClose={() => setShowWeather(false)} />
         </div>
       )}
       {showSettings && (

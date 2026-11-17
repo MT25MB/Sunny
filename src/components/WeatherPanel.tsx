@@ -52,7 +52,7 @@ function latLonToTile(lat: number, lon: number, zoom: number): { x: number; y: n
 
 const RADAR_ZOOM = 8;
 
-export function WeatherPanel() {
+export function WeatherPanel({ onClose }: { onClose?: () => void }) {
   const [prefs, setPrefs] = useState<WeatherPreferences>(() => loadWeatherPreferences());
   const [forecast, setForecast] = useState<WeatherForecast | null>(null);
   const [alerts, setAlerts] = useState<WeatherAlert[]>([]);
@@ -171,6 +171,16 @@ export function WeatherPanel() {
           >
             °{unit === 'celsius' ? 'C' : 'F'}
           </button>
+          {onClose && (
+            <button
+              type="button"
+              className="weather-sheet-icon-btn"
+              onClick={onClose}
+              aria-label="Close weather"
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
       </header>
 
