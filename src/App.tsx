@@ -693,10 +693,12 @@ function App() {
   const handleSpeakDailyDigest = useCallback(async () => {
     if (!dailyDigest) return;
     try {
+      sunnyBrain.addMessage("system", "Speaking the morning digest aloud…");
       await sunnyBrain.speakDailyDigest();
       sunnyBrain.addMessage("assistant", "Morning digest spoken aloud.");
     } catch (e) {
       setDigestError(describeError(e));
+      sunnyBrain.addMessage("system", "Could not speak the digest: " + describeError(e));
     }
   }, [dailyDigest, describeError]);
 

@@ -545,6 +545,16 @@ class SunnyBrain {
       ? `Top news: ${headlines.slice(0, 3).map(n => n.title).join('. ')}.`
       : 'No news available at this time.';
     const fullText = `Good morning! ${weatherText} ${newsText}`;
+
+    // Speak the digest in one direct OS-speech call. The general notification
+    // path first sends the text through a 500-char validation IPC and chunks
+    // it, and on packaged builds could silently fall through to the sandboxed
+    // Web Speech API (no audio). One direct call is unambiguous and observable.
+    if (window.electronAPI.speakText) {
+      await window.electronAPI.speakText(fullText, -1);
+      return;
+    }
+    // Browser preview has no OS bridge; Web Speech is fine there.
     await this.speakNotification(fullText, 'normal', 1);
   }
 
