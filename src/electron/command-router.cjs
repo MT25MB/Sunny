@@ -361,6 +361,77 @@ function buildChatPrompt(userPrompt) {
     `User: ${String(userPrompt ?? '').trim()}\nAssistant:`;
 }
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+const WEEKDAY_NAMES = [
+  'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
+];
+
+/** The zero-based day-of-month of the nth weekday in a given month. */
+function nthWeekdayOfMonth(year, month, weekday, nth) {
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const offset = (weekday - firstWeekday + 7) % 7;
+  return 1 + offset + (nth - 1) * 7;
+}
+
+/** Resolve a year named in the question, with relative terms taking priority. */
+function resolveQuestionYear(text) {
+  const now = new Date().getFullYear();
+  if (/\bnext year\b/.test(text)) return now + 1;
+  if (/\blast year\b/.test(text)) return now - 1;
+  if (/\bthis year\b/.test(text)) return now;
+  const explicit = text.match(/\b(20\d{2})\b/);
+  return explicit ? Number(explicit[1]) : now;
+}
+
+// Holidays whose date is the same every year.
+const FIXED_DATE_HOLIDAYS = [
+  { re: /\bnew year'?s? day\b/, name: "New Year's Day", month: 0, day: 1 },
+  { re: /\bvalentine'?s? day\b/, name: "Valentine's Day", month: 1, day: 14 },
+  { re: /\bindependence day\b|\b(?:4th|fourth) of july\b/, name: 'Independence Day', month: 6, day: 4 },
+  { re: /\bhalloween\b/, name: 'Halloween', month: 9, day: 31 },
+  { re: /\bchristmas\b/, name: 'Christmas Day', month: 11, day: 25 },
+];
+
+/**
+ * Answer common factual date questions without any model call.
+ *
+ * The embedded model is a small vision-language model with no world knowledge:
+ * for a question like "When is thanksgiving this year?" it echoes prompt
+ * fragments, which the security guard correctly discards, leaving the user with
+ * a sorry-can't-help message. Computing these answers here makes them exact,
+ * instant and impossible to leak — the model never sees the question.
+ *
+ * @param {string} prompt
+ * @returns {{ response: string } | null} null when the model path should handle it
+ */
+function parseFactualQuestion(prompt) {
+  const text = String(prompt ?? '').trim().toLowerCase();
+  if (!text) return null;
+  const year = resolveQuestionYear(text);
+
+  // US Thanksgiving: the fourth Thursday of November.
+  if (/\bthanksgiving\b/.test(text)) {
+    const day = nthWeekdayOfMonth(year, 10, 4, 4);
+    return {
+      response: `Thanksgiving in the United States falls on ${WEEKDAY_NAMES[4]}, November ${day}, ${year}.`,
+    };
+  }
+
+  for (const holiday of FIXED_DATE_HOLIDAYS) {
+    if (holiday.re.test(text)) {
+      const weekday = new Date(year, holiday.month, holiday.day).getDay();
+      return {
+        response: `${holiday.name} falls on ${WEEKDAY_NAMES[weekday]}, ${MONTH_NAMES[holiday.month]} ${holiday.day}, ${year}.`,
+      };
+    }
+  }
+
+  return null;
+}
+
 /**
  * Reject model output that is just an echoed placeholder from an old prompt.
  * @param {string} text
@@ -409,6 +480,7 @@ function sanitizeModelReply(text, userPrompt) {
 
 module.exports = {
   sanitizeModelReply,
+  parseFactualQuestion,
   parseCommand,
   parseWebSearch,
   normaliseCommand,

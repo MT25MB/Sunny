@@ -24,7 +24,7 @@ const windowState = require('./window-state.cjs');
 const { buildRecipeSearchTerms } = require('./recipe-terms.cjs');
 const {
   parseCommand, extractActionEnvelope, ACTION_PROTOCOL_SUFFIX,
-  isConversationalPrompt, buildChatPrompt, sanitizeChatAnswer, sanitizeModelReply,
+  isConversationalPrompt, buildChatPrompt, sanitizeChatAnswer, sanitizeModelReply, parseFactualQuestion,
 } = require('./command-router.cjs');
 const { extractFileName, findUserFile } = require('./file-finder.cjs');
 const osTts = require('./os-tts.cjs');
@@ -339,6 +339,12 @@ async function decideAction(prompt, providedImage) {
   // File lookups are safe, bounded and need no model inference.
   const fileFind = await parseFileFind(prompt);
   if (fileFind) return fileFind;
+
+  // Factual date questions are computed directly. The embedded vision model
+  // cannot answer them and would just echo the prompt (which the guard then
+  // discards), so answering here is both correct and leak-proof.
+  const factual = parseFactualQuestion(prompt);
+  if (factual) return factual;
 
   const providedBase64 = stripDataUrlPrefix(providedImage);
 
