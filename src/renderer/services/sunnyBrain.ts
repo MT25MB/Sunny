@@ -12,12 +12,20 @@ export interface ToolResult<T = unknown> {
   error?: string;
 }
 
+/**
+ * Which workspace section a message belongs to.
+ * Everything recorded before this field existed defaults to 'event', so the
+ * Activity Log keeps the full history of what Sunny has actually done.
+ */
+export type MessageKind = 'chat' | 'command' | 'event';
+
 /** One entry in the conversation / activity log. */
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
+  kind: MessageKind;
 }
 
 type SpeechPriority = NonNullable<SpeakNotificationParams['priority']>;
@@ -586,8 +594,12 @@ class SunnyBrain {
   // Conversation / activity log
   // -------------------------------------------------------------------------
 
-  /** Append a message and notify subscribers. */
-  addMessage(role: ChatMessage['role'], content: string): ChatMessage {
+  /**
+   * Append a message and notify subscribers.
+   * Defaults to 'event' so all existing status/action messages land in the
+   * Activity Log. Chat and Commands pass their kind explicitly.
+   */
+  addMessage(role: ChatMessage['role'], content: string, kind: MessageKind = 'event'): ChatMessage {
     if (typeof content !== 'string' || content.trim() === '') {
       throw new Error('Message content must be a non-empty string.');
     }
@@ -596,6 +608,7 @@ class SunnyBrain {
       role,
       content,
       timestamp: new Date(),
+      kind,
     };
     this.messageHistory.push(message);
     this.notifyListeners();

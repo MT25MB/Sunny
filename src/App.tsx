@@ -42,6 +42,9 @@ import {
   Maximize2,
   Minimize2,
   Send,
+  Terminal,
+  ScrollText,
+  Sparkles,
 } from "lucide-react";
 import { sunnyBrain, type ChatMessage } from "@/renderer/services/sunnyBrain";
 import type { SystemStatus, Recipe, DailyDigest } from "@/types/electron";
@@ -152,10 +155,22 @@ function App() {
   const [autoCheckUpdates, setAutoCheckUpdates] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [isProcessingChat, setIsProcessingChat] = useState(false);
+  // The three workspace areas share one message store but never mix entries.
+  // Chat is the conversation, Commands is the LLM-executed task history, and
+  // Activity Log is everything Sunny has actually done on its own.
+  const [activeView, setActiveView] = useState<"chat" | "commands" | "activity">("chat");
+  const [commandInput, setCommandInput] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  const chatMessages = useMemo(() => messages.filter((m) => m.kind === "chat"), [messages]);
+  const commandMessages = useMemo(() => messages.filter((m) => m.kind === "command"), [messages]);
+  const activityMessages = useMemo(() => messages.filter((m) => m.kind === "event"), [messages]);
+
   const scrollToBottom = useCallback(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Scroll only the message list. scrollIntoView would also scroll the whole
+    // app-main and push the workspace header out of sight on tall screens.
+    const list = chatEndRef.current?.parentElement;
+    if (list) list.scrollTop = list.scrollHeight;
   }, []);
 
   useEffect(() => {
@@ -672,7 +687,7 @@ function App() {
     setIsProcessingChat(true);
     
     // Add user message to chat
-    sunnyBrain.addMessage("user", input);
+    sunnyBrain.addMessage("user", input, "chat");
     
     try {
       // Use the decide_action tool to interpret the command
@@ -686,7 +701,7 @@ function App() {
       };
 
       if (result.success && decision.success === false) {
-        sunnyBrain.addMessage("system", "Could not understand: " + (decision.error || "Unknown error"));
+        sunnyBrain.addMessage("system", "Could not understand: " + (decision.error || "Unknown error"), "chat");
       } else if (result.success) {
         const actions = decision.actions;
         if (Array.isArray(actions) && actions.length > 0) {
@@ -694,24 +709,76 @@ function App() {
           const execResult = await sunnyBrain.invokeTool("execute_actions", { actions });
           const execOutcome = unwrapToolResult(execResult) as { success?: boolean; error?: string };
           if (execOutcome.success === false) {
-            sunnyBrain.addMessage("system", "Execution failed: " + (execOutcome.error || "Unknown error"));
+            sunnyBrain.addMessage("system", "Execution failed: " + (execOutcome.error || "Unknown error"), "chat");
           } else {
-            sunnyBrain.addMessage("assistant", decision.response || "Done.");
+            sunnyBrain.addMessage("assistant", decision.response || "Done.", "chat");
           }
         } else {
           // No actions to execute, just respond
-          sunnyBrain.addMessage("assistant", decision.response || "Done.");
+          sunnyBrain.addMessage("assistant", decision.response || "Done.", "chat");
         }
       } else {
-        sunnyBrain.addMessage("system", "Could not understand: " + (result.error || "Unknown error"));
+        sunnyBrain.addMessage("system", "Could not understand: " + (result.error || "Unknown error"), "chat");
       }
     } catch (e) {
       const message = describeError(e);
-      sunnyBrain.addMessage("system", "Error: " + message);
+      sunnyBrain.addMessage("system", "Error: " + message, "chat");
     } finally {
       setIsProcessingChat(false);
     }
   }, [chatInput, describeError, isProcessingChat]);
+
+  /** A typed task from the Commands tab: the LLM decides and Sunny executes it. */
+  const handleCommandSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    const task = commandInput.trim();
+    if (!task || isProcessingChat) return;
+
+    setCommandInput("");
+    setIsProcessingChat(true);
+    sunnyBrain.addMessage("user", task, "command");
+
+    try {
+      const result = await sunnyBrain.invokeTool("decide_action", { prompt: task });
+      const decision = unwrapToolResult(result) as {
+        response?: string;
+        actions?: Array<{ type: string }>;
+        success?: boolean;
+        error?: string;
+      };
+
+      if (result.success && decision.success !== false) {
+        const actions = decision.actions;
+        if (Array.isArray(actions) && actions.length > 0) {
+          const execResult = await sunnyBrain.invokeTool("execute_actions", { actions });
+          const execOutcome = unwrapToolResult(execResult) as { success?: boolean; error?: string };
+          if (execOutcome.success === false) {
+            sunnyBrain.addMessage(
+              "system",
+              "Could not finish: " + (execOutcome.error || "Unknown error"),
+              "command"
+            );
+            return;
+          }
+        }
+        sunnyBrain.addMessage(
+          "assistant",
+          decision.response || "Done. " + (actions?.length ? `${actions.length} action(s) completed.` : ""),
+          "command"
+        );
+      } else {
+        sunnyBrain.addMessage(
+          "system",
+          "Could not understand: " + ((result.success ? decision.error : result.error) || "Unknown error"),
+          "command"
+        );
+      }
+    } catch (e) {
+      sunnyBrain.addMessage("system", "Error: " + describeError(e), "command");
+    } finally {
+      setIsProcessingChat(false);
+    }
+  }, [commandInput, describeError, isProcessingChat]);
 
   const handleSpeakDailyDigest = useCallback(async () => {
     if (!dailyDigest) return;
@@ -836,7 +903,10 @@ function App() {
                 </button>
                 <button
                   className="icon-btn"
-                  onClick={() => setShowChat(!showChat)}
+                  onClick={() => {
+                    if (!showChat) setActiveView("chat");
+                    setShowChat(!showChat);
+                  }}
                   aria-label={showChat ? "Hide chat history" : "Show chat history"}
                   aria-pressed={showChat}
                 >
@@ -962,48 +1032,6 @@ function App() {
 
                 <div className="last-updated" aria-live="polite">
                   Last updated: {systemStatus ? new Date(systemStatus.timestamp).toLocaleTimeString() : "not available"}
-                </div>
-              </CollapsibleSection>
-                            <CollapsibleSection
-                id="quick-actions"
-                className="actions-section"
-                title="Quick Actions"
-                icon={<Sun size={20} />}
-                mascotSrc={mascotMicrophone}
-                open={openSections["quick-actions"]}
-                onToggle={() => toggleSection("quick-actions")}
-              >
-                <div className="action-grid">
-                  <ActionButton
-                    icon={<RefreshCw size={28} />}
-                    label="Check System Health"
-                    description="Run a fresh health check now"
-                    onClick={handleCheckHealth}
-                    disabled={isLoading}
-                    primary
-                  />
-                  <ActionButton
-                    icon={isSpeaking ? <VolumeX size={28} /> : <Volume2 size={28} />}
-                    label="Speak Status Aloud"
-                    description="Hear your system status spoken"
-                    onClick={handleSpeakStatus}
-                    disabled={!systemStatus || isSpeaking}
-                    loading={isSpeaking}
-                  />
-                  <ActionButton
-                    icon={<Trash2 size={28} />}
-                    label="Clear Chat History"
-                    description="Remove all messages below"
-                    onClick={handleClearChat}
-                    variant="secondary"
-                  />
-                  <ActionButton
-                    icon={<Settings size={28} />}
-                    label="Open Settings"
-                    description="Adjust voice, speed, and AI model"
-                    onClick={() => setShowSettings(true)}
-                    variant="secondary"
-                  />
                 </div>
               </CollapsibleSection>
 
@@ -1457,45 +1485,191 @@ function App() {
               </CollapsibleSection>
 
               {showChat && (
-                                <CollapsibleSection
-                  id="activity"
-                  className="chat-section"
-                  title="Activity Log"
-                  icon={<MessageSquare size={20} />}
-                  mascotSrc={mascotMagnifying}
-                  open={openSections.activity}
-                  onToggle={() => toggleSection("activity")}
-                >
-                  <div className="chat-messages" role="log" aria-live="polite" aria-label="Conversation history">
-                    {messages.length === 0 ? (
-                      <p className="chat-empty">No activity yet. Press a button above to start.</p>
-                    ) : (
-                      messages.map((msg) => (
-                        <ChatMessageItem key={msg.id} message={msg} />
-                      ))
-                    )}
-                    <div ref={chatEndRef} />
+                <section id="activity" className="workspace" aria-label="Sunny workspace">
+                  <div className="workspace-head">
+                    <div className="workspace-heading">
+                      <span className="workspace-heading-icon"><Sparkles size={20} /></span>
+                      <div>
+                        <h2>Sunny's Workspace</h2>
+                        <p>Talk to Sunny, give it tasks, and see what it has done.</p>
+                      </div>
+                    </div>
+                    <div className="workspace-tabs" role="tablist" aria-label="Workspace sections">
+                      <button
+                        id="activity-toggle"
+                        type="button"
+                        role="tab"
+                        aria-selected={activeView === "chat"}
+                        className={`workspace-tab${activeView === "chat" ? " active" : ""}`}
+                        onClick={() => setActiveView("chat")}
+                      >
+                        <MessageSquare size={18} /> Chat
+                        {chatMessages.length > 0 && <span className="tab-count">{chatMessages.length}</span>}
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={activeView === "commands"}
+                        className={`workspace-tab${activeView === "commands" ? " active" : ""}`}
+                        onClick={() => setActiveView("commands")}
+                      >
+                        <Terminal size={18} /> Commands
+                        {commandMessages.length > 0 && <span className="tab-count">{commandMessages.length}</span>}
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={activeView === "activity"}
+                        className={`workspace-tab${activeView === "activity" ? " active" : ""}`}
+                        onClick={() => setActiveView("activity")}
+                      >
+                        <ScrollText size={18} /> Activity Log
+                        {activityMessages.length > 0 && <span className="tab-count">{activityMessages.length}</span>}
+                      </button>
+                    </div>
                   </div>
-                  <form onSubmit={handleChatSubmit} className="chat-input-form">
-                    <input
-                      type="text"
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      placeholder='Type a command (e.g., "open calculator") or ask a question...'
-                      className="chat-input"
-                      disabled={isProcessingChat}
-                      aria-label="Chat input"
-                    />
-                    <button
-                      type="submit"
-                      className="chat-send-btn"
-                      disabled={!chatInput.trim() || isProcessingChat}
-                      aria-label="Send command"
-                    >
-                      <Send size={18} />
-                    </button>
-                  </form>
-                </CollapsibleSection>
+
+                  <div className="workspace-panel" role="tabpanel">
+                    {activeView === "chat" && (
+                      <div className="chat-section">
+                        <div className="section-intro">
+                          <h3>Chat with Sunny</h3>
+                          <p>Ask anything in your own words — Sunny replies here.</p>
+                        </div>
+                        <div className="chat-messages" role="log" aria-live="polite" aria-label="Conversation history">
+                          {chatMessages.length === 0 ? (
+                            <div className="workspace-empty">
+                              <img src={mascotMagnifying} alt="" className="workspace-empty-mascot" />
+                              <p className="chat-empty">No conversation yet. Ask Sunny anything below.</p>
+                            </div>
+                          ) : (
+                            chatMessages.map((msg) => <ChatMessageItem key={msg.id} message={msg} />)
+                          )}
+                          <div ref={chatEndRef} />
+                        </div>
+                        <form onSubmit={handleChatSubmit} className="chat-input-form">
+                          <input
+                            type="text"
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
+                            placeholder='Type a command (e.g., "open calculator") or ask a question...'
+                            className="chat-input"
+                            disabled={isProcessingChat}
+                            aria-label="Chat input"
+                          />
+                          <button
+                            type="submit"
+                            className="chat-send-btn"
+                            disabled={!chatInput.trim() || isProcessingChat}
+                            aria-label="Send command"
+                          >
+                            <Send size={18} />
+                          </button>
+                        </form>
+                      </div>
+                    )}
+
+                    {activeView === "commands" && (
+                      <div className="commands-section">
+                        <div className="section-intro section-intro-with-mascot">
+                          <div>
+                            <h3>Tell Sunny what to do</h3>
+                            <p>Type a task and Sunny works out the steps on your computer.</p>
+                          </div>
+                          <img src={mascotMicrophone} alt="" className="section-intro-mascot" />
+                        </div>
+                        <form onSubmit={handleCommandSubmit} className="command-input-form">
+                          <Terminal size={20} aria-hidden="true" />
+                          <input
+                            type="text"
+                            value={commandInput}
+                            onChange={(e) => setCommandInput(e.target.value)}
+                            placeholder="Tell Sunny to do something (e.g. open calculator)"
+                            className="command-input"
+                            disabled={isProcessingChat}
+                            aria-label="Computer task"
+                          />
+                          <button
+                            type="submit"
+                            className="command-run-btn"
+                            disabled={!commandInput.trim() || isProcessingChat}
+                            aria-label="Run command"
+                          >
+                            <Send size={17} /> Run
+                          </button>
+                        </form>
+                        <div id="quick-actions" className="action-grid">
+                          <ActionButton
+                            icon={<RefreshCw size={28} />}
+                            label="Check System Health"
+                            description="Run a fresh health check now"
+                            onClick={handleCheckHealth}
+                            disabled={isLoading}
+                            primary
+                          />
+                          <ActionButton
+                            icon={isSpeaking ? <VolumeX size={28} /> : <Volume2 size={28} />}
+                            label="Speak Status Aloud"
+                            description="Hear your system status spoken"
+                            onClick={handleSpeakStatus}
+                            disabled={!systemStatus || isSpeaking}
+                            loading={isSpeaking}
+                          />
+                          <ActionButton
+                            icon={<Trash2 size={28} />}
+                            label="Clear Chat History"
+                            description="Remove all messages below"
+                            onClick={handleClearChat}
+                            variant="secondary"
+                          />
+                          <ActionButton
+                            icon={<Settings size={28} />}
+                            label="Open Settings"
+                            description="Adjust voice, speed, and AI model"
+                            onClick={() => setShowSettings(true)}
+                            variant="secondary"
+                          />
+                        </div>
+                        <div className="command-history">
+                          <h4>Recent tasks</h4>
+                          {commandMessages.length === 0 ? (
+                            <p className="workspace-empty-note">No tasks yet. Type one above or press a button.</p>
+                          ) : (
+                            commandMessages.map((msg) => (
+                              <ChatMessageItem key={msg.id} message={msg} />
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {activeView === "activity" && (
+                      <div className="activity-section">
+                        <div className="section-intro">
+                          <h3>What Sunny has done</h3>
+                          <p>A timeline of checks, actions, and reminders.</p>
+                        </div>
+                        <div className="activity-timeline" role="log" aria-live="polite">
+                          {activityMessages.length === 0 ? (
+                            <p className="workspace-empty-note">Nothing to show yet. Sunny's actions will appear here.</p>
+                          ) : (
+                            activityMessages.map((msg) => (
+                              <div className="activity-entry" key={msg.id}>
+                                <span className={`activity-dot${msg.role === "system" ? " warning" : ""}`} aria-hidden="true" />
+                                <div className="activity-entry-body">
+                                  <p>{msg.content}</p>
+                                  <time dateTime={msg.timestamp.toISOString()}>
+                                    {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                  </time>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </section>
               )}
 
               <Footer />
