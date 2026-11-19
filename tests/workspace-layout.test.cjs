@@ -59,9 +59,16 @@ test('existing element ids used by tests are preserved', () => {
 });
 
 test('the workspace is larger and uses the periwinkle accent', () => {
-  assert.match(CSS, /\.workspace \{[\s\S]*?min-height: clamp\(520px, 74vh, 900px\)/);
+  assert.match(CSS, /\.workspace \{[\s\S]*?min-height: clamp\(600px, 88vh, 960px\)/);
   assert.match(CSS, /\.workspace-tab\.active \{[\s\S]*?border-color: var\(--accent\)/);
   assert.match(CSS, /\.activity-dot \{[\s\S]*?background: var\(--accent\)/);
+});
+
+test('Recent tasks gets usable height in a short window', () => {
+  assert.match(CSS, /\.command-history \{[^}]*min-height: 200px/);
+  assert.match(CSS, /\.command-history \.chat-msg \{[^}]*max-width: 100%/);
+  assert.match(CSS, /\.commands-section \.action-btn \{[^}]*min-height: 68px/);
+  assert.match(CSS, /\.commands-section \.btn-icon \{[^}]*width: 36px/);
 });
 
 test('the old 400px chat cap is removed', () => {

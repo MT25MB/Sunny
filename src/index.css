@@ -53313,7 +53313,7 @@ html, body, #root {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  min-height: clamp(520px, 74vh, 900px);
+  min-height: clamp(600px, 88vh, 960px);
   background: linear-gradient(165deg, #172027 0%, #11181d 100%);
   border: 1px solid #35424a;
   border-radius: 20px;
@@ -53566,3 +53566,20 @@ html, body, #root {
   color: #86969c;
   font: 600 0.78rem 'Atkinson Hyperlegible', ui-monospace, system-ui, sans-serif;
 }
+
+/* Keep the quick actions compact so Recent tasks gets a usable height,
+   especially in a short companion window. */
+.commands-section .action-grid { gap: 10px; }
+.commands-section .action-btn {
+  min-height: 68px;
+  padding: 10px 12px;
+  gap: 10px;
+}
+.commands-section .btn-icon { width: 36px; height: 36px; }
+.commands-section .btn-label { font-size: 0.92rem; line-height: 1.2; }
+.commands-section .btn-desc { font-size: 0.76rem; line-height: 1.25; }
+.command-history { min-height: 200px; }
+
+/* Recent tasks is the output area for LLM-run tasks: give it room to read. */
+.command-history { min-height: 200px; }
+.command-history .chat-msg { max-width: 100%; }
