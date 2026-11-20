@@ -1257,6 +1257,7 @@ const APP_EXE_OPENERS = {
     settings: { uri: 'ms-settings:' },
     calendar: { uri: 'outlookcal:' },
     photos: { uri: 'ms-photos:' },
+    blender: { exe: 'blender' },
   },
   darwin: {
     calculator: { exe: 'open', args: ['-a', 'Calculator'] },
@@ -1272,6 +1273,7 @@ const APP_EXE_OPENERS = {
     weather: { exe: 'open', args: ['-a', 'Weather'] },
     music: { exe: 'open', args: ['-a', 'Music'] },
     photos: { exe: 'open', args: ['-a', 'Photos'] },
+    blender: { exe: 'open', args: ['-a', 'Blender'] },
   },
   linux: {
     calculator: { exe: 'gnome-calculator' },
@@ -1285,14 +1287,76 @@ const APP_EXE_OPENERS = {
     weather: { uri: 'https://weather.com' },
     music: { exe: 'rhythmbox' },
     photos: { exe: 'shotwell' },
+    blender: { exe: 'blender' },
   },
 };
+
+/** Find the installed Blender executable without hard-coding a version. */
+function findBlenderExecutable() {
+  const roots = [
+    'C:\\Program Files\\Blender Foundation',
+    'C:\\Program Files (x86)\\Blender Foundation',
+    path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Blender Foundation'),
+    '/Applications',
+  ];
+  for (const root of roots) {
+    try {
+      if (!root || !fs.existsSync(root)) continue;
+      const dirs = fs.readdirSync(root).filter((d) => /^blender/i.test(d)).sort().reverse();
+      for (const dir of dirs) {
+        const exe = path.join(root, dir, 'blender.exe');
+        if (fs.existsSync(exe)) return exe;
+        const mac = path.join(root, dir, 'Blender.app', 'Contents', 'MacOS', 'Blender');
+        if (fs.existsSync(mac)) return mac;
+      }
+    } catch { /* keep looking in the next location */ }
+  }
+  return null;
+}
+
+/** Build a tiny, fixed Blender script from an allow-listed set of operations. */
+function buildBlenderPython(operations) {
+  const lines = ['import bpy'];
+  for (const op of operations) {
+    if (op === 'clear_scene') {
+      lines.push('bpy.ops.object.select_all(action="SELECT")', 'bpy.ops.object.delete(use_global=False)');
+    } else if (op === 'delete_cube') {
+      lines.push(
+        'for o in list(bpy.data.objects):',
+        '    if o.type == "MESH" and o.name.startswith("Cube"):',
+        '        bpy.data.objects.remove(o, do_unlink=True)'
+      );
+    } else if (op === 'add_plane') {
+      lines.push('bpy.ops.mesh.primitive_plane_add(size=2, location=(0, 0, 0))');
+    } else if (op === 'add_cube') {
+      lines.push('bpy.ops.mesh.primitive_cube_add(size=2, location=(0, 0, 0))');
+    } else if (op === 'add_sphere') {
+      lines.push('bpy.ops.mesh.primitive_uv_sphere_add(radius=1, location=(0, 0, 0))');
+    }
+  }
+  return lines.join('\n') + '\n';
+}
+
+/** Open Blender with a bounded scene script so a scene edit really happens. */
+async function runBlenderScene(operations) {
+  const exe = findBlenderExecutable();
+  if (!exe) throw new Error('Blender could not be found on this computer.');
+  const scriptPath = path.join(os.tmpdir(), `sunny-blender-${Date.now()}.py`);
+  fs.writeFileSync(scriptPath, buildBlenderPython(operations), 'utf8');
+  const launched = await launchExecutable(exe, ['--python', scriptPath]);
+  if (launched && launched.launched === false) throw new Error(launched.error);
+}
 
 /** Resolve an app key to `{ uri }` or `{ exe, args }`, or null when unknown. */
 function resolveOpener(appKey) {
   const uri = APP_URI_OPENERS[appKey];
   if (uri) return { uri };
   const table = APP_EXE_OPENERS[process.platform] || {};
+  // Locate the installed Blender version first; the table entry is a fallback.
+  if (appKey === 'blender') {
+    const exe = findBlenderExecutable();
+    if (exe) return { exe, args: [] };
+  }
   const entry = table[appKey];
   if (!entry) return null;
   // Return both uri and exe so openApp can try URI scheme first,
@@ -1432,6 +1496,8 @@ async function executeActions(actions) {
       // Screenshots are taken through captureScreen; nothing to do here.
     } else if (action.type === 'open_app' && typeof action.app === 'string') {
       await openApp(action.app.toLowerCase());
+    } else if (action.type === 'blender_scene' && Array.isArray(action.operations)) {
+      await runBlenderScene(action.operations);
     } else if (action.type === 'web_search' && typeof action.query === 'string') {
       // Opens the default browser (the user's Chrome, in this case) on the
       // search results page. No automation module needed.

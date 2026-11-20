@@ -158,6 +158,10 @@ function interceptAction(action) {
       return interceptOpenApp(a);
     case 'window_action':
       return interceptWindowAction(a);
+    // Bounded Blender scene edit: the router only permits a fixed set of
+    // operations, and main.cjs generates the script itself.
+    case 'blender_scene':
+      return { verdict: 'allow', reason: 'Bounded Blender scene edit.' };
     default:
       return { verdict: 'block', reason: `Unknown action type: "${a.type}".` };
   }

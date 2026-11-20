@@ -47,6 +47,7 @@ const OPEN_APP_ALIASES = [
   ['gallery', 'photos'],
   ['photos', 'photos'],
   ['pictures', 'photos'],
+  ['blender', 'blender'],
 ];
 
 const OPEN_APP_NAMES = {
@@ -58,6 +59,7 @@ const OPEN_APP_NAMES = {
   settings: 'Settings',
   calendar: 'the Calendar',
   photos: 'the Photos app',
+  blender: 'Blender',
 };
 
 /**
@@ -80,6 +82,31 @@ function parseWebSearch(text) {
   return {
     response: `Searching for "${query}".`,
     actions: [{ type: 'web_search', query }],
+  };
+}
+
+/**
+ * A bounded Blender scene edit. Only whole, named operations are accepted:
+ * the app is launched with a generated Python script, never arbitrary code.
+ */
+const BLENDER_OPERATIONS = ['delete_cube', 'add_plane', 'add_cube', 'add_sphere', 'clear_scene'];
+
+function parseBlenderRequest(input) {
+  const text = normaliseCommand(input).replace(LEADING_POLITE, '').trim();
+  if (!/\bblender\b/.test(text)) return null;
+
+  const operations = [];
+  if (/\b(delete|remove|clear)\b[\s\S]*\bcube\b/.test(text)) operations.push('delete_cube');
+  if (/\b(add|create|insert|make|place)\b[\s\S]*\bplane\b/.test(text)) operations.push('add_plane');
+  if (/\b(add|create|insert|make|place)\b[\s\S]*\bcube\b/.test(text)) operations.push('add_cube');
+  if (/\b(add|create|insert|make|place)\b[\s\S]*\bsphere\b/.test(text)) operations.push('add_sphere');
+  if (/\b(clear|empty|delete everything|remove everything)\b/.test(text)) operations.push('clear_scene');
+  if (operations.length === 0) return null;
+
+  const unique = [...new Set(operations)];
+  return {
+    response: `Opening Blender and updating the scene: ${unique.join(', ')}.`,
+    actions: [{ type: 'blender_scene', operations: unique }],
   };
 }
 
@@ -151,6 +178,11 @@ function parseCommand(input) {
   const text = normaliseCommand(input).replace(LEADING_POLITE, '').trim();
   if (!text) return null;
 
+  // A compound request ("open Blender and delete the cube, add a plane") must
+  // be recognised as a whole before the simple "open <app>" rule sees it.
+  const blender = parseBlenderRequest(input);
+  if (blender) return blender;
+
   const app = parseOpenApp(text);
   if (app) {
     return {
@@ -211,6 +243,7 @@ const SAFE_ACTION_TYPES = new Set([
   'wait',
   'scroll',
   'reveal_file',
+  'blender_scene',
 ]);
 
 const WINDOW_ACTIONS = new Set(['minimize', 'maximize', 'close', 'hide', 'show', 'focus', 'restore', 'get_info']);
@@ -259,6 +292,12 @@ function sanitiseModelAction(action) {
       const amount = Number(action.amount);
       if (!Number.isFinite(amount) || Math.abs(amount) > 10000) return null;
       return { type: 'scroll', amount: Math.trunc(amount) };
+    }
+    case 'blender_scene': {
+      const raw = Array.isArray(action.operations) ? action.operations : [];
+      const operations = raw.filter((op) => BLENDER_OPERATIONS.includes(op));
+      if (operations.length === 0 || operations.length > 10) return null;
+      return { type: 'blender_scene', operations: [...new Set(operations)] };
     }
     case 'reveal_file': {
       const filePath = typeof action.path === 'string' ? action.path.trim() : '';
@@ -338,7 +377,8 @@ const ACTION_PROTOCOL_SUFFIX =
   'Each action has a "type" field plus the fields that type requires. ' +
   'Never copy instruction text into your answer. ' +
   'Allowed action types: open_app (app), web_search (query), screenshot, window_action (action: minimize, maximize, close, show, hide), copy, paste, select_all, wait (ms), scroll (amount), reveal_file (path). ' +
-  'Only include actions the user clearly asked for. For everything else, answer in plain words with no JSON.';
+  'Blender scene edits use type blender_scene with an operations array containing only: delete_cube, add_plane, add_cube, add_sphere, clear_scene. ' +
+  'Only include actions the user clearly asked for. Never promise an action you did not include in actions: if you cannot do something, say so plainly. For everything else, answer in plain words with no JSON.';
 
 /**
  * A plain question must NOT be sent with the action protocol. Small models
@@ -350,6 +390,12 @@ const ACTION_PROTOCOL_SUFFIX =
 function isConversationalPrompt(text) {
   const t = String(text ?? '').trim();
   if (!t) return false;
+  // "can you open Blender and delete the cube?" is a request to act, not a
+  // question to chat about. A trailing '?' or a polite prefix must not send an
+  // action request down the prose-only path, where nothing is ever executed.
+  const politeRequest = /^(?:can|could|would|will)\s+you\b|^please\b|^i\s+(?:want|need)\s+you\s+to\b/i.test(t);
+  const actionVerb = /\b(open|launch|start|run|close|quit|minimize|maximize|find|locate|search for|screenshot|copy|paste|delete|remove|create|add)\b/i.test(t);
+  if (politeRequest && actionVerb) return false;
   if (/\?$/.test(t)) return true;
   return /^(what|when|where|why|how|who|which|tell me|explain|define|describe|is|are|do|does|did|can you|could you|i want|i need|i'm|i am|help me|hi|hello|hey|good morning|good afternoon|good evening)\b/i.test(t);
 }
@@ -497,6 +543,7 @@ function sanitizeModelReply(text, userPrompt) {
 module.exports = {
   sanitizeModelReply,
   parseFactualQuestion,
+  parseBlenderRequest,
   parseCommand,
   parseWebSearch,
   normaliseCommand,
