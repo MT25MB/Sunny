@@ -410,6 +410,22 @@ const FIXED_DATE_HOLIDAYS = [
 function parseFactualQuestion(prompt) {
   const text = String(prompt ?? '').trim().toLowerCase();
   if (!text) return null;
+
+  // Questions about Sunny herself must always get a real answer, even when no
+  // model is running. These are facts about the app, not guesses.
+  if (/^(what|who) are you\b|\bwhat is sunny\b|\bwho are you\b/.test(text)) {
+    return {
+      response:
+        "I'm Sunny, your desktop companion. I can check your computer health, read your morning digest aloud, manage medication reminders, find files, open apps, and answer everyday questions.",
+    };
+  }
+  if (/^help\b|\bwhat can you do\b|\bwhat can you help\b/.test(text)) {
+    return {
+      response:
+        'I can check your computer health, read your digest aloud, set medication reminders, find files, open apps, and answer questions. Just tell me what you need in plain words.',
+    };
+  }
+
   const year = resolveQuestionYear(text);
 
   // US Thanksgiving: the fourth Thursday of November.

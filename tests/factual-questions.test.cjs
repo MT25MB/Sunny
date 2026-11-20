@@ -42,6 +42,18 @@ test('deterministic answers contain no prompt text or JSON', () => {
     'the answer must itself pass the security guard');
 });
 
+test('identity questions always get a real answer', () => {
+  const who = ROUTER.parseFactualQuestion('what are you?');
+  assert.ok(who, 'must never fall back for identity questions');
+  assert.match(who.response, /Sunny, your desktop companion/);
+  assert.match(who.response, /answer everyday questions/);
+  assert.equal(ROUTER.sanitizeModelReply(who.response, 'what are you?'), who.response);
+  assert.ok(ROUTER.parseFactualQuestion('who are you'));
+  assert.ok(ROUTER.parseFactualQuestion('what is Sunny'));
+  assert.ok(ROUTER.parseFactualQuestion('what can you do'));
+  assert.ok(ROUTER.parseFactualQuestion('help'));
+});
+
 test('unrelated questions are left to the model', () => {
   assert.equal(ROUTER.parseFactualQuestion('What is the weather like?'), null);
   assert.equal(ROUTER.parseFactualQuestion('Open calculator'), null);

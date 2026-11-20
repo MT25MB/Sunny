@@ -26,6 +26,7 @@ const {
   parseCommand, extractActionEnvelope, ACTION_PROTOCOL_SUFFIX,
   isConversationalPrompt, buildChatPrompt, sanitizeChatAnswer, sanitizeModelReply, parseFactualQuestion,
 } = require('./command-router.cjs');
+const { detectLocalChatModel } = require('./local-llm.cjs');
 const { extractFileName, findUserFile } = require('./file-finder.cjs');
 const osTts = require('./os-tts.cjs');
 const { getCredentialPath: resolveCredentialPath } = require('./credential-path.cjs');
@@ -235,7 +236,28 @@ const PROVIDER_CREDENTIAL_KEYS = {
  * @returns {Promise<{response: string, error?: string}>}
  */
 async function runConfiguredInference(guardedPrompt, imageBase64) {
-  const provider = runtimePreferences.brain_provider;
+  const selectedProvider = runtimePreferences.brain_provider;
+
+  // A screenshot must be answered by the embedded vision encoder: it is the
+  // model guaranteed to have seen the screen, and that path fails loudly
+  // rather than guessing. Text-only requests may use a chat LLM instead.
+  if (selectedProvider === 'embedded' && imageBase64) {
+    return inference.runInference(guardedPrompt, imageBase64);
+  }
+
+  let provider = selectedProvider;
+  let model = runtimePreferences.brain_model;
+
+  // Moondream cannot hold a conversation. If a local Ollama chat model is
+  // running, use it for text so everyday questions get a real answer without
+  // an account, API key, or anything leaving the machine.
+  if (provider === 'embedded') {
+    const localModel = await detectLocalChatModel(runtimePreferences.ollama_endpoint);
+    if (localModel) {
+      provider = 'ollama';
+      model = localModel;
+    }
+  }
 
   if (provider === 'embedded') {
     return inference.runInference(guardedPrompt, imageBase64);
@@ -262,7 +284,7 @@ async function runConfiguredInference(guardedPrompt, imageBase64) {
       provider,
       prompt: guardedPrompt,
       imageBase64,
-      model: runtimePreferences.brain_model,
+      model,
       apiKey,
       endpoint: provider === 'ollama' ? runtimePreferences.ollama_endpoint : undefined,
     });

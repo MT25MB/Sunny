@@ -114,9 +114,15 @@ async function runOllama({ prompt, imageBase64, endpoint, model }) {
   const chatUrl = `${base.origin}${base.pathname.replace(/\/+$/, '')}`.replace(/\/$/, '') + '/api/chat';
   const payload = await postJson(chatUrl, {
     headers: { 'Content-Type': 'application/json' },
+    // A local model loads on first use; 60s was not enough on a laptop.
+    timeoutMs: 120_000,
     body: {
       model,
       stream: false,
+      // Thinking models put their answer in a separate field unless disabled,
+      // and a large context can fail to allocate on a modest machine.
+      think: false,
+      options: { num_ctx: 2048 },
       messages: [{ role: 'user', content: prompt, ...(images ? { images } : {}) }],
     },
   });
