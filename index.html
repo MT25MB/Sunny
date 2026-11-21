@@ -9,17 +9,17 @@
   <meta name="description" content="Sunny is a free, accessible AI desktop assistant that helps older adults with daily tasks, medication reminders, recipes, and computer help using voice and text." />
   <meta property="og:title" content="Sunny Accessible AI Desktop Companion for Older Adults" />
   <meta property="og:description" content="Sunny is a free, accessible AI desktop assistant that helps older adults with daily tasks, medication reminders, recipes, and computer help using voice and text." />
-  <meta property="og:image" content="https://mt25mb.github.io/Sunny/public/assets/mascot.png" />
-  <meta property="og:image:width" content="816" />
-  <meta property="og:image:height" content="816" />
-  <meta property="og:image:alt" content="The Sunny mascot, a smiling sun character" />
+  <meta property="og:image" content="https://mt25mb.github.io/Sunny/public/assets/sunny-feature-infographic.png" />
+  <meta property="og:image:width" content="1376" />
+  <meta property="og:image:height" content="768" />
+  <meta property="og:image:alt" content="How Sunny works: you speak or type, Sunny runs locally on your computer, and returns answers and actions" />
   <meta property="og:url" content="https://mt25mb.github.io/Sunny/" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Sunny" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Sunny Accessible AI Desktop Companion for Older Adults" />
   <meta name="twitter:description" content="Sunny is a free, accessible AI desktop assistant that helps older adults with daily tasks, medication reminders, recipes, and computer help using voice and text." />
-  <meta name="twitter:image" content="https://mt25mb.github.io/Sunny/public/assets/mascot.png" />
+  <meta name="twitter:image" content="https://mt25mb.github.io/Sunny/public/assets/sunny-feature-infographic.png" />
   <link rel="icon" href="public/assets/favicon.png" sizes="32x32" />
   <link rel="apple-touch-icon" href="public/assets/apple-touch-icon.png" />
   <link rel="preload" href="public/assets/fonts/fraunces-latin-var.woff2" as="font" type="font/woff2" crossorigin />
@@ -234,7 +234,7 @@
   .btn-ghost:hover { background: var(--material-raised); }
   .hero-note { margin-top: var(--space-3); font-size: .9rem; color: var(--text-soft); }
   .hero-art {
-    /* Matches the asset's intrinsic 1376x768 so object-fit:cover crops nothing */
+    /* Matches the infographic's 1376x768 viewBox so object-fit:cover crops nothing */
     position: relative; aspect-ratio: 1376 / 768; border-radius: var(--radius-lg);
     overflow: hidden; background: var(--surface-2);
     border: 1px solid var(--border);
@@ -682,10 +682,7 @@
           <p class="hero-note">Available for Windows, macOS, and Linux. Works on screens as small as a phone.</p>
         </div>
         <div class="hero-art">
-          <picture>
-            <source srcset="public/assets/sunny-hero.webp" type="image/webp" />
-            <img src="public/assets/sunny-hero.jpg" alt="Sunny, a friendly AI desktop companion helping older adults" width="1200" height="670" loading="eager" decoding="async" />
-          </picture>
+          <img src="public/assets/sunny-feature-infographic.svg" alt="How Sunny works: you speak or type, Sunny runs locally on your computer, and returns answers and actions, shown with a system health readout for battery, Wi-Fi, CPU and memory" width="1376" height="768" loading="eager" decoding="async" />
         </div>
       </div>
     </section>

@@ -1,0 +1,171 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1376 768" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="title desc">
+  <title id="title">How Sunny works</title>
+  <desc id="desc">A flow diagram: you speak or type, Sunny runs locally on your computer, and returns answers and actions such as a system health check. A panel shows battery, Wi-Fi, CPU and memory readings.</desc>
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#16212a"/>
+      <stop offset="0.55" stop-color="#111a21"/>
+      <stop offset="1" stop-color="#1a232c"/>
+    </linearGradient>
+    <radialGradient id="glowAmber" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#f1a95b" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#f1a95b" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowPeri" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#9da9e8" stop-opacity="0.26"/>
+      <stop offset="1" stop-color="#9da9e8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="flow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#9da9e8"/>
+      <stop offset="1" stop-color="#f1a95b"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#71d2a4"/>
+      <stop offset="1" stop-color="#9da9e8"/>
+    </linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#ffffff" stroke-opacity="0.045" stroke-width="1"/>
+    </pattern>
+    <marker id="arrow" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M1 1 10 6 1 11Z" fill="#f1a95b"/>
+    </marker>
+  </defs>
+
+  <!-- Canvas -->
+  <rect width="1376" height="768" rx="36" fill="url(#bg)"/>
+  <rect width="1376" height="768" rx="36" fill="url(#grid)"/>
+  <circle cx="1230" cy="90" r="300" fill="url(#glowAmber)"/>
+  <circle cx="120" cy="700" r="280" fill="url(#glowPeri)"/>
+  <rect x="1" y="1" width="1374" height="766" rx="35" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="2"/>
+
+  <!-- Header -->
+  <g font-family="Atkinson Hyperlegible, Segoe UI, system-ui, sans-serif">
+    <circle cx="78" cy="76" r="19" fill="#f1a95b"/>
+    <g stroke="#f1a95b" stroke-width="4" stroke-linecap="round">
+      <line x1="78" y1="44" x2="78" y2="36"/>
+      <line x1="78" y1="116" x2="78" y2="108"/>
+      <line x1="46" y1="76" x2="38" y2="76"/>
+      <line x1="118" y1="76" x2="110" y2="76"/>
+      <line x1="56" y1="54" x2="50" y2="48"/>
+      <line x1="106" y1="104" x2="100" y2="98"/>
+      <line x1="100" y1="54" x2="106" y2="48"/>
+      <line x1="50" y1="104" x2="56" y2="98"/>
+    </g>
+    <text x="134" y="86" fill="#bcc5f2" font-size="27" font-weight="700" letter-spacing="3">SUNNY · HOW IT WORKS</text>
+    <rect x="1110" y="52" width="206" height="50" rx="25" fill="#9da9e8" fill-opacity="0.14" stroke="#9da9e8" stroke-opacity="0.55" stroke-width="2"/>
+    <circle cx="1140" cy="77" r="7" fill="#71d2a4"/>
+    <text x="1232" y="86" text-anchor="middle" fill="#bcc5f2" font-size="24" font-weight="700">100% LOCAL</text>
+  </g>
+
+  <!-- Flow arrows -->
+  <line x1="430" y1="300" x2="552" y2="300" stroke="#9da9e8" stroke-opacity="0.75" stroke-width="7" stroke-linecap="round"/>
+  <line x1="880" y1="300" x2="1002" y2="300" stroke="#f1a95b" stroke-opacity="0.75" stroke-width="7" stroke-linecap="round"/>
+  <path d="M548 286 572 300 548 314Z" fill="#f1a95b"/>
+  <path d="M998 286 1022 300 998 314Z" fill="#f1a95b"/>
+  <circle cx="495" cy="300" r="7" fill="#f1a95b"/>
+  <circle cx="945" cy="300" r="7" fill="#f1a95b"/>
+
+  <!-- Stage 1: YOU -->
+  <g font-family="Atkinson Hyperlegible, Segoe UI, system-ui, sans-serif">
+    <rect x="96" y="206" width="334" height="190" rx="28" fill="#202b34" stroke="#9da9e8" stroke-opacity="0.45" stroke-width="2"/>
+    <g transform="translate(150,246)" fill="none" stroke="#9da9e8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="0" y="6" width="26" height="46" rx="13" fill="#9da9e8" fill-opacity="0.18"/>
+      <path d="M-10 40 a23 23 0 0 0 46 0"/>
+      <line x1="13" y1="63" x2="13" y2="73"/>
+      <rect x="58" y="14" width="60" height="42" rx="9"/>
+      <line x1="68" y1="28" x2="108" y2="28"/>
+      <line x1="68" y1="42" x2="96" y2="42"/>
+    </g>
+    <text x="150" y="350" fill="#f7f9fb" font-size="44" font-weight="700">YOU</text>
+    <text x="264" y="350" fill="#93a4aa" font-size="26">speak or type</text>
+  </g>
+
+  <!-- Stage 2: SUNNY -->
+  <g font-family="Atkinson Hyperlegible, Segoe UI, system-ui, sans-serif">
+    <circle cx="720" cy="300" r="118" fill="#f1a95b" fill-opacity="0.10" stroke="#f1a95b" stroke-opacity="0.6" stroke-width="3"/>
+    <circle cx="720" cy="300" r="92" fill="#1b2530" stroke="#f1a95b" stroke-opacity="0.35" stroke-width="2"/>
+    <g transform="translate(720,300)">
+      <g fill="#f1a95b">
+        <ellipse cx="0" cy="6" rx="44" ry="42"/>
+        <circle cx="-15" cy="-4" r="6" fill="#243038"/>
+        <circle cx="15" cy="-4" r="6" fill="#243038"/>
+        <path d="M-14 14 q14 14 28 0" fill="none" stroke="#243038" stroke-width="5" stroke-linecap="round"/>
+      </g>
+    </g>
+    <text x="720" y="462" text-anchor="middle" fill="#f7f9fb" font-size="44" font-weight="700">SUNNY</text>
+    <text x="720" y="498" text-anchor="middle" fill="#93a4aa" font-size="26">runs on your computer</text>
+  </g>
+
+  <!-- Stage 3: RESULTS -->
+  <g font-family="Atkinson Hyperlegible, Segoe UI, system-ui, sans-serif">
+    <rect x="1010" y="206" width="278" height="190" rx="28" fill="#202b34" stroke="#f1a95b" stroke-opacity="0.45" stroke-width="2"/>
+    <g transform="translate(1048,246)" fill="none" stroke="#f1a95b" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 16 l-9 -9 v18z M30 7 h20 v20 h-20z"/>
+      <circle cx="90" cy="17" r="13"/>
+      <path d="M90 4 v13 l9 6"/>
+    </g>
+    <g transform="translate(1048,314)" fill="none" stroke="#9da9e8" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="4" width="48" height="36" rx="6"/>
+      <path d="M12 32 h6 l4 -9 6 15 4 -6 h8"/>
+      <path d="M84 4 l14 18 -14 18 -14 -18z"/>
+    </g>
+    <text x="1048" y="430" fill="#f7f9fb" font-size="44" font-weight="700">ANSWERS</text>
+    <text x="1048" y="462" fill="#93a4aa" font-size="26">&amp; actions</text>
+  </g>
+
+  <!-- Feature panel: system health readout -->
+  <g font-family="Atkinson Hyperlegible, Segoe UI, system-ui, sans-serif">
+    <rect x="96" y="538" width="1184" height="176" rx="26" fill="#0d141a" fill-opacity="0.82" stroke="#ffffff" stroke-opacity="0.12" stroke-width="2"/>
+    <text x="132" y="586" fill="#bcc5f2" font-size="24" font-weight="700" letter-spacing="2">SYSTEM HEALTH · READ ALOUD</text>
+    <line x1="132" y1="604" x2="1244" y2="604" stroke="#ffffff" stroke-opacity="0.10" stroke-width="2"/>
+
+    <!-- Battery -->
+    <g transform="translate(132,632)">
+      <rect x="0" y="0" width="34" height="52" rx="8" fill="none" stroke="#71d2a4" stroke-width="3"/>
+      <rect x="34" y="16" width="6" height="20" rx="3" fill="#71d2a4"/>
+      <rect x="6" y="8" width="22" height="36" rx="4" fill="#71d2a4" fill-opacity="0.7"/>
+      <text x="58" y="22" fill="#93a4aa" font-size="20">BATTERY</text>
+      <text x="58" y="50" fill="#f7f9fb" font-size="32" font-weight="700">92%</text>
+    </g>
+
+    <!-- Wi-Fi -->
+    <g transform="translate(420,632)" fill="none" stroke="#9da9e8" stroke-width="3.5" stroke-linecap="round">
+      <path d="M2 18 q22 -20 44 0"/>
+      <path d="M11 29 q13 -13 26 0"/>
+      <circle cx="24" cy="42" r="3" fill="#9da9e8" stroke="none"/>
+      <text x="64" y="22" fill="#93a4aa" font-size="20" stroke="none">WI-FI</text>
+      <text x="64" y="50" fill="#f7f9fb" font-size="32" font-weight="700" stroke="none">Connected</text>
+    </g>
+
+    <!-- CPU -->
+    <g transform="translate(726,632)">
+      <rect x="0" y="2" width="44" height="44" rx="8" fill="none" stroke="#9da9e8" stroke-width="3"/>
+      <rect x="12" y="14" width="20" height="20" rx="4" fill="#9da9e8" fill-opacity="0.35"/>
+      <g stroke="#9da9e8" stroke-width="3" stroke-linecap="round">
+        <line x1="10" y1="2" x2="10" y2="-8"/><line x1="22" y1="2" x2="22" y2="-8"/><line x1="34" y1="2" x2="34" y2="-8"/>
+        <line x1="10" y1="46" x2="10" y2="56"/><line x1="22" y1="46" x2="22" y2="56"/><line x1="34" y1="46" x2="34" y2="56"/>
+      </g>
+      <text x="64" y="22" fill="#93a4aa" font-size="20">CPU</text>
+      <text x="64" y="50" fill="#f7f9fb" font-size="32" font-weight="700">8% · Normal</text>
+    </g>
+
+    <!-- Memory bar -->
+    <g transform="translate(1030,632)">
+      <text x="0" y="22" fill="#93a4aa" font-size="20">MEMORY</text>
+      <text x="0" y="50" fill="#f7f9fb" font-size="32" font-weight="700">4.1 GB · Low</text>
+      <rect x="186" y="24" width="96" height="14" rx="7" fill="#ffffff" fill-opacity="0.10"/>
+      <rect x="186" y="24" width="52" height="14" rx="7" fill="url(#bar)"/>
+    </g>
+  </g>
+
+  <!-- Footer strip -->
+  <g font-family="Atkinson Hyperlegible, Segoe UI, system-ui, sans-serif" fill="#93a4aa" font-size="22">
+    <circle cx="120" cy="744" r="5" fill="#71d2a4"/>
+    <text x="136" y="751">No account</text>
+    <circle cx="320" cy="744" r="5" fill="#71d2a4"/>
+    <text x="336" y="751">No cloud required</text>
+    <circle cx="580" cy="744" r="5" fill="#71d2a4"/>
+    <text x="596" y="751">Works offline</text>
+  </g>
+</svg>
