@@ -77,8 +77,8 @@
       <line x1="68" y1="28" x2="108" y2="28"/>
       <line x1="68" y1="42" x2="96" y2="42"/>
     </g>
-    <text x="150" y="350" fill="#f7f9fb" font-size="44" font-weight="700">YOU</text>
-    <text x="264" y="350" fill="#93a4aa" font-size="26">speak or type</text>
+    <text x="263" y="452" text-anchor="middle" fill="#f7f9fb" font-size="44" font-weight="700">YOU</text>
+    <text x="263" y="490" text-anchor="middle" fill="#93a4aa" font-size="26">speak or type</text>
   </g>
 
   <!-- Stage 2: SUNNY -->
@@ -93,8 +93,8 @@
         <path d="M-14 14 q14 14 28 0" fill="none" stroke="#243038" stroke-width="5" stroke-linecap="round"/>
       </g>
     </g>
-    <text x="720" y="462" text-anchor="middle" fill="#f7f9fb" font-size="44" font-weight="700">SUNNY</text>
-    <text x="720" y="498" text-anchor="middle" fill="#93a4aa" font-size="26">runs on your computer</text>
+    <text x="720" y="452" text-anchor="middle" fill="#f7f9fb" font-size="44" font-weight="700">SUNNY</text>
+    <text x="720" y="490" text-anchor="middle" fill="#93a4aa" font-size="26">runs on your computer</text>
   </g>
 
   <!-- Stage 3: RESULTS -->
@@ -110,18 +110,18 @@
       <path d="M12 32 h6 l4 -9 6 15 4 -6 h8"/>
       <path d="M84 4 l14 18 -14 18 -14 -18z"/>
     </g>
-    <text x="1048" y="430" fill="#f7f9fb" font-size="44" font-weight="700">ANSWERS</text>
-    <text x="1048" y="462" fill="#93a4aa" font-size="26">&amp; actions</text>
+    <text x="1149" y="452" text-anchor="middle" fill="#f7f9fb" font-size="44" font-weight="700">ANSWERS</text>
+    <text x="1149" y="490" text-anchor="middle" fill="#93a4aa" font-size="26">&amp; actions</text>
   </g>
 
   <!-- Feature panel: system health readout -->
   <g font-family="Atkinson Hyperlegible, Segoe UI, system-ui, sans-serif">
-    <rect x="96" y="538" width="1184" height="176" rx="26" fill="#0d141a" fill-opacity="0.82" stroke="#ffffff" stroke-opacity="0.12" stroke-width="2"/>
-    <text x="132" y="586" fill="#bcc5f2" font-size="24" font-weight="700" letter-spacing="2">SYSTEM HEALTH · READ ALOUD</text>
-    <line x1="132" y1="604" x2="1244" y2="604" stroke="#ffffff" stroke-opacity="0.10" stroke-width="2"/>
+    <rect x="96" y="520" width="1184" height="200" rx="26" fill="#0d141a" fill-opacity="0.82" stroke="#ffffff" stroke-opacity="0.12" stroke-width="2"/>
+    <text x="132" y="560" fill="#bcc5f2" font-size="24" font-weight="700" letter-spacing="2">SYSTEM HEALTH · READ ALOUD</text>
+    <line x1="132" y1="580" x2="1244" y2="580" stroke="#ffffff" stroke-opacity="0.10" stroke-width="2"/>
 
     <!-- Battery -->
-    <g transform="translate(132,632)">
+    <g transform="translate(132,614)">
       <rect x="0" y="0" width="34" height="52" rx="8" fill="none" stroke="#71d2a4" stroke-width="3"/>
       <rect x="34" y="16" width="6" height="20" rx="3" fill="#71d2a4"/>
       <rect x="6" y="8" width="22" height="36" rx="4" fill="#71d2a4" fill-opacity="0.7"/>
@@ -130,7 +130,7 @@
     </g>
 
     <!-- Wi-Fi -->
-    <g transform="translate(420,632)" fill="none" stroke="#9da9e8" stroke-width="3.5" stroke-linecap="round">
+    <g transform="translate(420,614)" fill="none" stroke="#9da9e8" stroke-width="3.5" stroke-linecap="round">
       <path d="M2 18 q22 -20 44 0"/>
       <path d="M11 29 q13 -13 26 0"/>
       <circle cx="24" cy="42" r="3" fill="#9da9e8" stroke="none"/>
@@ -139,7 +139,7 @@
     </g>
 
     <!-- CPU -->
-    <g transform="translate(726,632)">
+    <g transform="translate(726,614)">
       <rect x="0" y="2" width="44" height="44" rx="8" fill="none" stroke="#9da9e8" stroke-width="3"/>
       <rect x="12" y="14" width="20" height="20" rx="4" fill="#9da9e8" fill-opacity="0.35"/>
       <g stroke="#9da9e8" stroke-width="3" stroke-linecap="round">
@@ -150,12 +150,12 @@
       <text x="64" y="50" fill="#f7f9fb" font-size="32" font-weight="700">8% · Normal</text>
     </g>
 
-    <!-- Memory bar -->
-    <g transform="translate(1030,632)">
+    <!-- Memory: value on its own line, bar below it so nothing overlaps -->
+    <g transform="translate(1030,614)">
       <text x="0" y="22" fill="#93a4aa" font-size="20">MEMORY</text>
-      <text x="0" y="50" fill="#f7f9fb" font-size="32" font-weight="700">4.1 GB · Low</text>
-      <rect x="186" y="24" width="96" height="14" rx="7" fill="#ffffff" fill-opacity="0.10"/>
-      <rect x="186" y="24" width="52" height="14" rx="7" fill="url(#bar)"/>
+      <text x="0" y="54" fill="#f7f9fb" font-size="32" font-weight="700">4.1 GB · Low</text>
+      <rect x="0" y="70" width="116" height="12" rx="6" fill="#ffffff" fill-opacity="0.10"/>
+      <rect x="0" y="70" width="62" height="12" rx="6" fill="url(#bar)"/>
     </g>
   </g>
 

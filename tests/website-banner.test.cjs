@@ -28,6 +28,19 @@ test('the infographic has accessible text and shows real features', () => {
   }
 });
 
+test('the infographic labels each have their own line and do not overlap', () => {
+  const you = SVG.match(/<text[^>]*>YOU<\/text>/);
+  const speak = SVG.match(/<text[^>]*>speak or type<\/text>/);
+  const answers = SVG.match(/<text[^>]*>ANSWERS<\/text>/);
+  const actions = SVG.match(/<text[^>]*>&amp; actions<\/text>/);
+  for (const label of [you, speak, answers, actions]) assert.ok(label, 'all stage labels must exist');
+  const yOf = (tag) => Number(tag[0].match(/ y="(\d+)"/)[1]);
+  assert.ok(yOf(speak) - yOf(you) >= 30, 'caption needs its own line below YOU');
+  assert.ok(yOf(actions) - yOf(answers) >= 30, 'caption needs its own line below ANSWERS');
+  // The memory bar must sit below the value, never beside it.
+  assert.doesNotMatch(SVG, /4\.1 GB · Low<\/text>\s*<rect x="186"/);
+});
+
 test('the voice-tile mascot is enlarged to match the other feature mascots', () => {
   const base = HTML.match(/\.tile \.tile-mascot \{[^}]*width:\s*(\d+)px/);
   const voice = HTML.match(/\.tile-voice \.tile-mascot \{[^}]*width:\s*(\d+)px/);
