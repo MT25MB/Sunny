@@ -28,6 +28,17 @@ test('the infographic has accessible text and shows real features', () => {
   }
 });
 
+test('the voice-tile mascot is enlarged to match the other feature mascots', () => {
+  const base = HTML.match(/\.tile \.tile-mascot \{[^}]*width:\s*(\d+)px/);
+  const voice = HTML.match(/\.tile-voice \.tile-mascot \{[^}]*width:\s*(\d+)px/);
+  assert.ok(base, 'base mascot size rule must exist');
+  assert.ok(voice, 'voice mascot size override must exist');
+  assert.ok(
+    Number(voice[1]) > Number(base[1]),
+    `voice mascot (${voice[1]}px) must be larger than the base (${base[1]}px)`
+  );
+});
+
 test('link previews point at the rendered PNG version', () => {
   assert.match(HTML, /property="og:image" content="[^"]*sunny-feature-infographic\.png"/);
   assert.match(HTML, /name="twitter:image" content="[^"]*sunny-feature-infographic\.png"/);

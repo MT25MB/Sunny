@@ -325,8 +325,11 @@
     pointer-events: none;
   }
   .tile .tile-mascot img { display: block; width: 100%; height: 100%; object-fit: contain; }
-  /* Voice card spans two rows, so it gets a wider measure and a taller art block */
+  /* Voice card spans two rows, so it gets a wider measure and a taller art block.
+     The microphone artwork has a lot of transparent padding, so it needs a
+     bigger box than the other mascots to appear the same visual size. */
   .tile-voice p { max-width: 34ch; }
+  .tile-voice .tile-mascot { width: 168px; height: 168px; }
   .tile .tile-art { margin-top: auto; border-radius: var(--radius-sm); overflow: hidden; }
   .tile .tile-art svg { display: block; width: 100%; height: auto; }
   /* Compact checklist used on the wider safety card */
@@ -524,6 +527,7 @@
     /* Tiles stack full-width on phones, so the mascot sits beside the copy
        instead of claiming a row of its own. */
     .tile .tile-mascot { width: 84px; height: 84px; }
+    .tile-voice .tile-mascot { width: 120px; height: 120px; }
     .tile-preview { grid-template-columns: 1fr; }
     .preview-window { width: 100%; max-width: 320px; margin: 0 auto; border-left: 0; border-top: 1px solid var(--edge-dim); }
     .preview-caption { padding: 1.5rem 1.5rem 1rem; }
