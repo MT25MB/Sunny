@@ -122,9 +122,10 @@ describe('IPC — SUNNY_TOOLS allowlist', () => {
     assert.ok(fs.existsSync(sharedPath), 'shared sunny-tools.json should exist');
     const sharedTools = JSON.parse(fs.readFileSync(sharedPath, 'utf8'));
     assert.ok(Array.isArray(sharedTools));
-    assert.strictEqual(sharedTools.length, 8);
+    assert.strictEqual(sharedTools.length, 9);
     assert.ok(sharedTools.includes('get_system_status'));
     assert.ok(sharedTools.includes('execute_actions'));
+    assert.ok(sharedTools.includes('confirm_action'));
   });
 });
 
