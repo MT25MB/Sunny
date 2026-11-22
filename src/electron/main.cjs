@@ -3310,7 +3310,28 @@ app.whenReady().then(() => {
   ipcMain.handle('sunny:cancel-actions', (event) => {
     assertTrustedSender(event);
     automationCancelled = true;
+    cancelComputerUseJobs();
     return { cancelled: true };
+  });
+
+  // Routines are read and deleted here for the UI; saving and running them go
+  // through the normal action path so they obey permission tiers.
+  ipcMain.handle('sunny:get-routines', (event) => {
+    assertTrustedSender(event);
+    return loadRoutines();
+  });
+
+  ipcMain.handle('sunny:delete-routine', (event, phrase) => {
+    assertTrustedSender(event);
+    if (typeof phrase !== 'string' || !phrase.trim() || phrase.length > 120) {
+      throw new Error('A routine phrase is required.');
+    }
+    const key = phrase.trim().toLowerCase();
+    const list = loadRoutines();
+    const next = list.filter((r) => r.phrase.toLowerCase() !== key);
+    if (next.length === list.length) return { deleted: false };
+    saveRoutines(next);
+    return { deleted: true };
   });
 
   ipcMain.handle('sunny:window-action', (event, action) => {

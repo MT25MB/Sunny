@@ -36,13 +36,14 @@ test('the three views filter messages independently', () => {
   assert.match(APP, /activityMessages = useMemo\(\(\) => messages\.filter\(\(m\) => m\.kind === "event"\)/);
 });
 
-test('all three tabs are present and chat is the default view', () => {
-  assert.match(APP, /useState<"chat" \| "commands" \| "activity">\("chat"\)/);
+test('all four workspace tabs are present and chat is the default view', () => {
+  assert.match(APP, /useState<"chat" \| "commands" \| "activity" \| "routines">\("chat"\)/);
   assert.match(APP, /role="tablist" aria-label="Workspace sections"/);
   assert.match(APP, /<MessageSquare size=\{18\} \/> Chat/);
   assert.match(APP, /<Terminal size=\{18\} \/> Commands/);
   assert.match(APP, /<ScrollText size=\{18\} \/> Activity Log/);
-  assert.equal((APP.match(/role="tab"/g) || []).length, 3);
+  assert.match(APP, /<Bookmark size=\{18\} \/> Routines/);
+  assert.equal((APP.match(/role="tab"/g) || []).length, 4);
 });
 
 test('each area has its own panel', () => {

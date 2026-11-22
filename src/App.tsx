@@ -45,6 +45,8 @@ import {
   Terminal,
   ScrollText,
   Sparkles,
+  Bookmark,
+  Square,
 } from "lucide-react";
 import { sunnyBrain, type ChatMessage } from "@/renderer/services/sunnyBrain";
 import type { SystemStatus, Recipe, DailyDigest } from "@/types/electron";
@@ -158,11 +160,15 @@ function App() {
   // The three workspace areas share one message store but never mix entries.
   // Chat is the conversation, Commands is the LLM-executed task history, and
   // Activity Log is everything Sunny has actually done on its own.
-  const [activeView, setActiveView] = useState<"chat" | "commands" | "activity">("chat");
+  const [activeView, setActiveView] = useState<"chat" | "commands" | "activity" | "routines">("chat");
   const [commandInput, setCommandInput] = useState("");
   // An action waiting for a plain-language yes/no. The main process holds the
   // real action; the renderer only gets a token and a question to show.
   const [pendingHold, setPendingHold] = useState<{ token: string; question: string } | null>(null);
+  // A computer-use job currently running, so it can be stopped from the UI.
+  const [activeJob, setActiveJob] = useState<{ jobId: string; step: number; label: string; total: number } | null>(null);
+  // Saved routines, read from the main process for the Routines view.
+  const [routines, setRoutines] = useState<Array<{ phrase: string; steps: string[]; createdAt?: string }>>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const chatMessages = useMemo(() => messages.filter((m) => m.kind === "chat"), [messages]);
@@ -184,6 +190,21 @@ function App() {
       unsubscribe?.();
     };
   }, []);
+
+  // Live progress from the hands loop, so the job can be stopped if it wanders.
+  useEffect(() => {
+    return window.sunnyDesktop?.onJobProgress?.((info) => setActiveJob(info)) ?? undefined;
+  }, []);
+
+  // Load saved routines whenever the Routines view is opened.
+  useEffect(() => {
+    if (activeView !== "routines") return;
+    let cancelled = false;
+    window.sunnyDesktop?.getRoutines?.()
+      .then((list) => { if (!cancelled) setRoutines(Array.isArray(list) ? list : []); })
+      .catch(() => { if (!cancelled) setRoutines([]); });
+    return () => { cancelled = true; };
+  }, [activeView]);
 
   const statusUnsubscribeRef = useRef<(() => void) | null>(null);
   const messagesUnsubscribeRef = useRef<(() => void) | null>(null);
@@ -735,6 +756,7 @@ function App() {
       sunnyBrain.addMessage("system", "Error: " + message, "chat");
     } finally {
       setIsProcessingChat(false);
+      setActiveJob(null);
     }
   }, [chatInput, describeError, isProcessingChat]);
 
@@ -794,6 +816,7 @@ function App() {
       sunnyBrain.addMessage("system", "Error: " + describeError(e), "command");
     } finally {
       setIsProcessingChat(false);
+      setActiveJob(null);
     }
   }, [commandInput, describeError, isProcessingChat]);
 
@@ -813,8 +836,33 @@ function App() {
       sunnyBrain.addMessage("system", "Error: " + describeError(e), "command");
     } finally {
       setIsProcessingChat(false);
+      setActiveJob(null);
     }
   }, [pendingHold, describeError, isProcessingChat]);
+
+  /** Stop the running computer-use job. */
+  const handleStopJob = useCallback(async () => {
+    try {
+      await window.sunnyDesktop?.cancelActions?.();
+      sunnyBrain.addMessage("system", "Sunny is stopping that job.", "command");
+    } catch {
+      sunnyBrain.addMessage("system", "Sunny could not stop that job.", "command");
+    }
+    setActiveJob(null);
+  }, []);
+
+  /** Remove a saved routine from the main process and refresh the list. */
+  const handleDeleteRoutine = useCallback(async (phrase: string) => {
+    try {
+      const result = await window.sunnyDesktop?.deleteRoutine?.(phrase);
+      if (result?.deleted) {
+        setRoutines((current) => current.filter((item) => item.phrase !== phrase));
+        sunnyBrain.addMessage("system", `Forgot the routine "${phrase}".`, "event");
+      }
+    } catch {
+      sunnyBrain.addMessage("system", "Sunny could not remove that routine.", "event");
+    }
+  }, []);
 
   const handleSpeakDailyDigest = useCallback(async () => {
     if (!dailyDigest) return;
@@ -1562,8 +1610,30 @@ function App() {
                         <ScrollText size={18} /> Activity Log
                         {activityMessages.length > 0 && <span className="tab-count">{activityMessages.length}</span>}
                       </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={activeView === "routines"}
+                        className={`workspace-tab${activeView === "routines" ? " active" : ""}`}
+                        onClick={() => setActiveView("routines")}
+                      >
+                        <Bookmark size={18} /> Routines
+                        {routines.length > 0 && <span className="tab-count">{routines.length}</span>}
+                      </button>
                     </div>
                   </div>
+
+                  {activeJob && (
+                    <div className="job-progress" role="status" aria-live="polite">
+                      <div className="job-progress-body">
+                        <strong>Sunny is working on a job</strong>
+                        <p>Step {activeJob.step} of {activeJob.total}: {activeJob.label}</p>
+                      </div>
+                      <button type="button" className="job-stop" onClick={() => void handleStopJob()}>
+                        <Square size={15} fill="currentColor" /> Stop
+                      </button>
+                    </div>
+                  )}
 
                   {pendingHold && (
                     <div className="hold-prompt" role="alertdialog" aria-label="Permission needed">
@@ -1716,6 +1786,55 @@ function App() {
                             ))
                           )}
                         </div>
+                      </div>
+                    )}
+
+                    {activeView === "routines" && (
+                      <div className="routines-section">
+                        <div className="section-intro">
+                          <h3>Saved routines</h3>
+                          <p>Repeating jobs you have taught Sunny. Ask Sunny to "remember a routine" to add one.</p>
+                        </div>
+                        {routines.length === 0 ? (
+                          <p className="workspace-empty-note">
+                            No routines yet. Say something like: remember a routine for opening Notepad and typing hello.
+                          </p>
+                        ) : (
+                          <ul className="routine-list">
+                            {routines.map((routine) => (
+                              <li className="routine-card" key={routine.phrase}>
+                                <div className="routine-card-body">
+                                  <strong>{routine.phrase}</strong>
+                                  <ol>
+                                    {routine.steps.map((step, index) => (
+                                      <li key={index}>{step}</li>
+                                    ))}
+                                  </ol>
+                                </div>
+                                <div className="routine-card-actions">
+                                  <button
+                                    type="button"
+                                    className="routine-run"
+                                    onClick={() => {
+                                      setActiveView("commands");
+                                      setCommandInput(`Run the routine ${routine.phrase}`);
+                                    }}
+                                  >
+                                    Run
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="routine-delete"
+                                    aria-label={`Delete routine ${routine.phrase}`}
+                                    onClick={() => void handleDeleteRoutine(routine.phrase)}
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
                     )}
                   </div>

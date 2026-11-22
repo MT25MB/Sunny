@@ -549,6 +549,16 @@ contextBridge.exposeInMainWorld('sunnyDesktop', {
     return () => ipcRenderer.removeListener('sunny:model-progress', handler);
   },
 
+  onJobProgress: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('sunny:job-progress', handler);
+    return () => ipcRenderer.removeListener('sunny:job-progress', handler);
+  },
+
+  getRoutines: () => ipcRenderer.invoke('sunny:get-routines'),
+
+  deleteRoutine: (phrase) => ipcRenderer.invoke('sunny:delete-routine', phrase),
+
   writeDebugLog: (entry) => ipcRenderer.invoke('sunny:write-debug-log', entry),
 
   clearDebugLogs: () => ipcRenderer.invoke('sunny:clear-debug-logs'),

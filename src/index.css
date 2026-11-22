@@ -53662,3 +53662,106 @@ html, body, #root {
   background: rgba(157, 169, 232, 0.16);
   color: #f7f9fb;
 }
+
+/* Live job progress and the stop control. */
+.job-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 20px 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(241, 169, 91, 0.5);
+  border-radius: 12px;
+  background: rgba(241, 169, 91, 0.10);
+}
+.job-progress-body { flex: 1 1 auto; min-width: 0; }
+.job-progress-body strong {
+  display: block;
+  color: #f7f9fb;
+  font: 700 0.95rem 'Atkinson Hyperlegible', ui-monospace, system-ui, sans-serif;
+}
+.job-progress-body p {
+  margin: 3px 0 0;
+  color: #d8c4a8;
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.job-stop {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid #e28778;
+  border-radius: 9px;
+  background: rgba(226, 135, 120, 0.14);
+  color: #f0b4a8;
+  font: 700 0.85rem 'Atkinson Hyperlegible', ui-monospace, system-ui, sans-serif;
+  cursor: pointer;
+}
+.job-stop:hover { background: rgba(226, 135, 120, 0.24); }
+
+/* Saved routines. */
+.routines-section { display: flex; flex-direction: column; }
+.routine-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+.routine-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #35424a;
+  border-radius: 14px;
+  background: rgba(8, 13, 16, 0.4);
+}
+.routine-card-body { flex: 1 1 auto; min-width: 0; }
+.routine-card-body > strong {
+  display: block;
+  color: var(--accent-soft);
+  font: 700 1.05rem 'Atkinson Hyperlegible', ui-monospace, system-ui, sans-serif;
+}
+.routine-card-body ol {
+  margin: 8px 0 0;
+  padding-left: 1.3rem;
+  color: #b8c5c6;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.routine-card-actions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.routine-run {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 9px;
+  background: #f1b568;
+  color: #1a2226;
+  font: 700 0.85rem 'Atkinson Hyperlegible', ui-monospace, system-ui, sans-serif;
+  cursor: pointer;
+}
+.routine-delete {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #4a575d;
+  border-radius: 9px;
+  background: transparent;
+  color: #e28778;
+  cursor: pointer;
+}
+.routine-delete:hover { border-color: #e28778; }
