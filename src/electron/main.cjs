@@ -25,6 +25,7 @@ const { buildRecipeSearchTerms } = require('./recipe-terms.cjs');
 const {
   parseCommand, extractActionEnvelope, ACTION_PROTOCOL_SUFFIX,
   isConversationalPrompt, buildChatPrompt, sanitizeChatAnswer, sanitizeModelReply, parseFactualQuestion,
+  extractBrainDecision, BRAIN_PROTOCOL,
 } = require('./command-router.cjs');
 const { detectLocalChatModel, modelCapabilities } = require('./local-llm.cjs');
 const { runComputerUseJob } = require('./computer-use.cjs');
@@ -403,42 +404,24 @@ async function decideAction(prompt, providedImage) {
     imageBase64 = stripDataUrlPrefix(capture.dataUrl);
   }
 
-  // Plain questions get a clean conversational prompt with no action
-  // envelope to copy. The deterministic router above already handled every
-  // action this build supports, so anything left is a question.
-  if (isConversationalPrompt(prompt)) {
-    const chat = await runConfiguredInference(withChatProtocol(prompt), imageBase64);
-    if (chat.error) throw new Error(chat.error);
-    const answer = sanitizeChatAnswer(chat.response) && sanitizeModelReply(chat.response, prompt);
-    return {
-      response: answer || "I'm not sure I can answer that. Try rephrasing, or switch to a cloud model in Settings for better answers.",
-    };
-  }
-
-  const result = await runConfiguredInference(withActionProtocol(prompt), imageBase64);
+  // ONE inference, and the model decides: chat or command. A regex guessing
+  // from the first word used to misroute polite requests and promise actions.
+  const result = await runConfiguredInference(withBrainProtocol(prompt), imageBase64);
   if (result.error) throw new Error(result.error);
 
-  const envelope = extractActionEnvelope(result.response);
-  if (envelope) {
-    // The response text is model output like any other - sanitise it. The
-    // actions were already sanitised by extractActionEnvelope.
+  const fallback = "I'm not sure I can answer that. Try rephrasing, or switch to a cloud model in Settings for better answers.";
+  const decision = extractBrainDecision(result.response);
+
+  if (decision.kind === 'command' && decision.actions && decision.actions.length > 0) {
     const safeResponse = sanitizeModelReply(
-      sanitizeUntrustedContent(envelope.response || ''), prompt
+      sanitizeUntrustedContent(decision.response || ''), prompt
     );
-    if (!safeResponse) {
-      return { response: "I'm not sure I can answer that. Try rephrasing, or switch to a cloud model in Settings for better answers." };
-    }
-    const out = { response: safeResponse };
-    if (envelope.actions) out.actions = envelope.actions;
-    return out;
+    return { response: safeResponse || 'Sunny is doing that now.', actions: decision.actions };
   }
 
-  // Plain prose: the model did not ask for any action. Still guard against
-  // echoed prompt text before it reaches the chat.
-  const plain = sanitizeModelReply(sanitizeUntrustedContent(result.response || ''), prompt);
-  return {
-    response: plain || "I'm not sure I can answer that. Try rephrasing, or switch to a cloud model in Settings for better answers.",
-  };
+  // Chat: plain prose or a {"kind":"chat"} envelope.
+  const answer = sanitizeModelReply(sanitizeUntrustedContent(decision.response || ''), prompt);
+  return { response: answer || fallback };
 }
 
 /**
@@ -659,6 +642,15 @@ function withChatProtocol(userPrompt) {
  */
 function withActionProtocol(userPrompt) {
   return `${SUNNY_SYSTEM_GUARDRAIL}${ACTION_PROTOCOL_SUFFIX}\n\nUser: ${userPrompt}`;
+}
+
+/**
+ * One prompt for chat and commands: the model returns kind "chat" or
+ * "command". Deterministic routers above handle known commands first.
+ * @param {string} userPrompt
+ */
+function withBrainProtocol(userPrompt) {
+  return `${SUNNY_SYSTEM_GUARDRAIL}${BRAIN_PROTOCOL}\n\nUser: ${userPrompt}`;
 }
 
 // Recipe API - using TheMealDB (free, no API key required)
@@ -1255,6 +1247,68 @@ async function captureScreen() {
  * Run a whole computer-use job. The model decides each step; the runner owns
  * when the job is finished, so the chat can never claim "done" early.
  */
+// ---------------------------------------------------------------------------
+// Saved routines: a phrase mapped to steps in the user's own words.
+// ---------------------------------------------------------------------------
+
+function getRoutinesPath() {
+  return path.join(app.getPath('userData'), 'routines.json');
+}
+
+function loadRoutines() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(getRoutinesPath(), 'utf8'));
+    return Array.isArray(parsed) ? parsed.filter((r) => r && typeof r.phrase === 'string' && Array.isArray(r.steps)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRoutines(list) {
+  try {
+    fs.writeFileSync(getRoutinesPath(), JSON.stringify(list.slice(0, 50), null, 2), 'utf8');
+  } catch (err) {
+    console.warn('[Routines] Could not save:', err.message);
+  }
+}
+
+async function runRoutineAction(routine) {
+  const list = loadRoutines();
+  const key = routine.phrase.toLowerCase();
+  const found = list.find((r) => r.phrase.toLowerCase() === key);
+
+  if (routine.action === 'save') {
+    const entry = { phrase: routine.phrase, steps: routine.steps, createdAt: new Date().toISOString() };
+    if (found) Object.assign(found, entry);
+    else list.push(entry);
+    saveRoutines(list);
+    return { response: `Saved the routine "${routine.phrase}".` };
+  }
+  if (routine.action === 'list') {
+    return {
+      response: list.length
+        ? `Saved routines: ${list.map((r) => r.phrase).join(', ')}.`
+        : 'No saved routines yet.',
+    };
+  }
+  if (routine.action === 'forget') {
+    if (!found) return { response: `I don't have a routine called "${routine.phrase}".` };
+    saveRoutines(list.filter((r) => r.phrase.toLowerCase() !== key));
+    return { response: `Forgot the routine "${routine.phrase}".` };
+  }
+  if (routine.action === 'run') {
+    if (!found) return { response: `I don't have a routine called "${routine.phrase}".` };
+    const actions = [];
+    for (const step of found.steps) {
+      const deterministic = parseCommand(step);
+      if (deterministic && Array.isArray(deterministic.actions)) actions.push(...deterministic.actions);
+      else actions.push({ type: 'use_computer', task: step });
+    }
+    return { response: `Running the routine "${routine.phrase}".`, actions };
+  }
+  return { response: 'That routine action is not supported.' };
+}
+
 /** Refuse to click blind: the chosen brain must be able to see the screen. */
 async function assertVisionCapableBrain() {
   const selected = runtimePreferences.brain_provider;
@@ -1633,6 +1687,15 @@ async function executeActions(actions, options = {}) {
       // Screenshots are taken through captureScreen; nothing to do here.
     } else if (action.type === 'open_app' && typeof action.app === 'string') {
       await openApp(action.app.toLowerCase());
+    } else if (action.type === 'routine') {
+      const routineResult = await runRoutineAction(action);
+      if (Array.isArray(routineResult.actions) && routineResult.actions.length > 0) {
+        const stepped = await executeActions(routineResult.actions);
+        if (stepped && stepped.held) return stepped;
+        completed.push({ type: 'routine', ran: routineResult.actions.length });
+      } else {
+        completed.push({ type: 'routine', response: routineResult.response });
+      }
     } else if (action.type === 'use_computer' && typeof action.task === 'string') {
       const job = await runComputerUseAction(action.task);
       if (job.needsUser && job.question) {

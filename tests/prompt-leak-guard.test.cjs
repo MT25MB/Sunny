@@ -32,10 +32,14 @@ test('ordinary answers pass through unchanged', () => {
   assert.equal(ROUTER.sanitizeModelReply(answer, 'when is thanksgiving?'), answer);
 });
 
-test('both inference paths apply the leak guard', () => {
+test('the unified brain path applies the leak guard to chat and commands', () => {
   assert.match(MAIN, /sanitizeModelReply\(/, 'main must use the leak guard');
-  const chatAt = MAIN.indexOf('if (isConversationalPrompt(prompt))');
-  const actionAt = MAIN.indexOf('withActionProtocol(prompt)');
-  assert.ok(MAIN.indexOf('sanitizeModelReply(', chatAt) < actionAt, 'conversational path must be guarded');
-  assert.ok(MAIN.indexOf('sanitizeModelReply(', actionAt) > actionAt, 'action path must be guarded too');
+  const decisionAt = MAIN.indexOf("decision.kind === 'command'");
+  const chatAt = MAIN.indexOf('// Chat: plain prose');
+  assert.ok(decisionAt > 0, 'command decisions must be handled');
+  assert.ok(chatAt > decisionAt, 'chat answers must be handled after command decisions');
+  assert.ok(
+    MAIN.indexOf('sanitizeModelReply(', decisionAt) < MAIN.indexOf('sanitizeModelReply(', chatAt),
+    'both branches must pass through the leak guard'
+  );
 });

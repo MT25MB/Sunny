@@ -61,8 +61,8 @@ test('unrelated questions are left to the model', () => {
 
 test('the deterministic router runs before model inference', () => {
   const at = MAIN.indexOf('parseFactualQuestion(');
-  const chatAt = MAIN.indexOf('runConfiguredInference(withChatProtocol');
-  const actionAt = MAIN.indexOf('runConfiguredInference(withActionProtocol');
+  const brainAt = MAIN.indexOf('runConfiguredInference(withBrainProtocol');
   assert.ok(at > 0, 'main must call the factual router');
-  assert.ok(at < chatAt && at < actionAt, 'it must run before any model inference');
+  assert.ok(brainAt > 0, 'main must call the brain');
+  assert.ok(at < brainAt, 'it must run before any model inference');
 });

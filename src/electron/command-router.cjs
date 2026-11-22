@@ -285,6 +285,28 @@ function sanitiseModelAction(action) {
       if (!Number.isFinite(amount) || Math.abs(amount) > 10000) return null;
       return { type: 'scroll', amount: Math.trunc(amount) };
     }
+    case 'routine': {
+      const mode = typeof action.action === 'string' ? action.action.trim().toLowerCase() : '';
+      if (!['save', 'list', 'forget', 'run'].includes(mode)) return null;
+      const out = { type: 'routine', action: mode };
+      if (mode === 'save') {
+        const phrase = typeof action.phrase === 'string' ? action.phrase.trim() : '';
+        const rawSteps = Array.isArray(action.steps) ? action.steps : [];
+        const steps = rawSteps.filter((x) => typeof x === 'string').map((x) => x.trim().slice(0, 200)).filter(Boolean);
+        if (phrase.length < 2 || phrase.length > 120 || steps.length === 0 || steps.length > 12) return null;
+        out.phrase = phrase;
+        out.steps = steps;
+      } else if (mode === 'list') {
+        if (typeof action.phrase === 'string' && action.phrase.trim()) {
+          out.phrase = action.phrase.trim().slice(0, 120);
+        }
+      } else if (mode === 'forget' || mode === 'run') {
+        const phrase = typeof action.phrase === 'string' ? action.phrase.trim() : '';
+        if (phrase.length < 2 || phrase.length > 120) return null;
+        out.phrase = phrase;
+      }
+      return out;
+    }
     case 'use_computer': {
       const task = typeof action.task === 'string' ? action.task.trim() : '';
       // The whole job in the user's own words. Bounded so a model cannot pass
@@ -310,6 +332,57 @@ function sanitiseModelAction(action) {
 }
 
 /**
+ * Find and parse the first balanced JSON object in a model reply.
+ */
+function extractJsonObject(modelText) {
+  const text = String(modelText ?? '');
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+  let depth = 0, inString = false, escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escaped) { escaped = false; continue; }
+    if (ch === '\\') { escaped = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') depth++;
+    if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        try {
+          const parsed = JSON.parse(text.slice(start, i + 1));
+          return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+        } catch { return null; }
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * The model decides chat vs command in one call, using the "kind" field.
+ * Plain prose is accepted as a chat answer, so a small model that ignores the
+ * JSON instruction still gives a real reply instead of the fallback.
+ * @returns {{kind:'chat'|'command', response:string, actions?:Array<object>}}
+ */
+function extractBrainDecision(modelText) {
+  const raw = String(modelText ?? '');
+  const parsed = extractJsonObject(raw);
+  if (!parsed) return { kind: 'chat', response: raw.trim() };
+  const response = typeof parsed.response === 'string' ? parsed.response.trim() : '';
+  if (parsed.kind === 'command') {
+    const actions = (Array.isArray(parsed.actions) ? parsed.actions : []).map(sanitiseModelAction).filter(Boolean);
+    return { kind: 'command', response, actions };
+  }
+  if (parsed.kind === 'chat') return { kind: 'chat', response };
+  if (Array.isArray(parsed.actions) && parsed.actions.length > 0) {
+    const actions = parsed.actions.map(sanitiseModelAction).filter(Boolean);
+    return actions.length ? { kind: 'command', response, actions } : { kind: 'chat', response: raw.trim() };
+  }
+  return { kind: 'chat', response: response || raw.trim() };
+}
+
+/**
  * Extract the strict action envelope from raw model prose.
  *
  * The model is asked to answer either with plain words (no action) or with
@@ -322,42 +395,14 @@ function sanitiseModelAction(action) {
  *   the text as-is, with no actions).
  */
 function extractActionEnvelope(modelText) {
-  const text = String(modelText ?? '');
-  const start = text.indexOf('{');
-  if (start === -1) return null;
-
-  // Walk forward tracking depth so we can stop at the matching brace.
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-  for (let i = start; i < text.length; i++) {
-    const ch = text[i];
-    if (escaped) { escaped = false; continue; }
-    if (ch === '\\') { escaped = true; continue; }
-    if (ch === '"') { inString = !inString; continue; }
-    if (inString) continue;
-    if (ch === '{') depth++;
-    if (ch === '}') {
-      depth--;
-      if (depth === 0) {
-        const candidate = text.slice(start, i + 1);
-        let parsed;
-        try {
-          parsed = JSON.parse(candidate);
-        } catch {
-          return null;
-        }
-        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-        const response = typeof parsed.response === 'string' ? parsed.response.trim() : '';
-        const rawActions = Array.isArray(parsed.actions) ? parsed.actions : [];
-        const actions = rawActions.map(sanitiseModelAction).filter(Boolean);
-        const envelope = { response };
-        if (actions.length > 0) envelope.actions = actions;
-        return envelope;
-      }
-    }
-  }
-  return null;
+  const parsed = extractJsonObject(modelText);
+  if (!parsed) return null;
+  const response = typeof parsed.response === 'string' ? parsed.response.trim() : '';
+  const rawActions = Array.isArray(parsed.actions) ? parsed.actions : [];
+  const actions = rawActions.map(sanitiseModelAction).filter(Boolean);
+  const envelope = { response };
+  if (actions.length > 0) envelope.actions = actions;
+  return envelope;
 }
 
 /**
@@ -380,6 +425,20 @@ const ACTION_PROTOCOL_SUFFIX =
   'Never copy instruction text into your answer. ' +
   'Allowed action types: ' + actionFields() + '. ' +
   'Only include actions the user clearly asked for. Never promise an action you did not include in actions: if you cannot do something, say so plainly. For everything else, answer in plain words with no JSON.';
+
+/**
+/**
+ * One prompt for every request: the model itself decides chat vs command.
+ */
+const BRAIN_PROTOCOL =
+  '\n\nDecide for yourself whether this is a conversation or a command. ' +
+  'For a conversation, answer with a single JSON object: {"kind":"chat","response":"your answer"}. ' +
+  'For a command, answer with a single JSON object: {"kind":"command","response":"your short answer","actions":[...]}. ' +
+  'Your words cannot touch the computer: only an action can. Never say you opened, changed or did anything unless you put the action in the array. ' +
+  'For a job needing several steps in an app or website, use one use_computer action with the whole job in the user\'s own words. ' +
+  'Never copy instruction text into your answer. ' +
+  'Allowed action types: ' + actionFields() + '. ' +
+  'Only include actions the user clearly asked for. If you cannot do something, say so plainly instead of promising it.';
 
 /**
  * A plain question must NOT be sent with the action protocol. Small models
@@ -550,6 +609,8 @@ module.exports = {
   normaliseCommand,
   sanitiseModelAction,
   extractActionEnvelope,
+  extractBrainDecision,
+  BRAIN_PROTOCOL,
   isConversationalPrompt,
   buildChatPrompt,
   sanitizeChatAnswer,

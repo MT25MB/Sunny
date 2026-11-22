@@ -39,11 +39,10 @@ test('placeholder-parroted answers are stripped', () => {
   assert.equal(ROUTER.sanitizeChatAnswer('Thanksgiving 2026 falls on November 26.'), 'Thanksgiving 2026 falls on November 26.');
 });
 
-test('decideAction uses a separate conversational path before the action protocol', () => {
-  assert.match(MAIN, /isConversationalPrompt\(prompt\)/, 'must detect conversational prompts');
-  assert.match(MAIN, /withChatProtocol\(prompt\)/, 'conversational path must use the clean prompt');
-  assert.match(MAIN, /withActionProtocol\(prompt\)/, 'action path must keep the protocol');
-  const conv = MAIN.indexOf('isConversationalPrompt(prompt)');
-  const action = MAIN.indexOf('withActionProtocol(prompt)');
-  assert.ok(conv !== -1 && action !== -1 && conv < action, 'conversational branch must come first');
+test('decideAction lets the model decide chat vs command in one call', () => {
+  assert.match(MAIN, /withBrainProtocol\(prompt\)/, 'one unified prompt must be used');
+  assert.match(MAIN, /extractBrainDecision\(result\.response\)/, 'the model decision must be parsed');
+  assert.match(MAIN, /decision\.kind === 'command'/, 'command decisions must run actions');
+  // The regex is no longer the authority; it may remain as a compatibility helper.
+  assert.doesNotMatch(MAIN, /if \(isConversationalPrompt\(prompt\)\)/);
 });

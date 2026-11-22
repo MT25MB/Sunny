@@ -66,6 +66,6 @@ test('main routes file finds before the model and reveals files safely', () => {
   assert.ok(MAIN.includes('showItemInFolder'), 'must reveal the file in Explorer');
   assert.ok(MAIN.includes('outside your folders'), 'must reject paths outside user folders');
   const findAt = MAIN.indexOf('const fileFind = await parseFileFind');
-  const modelAt = MAIN.indexOf('runConfiguredInference(withChatProtocol');
+  const modelAt = MAIN.indexOf('runConfiguredInference(withBrainProtocol');
   assert.ok(findAt !== -1 && findAt < modelAt, 'file find must happen before model inference');
 });

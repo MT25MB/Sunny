@@ -1297,8 +1297,8 @@ test('decide-action handler sanitizes vision output for injection', () => {
     'decideAction must sanitize model output with sanitizeUntrustedContent'
   );
   assert.ok(
-    helper.includes('extractActionEnvelope'),
-    'decideAction must sanitize model-emitted actions through extractActionEnvelope'
+    helper.includes('extractBrainDecision'),
+    'decideAction must sanitize model-emitted actions through extractBrainDecision'
   );
   assert.ok(
     /captureScreen\(\)/.test(helper),

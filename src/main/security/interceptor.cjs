@@ -158,6 +158,8 @@ function interceptAction(action) {
       return interceptOpenApp(a);
     case 'window_action':
       return interceptWindowAction(a);
+    case 'routine':
+      return { verdict: 'allow', reason: 'Saved routine action.' };
     // A whole computer-use job: one call, bounded by the runner's step cap and
     // its own safety rules (no passwords, ask before paying, Esc to cancel).
     case 'use_computer':

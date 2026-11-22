@@ -59,6 +59,12 @@ const TOOLS = [
     permission: 'mouse', risk: 'medium',
   },
   {
+    name: 'routine',
+    fields: 'action: save, list, forget, run; phrase; steps',
+    description: 'Save a phrase for repeating a job, list saved routines, forget one, or run one. Pass the routine steps in their own words.',
+    permission: 'files', risk: 'medium',
+  },
+  {
     name: 'use_computer', fields: 'task',
     description:
       'Use the mouse and keyboard to do any multi-step job inside an app or website. ' +
