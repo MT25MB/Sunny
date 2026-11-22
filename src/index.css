@@ -53583,3 +53583,82 @@ html, body, #root {
 /* Recent tasks is the output area for LLM-run tasks: give it room to read. */
 .command-history { min-height: 200px; }
 .command-history .chat-msg { max-width: 100%; }
+
+/* Permission question Sunny is holding for a plain yes or no. */
+.hold-prompt {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 14px 20px 0;
+  padding: 14px 16px;
+  border: 2px solid var(--accent);
+  border-radius: 14px;
+  background: rgba(157, 169, 232, 0.12);
+}
+.hold-prompt-icon {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: #1a2226;
+  background: var(--accent);
+}
+.hold-prompt-body { flex: 1 1 auto; min-width: 0; }
+.hold-prompt-body strong {
+  display: block;
+  color: #f7f9fb;
+  font: 700 1rem 'Atkinson Hyperlegible', ui-monospace, system-ui, sans-serif;
+}
+.hold-prompt-body p {
+  margin: 4px 0 10px;
+  color: #dbe3e3;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+.hold-prompt-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.hold-prompt-actions button {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font: 700 0.9rem 'Atkinson Hyperlegible', ui-monospace, system-ui, sans-serif;
+  cursor: pointer;
+}
+.hold-prompt-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+.hold-no { border: 1px solid #4a575d; background: #202a30; color: #c7d0d0; }
+.hold-yes { border: 0; background: #f1b568; color: #1a2226; }
+
+/* Permission tier controls in Settings. */
+.permission-tiers { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.permission-tier-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid #3a474d;
+  border-radius: 10px;
+  background: #202a30;
+  color: #c7d0d0;
+  font-size: 0.9rem;
+}
+.permission-tier-options { display: flex; gap: 4px; }
+.permission-tier {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid #4a575d;
+  border-radius: 8px;
+  background: transparent;
+  color: #aebbbc;
+  font: 700 0.82rem 'Atkinson Hyperlegible', ui-monospace, system-ui, sans-serif;
+  cursor: pointer;
+}
+.permission-tier:hover { border-color: var(--accent); color: var(--accent-soft); }
+.permission-tier.selected {
+  border-color: var(--accent);
+  background: rgba(157, 169, 232, 0.16);
+  color: #f7f9fb;
+}

@@ -321,7 +321,7 @@ test('FLOW 4: Desktop Command Execution button wiring is complete', () => {
   assert.ok(MAIN.includes("if (toolName === 'execute_actions')"),
     'runTool handles execute_actions');
   // executeActions function exists
-  assert.ok(MAIN.includes('async function executeActions(actions)'),
+  assert.ok(/async function executeActions\(actions[,)]/.test(MAIN),
     'main.cjs defines executeActions function');
   // Interceptor validates actions
   assert.ok(MAIN.includes('const result = interceptAction(action)'),

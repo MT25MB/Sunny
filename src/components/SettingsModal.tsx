@@ -8,7 +8,10 @@ import {
   type BrainProviderType,
   type ClarificationLevel,
   type ExecutionSpeed,
+  type PermissionCategory,
+  type PermissionTier,
   type SunnyPreferences,
+  defaultPreferences,
 } from '@/lib/local-preferences';
 import {
   getCredential,
@@ -551,6 +554,60 @@ export function SettingsModal({
                 Sunny will act without asking first. That includes deleting files, sending
                 messages, and making purchases on the websites you have open. Turn this
                 back on unless you are confident about every task you give it.
+              </p>
+            )}
+          </section>
+
+          {/* Computer control */}
+          <section className="settings-section">
+            <div className="settings-section-title">
+              <Monitor size={18} />
+              <span><strong>Computer control</strong><small>Let Sunny use your mouse and keyboard to do multi-step jobs.</small></span>
+            </div>
+            <button
+              className={`toggle-row ${preferences.computer_control ? 'enabled' : ''}`}
+              onClick={() => onUpdate({ computer_control: !preferences.computer_control })}
+            >
+              <span>{preferences.computer_control ? 'Computer control is on' : 'Computer control is off'}</span>
+              <span className="toggle"><span /></span>
+            </button>
+            {preferences.computer_control ? (
+              <div className="permission-tiers">
+                {(
+                  [
+                    ['mouse', 'Mouse and keyboard'],
+                    ['files', 'Change files'],
+                    ['system', 'System settings'],
+                    ['open', 'Open apps and sites'],
+                    ['screen', 'Look at the screen'],
+                    ['terminal', 'Terminal commands'],
+                  ] as Array<[PermissionCategory, string]>
+                ).map(([category, label]) => {
+                  const tiers = { ...defaultPreferences.permission_tiers, ...preferences.permission_tiers };
+                  const current: PermissionTier = tiers[category] ?? 'ask';
+                  return (
+                    <div className="permission-tier-row" key={category}>
+                      <span>{label}</span>
+                      <div className="permission-tier-options" role="group" aria-label={`${label} permission`}>
+                        {(['off', 'ask', 'always'] as PermissionTier[]).map((tier) => (
+                          <button
+                            key={tier}
+                            type="button"
+                            className={`permission-tier ${current === tier ? 'selected' : ''}`}
+                            aria-pressed={current === tier}
+                            onClick={() => onUpdate({ permission_tiers: { ...tiers, [category]: tier } })}
+                          >
+                            {tier === 'off' ? 'Never' : tier === 'ask' ? 'Ask' : 'Always'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="settings-warning" role="alert">
+                Sunny will answer questions but will not do jobs on the computer.
               </p>
             )}
           </section>

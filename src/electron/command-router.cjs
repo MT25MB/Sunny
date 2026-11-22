@@ -17,6 +17,8 @@
 
 'use strict';
 
+const { SAFE_ACTION_TYPES, actionFields } = require('./tool-registry.cjs');
+
 /**
  * Apps the chat is allowed to open, keyed by every alias we accept.
  * One entry per alias. The keys match APP_EXE_OPENERS in main.cjs.
@@ -232,19 +234,9 @@ function parseCommand(input) {
  * screenshot, act on this window, clipboard and simple scrolls - nothing
  * that touches anything else the user has open.
  */
-const SAFE_ACTION_TYPES = new Set([
-  'open_app',
-  'web_search',
-  'screenshot',
-  'window_action',
-  'copy',
-  'paste',
-  'select_all',
-  'wait',
-  'scroll',
-  'reveal_file',
-  'blender_scene',
-]);
+// Derived from the canonical tool registry so the list cannot drift from the
+// protocol text, the interceptor or the executor.
+// const SAFE_ACTION_TYPES = require('./tool-registry.cjs').SAFE_ACTION_TYPES;
 
 const WINDOW_ACTIONS = new Set(['minimize', 'maximize', 'close', 'hide', 'show', 'focus', 'restore', 'get_info']);
 
@@ -292,6 +284,13 @@ function sanitiseModelAction(action) {
       const amount = Number(action.amount);
       if (!Number.isFinite(amount) || Math.abs(amount) > 10000) return null;
       return { type: 'scroll', amount: Math.trunc(amount) };
+    }
+    case 'use_computer': {
+      const task = typeof action.task === 'string' ? action.task.trim() : '';
+      // The whole job in the user's own words. Bounded so a model cannot pass
+      // an enormous prompt that blows the tool timeout.
+      if (task.length < 3 || task.length > 600) return null;
+      return { type: 'use_computer', task };
     }
     case 'blender_scene': {
       const raw = Array.isArray(action.operations) ? action.operations : [];
@@ -372,12 +371,14 @@ function extractActionEnvelope(modelText) {
  * prevent that; ordinary questions are answered in prose with no JSON.
  */
 const ACTION_PROTOCOL_SUFFIX =
-  '\n\nIf the user explicitly asks you to operate this computer, reply with a single JSON object and nothing else. ' +
-  'It must have a "response" field containing your own short answer and an "actions" array when an action is needed. ' +
+  '\n\nYour words cannot touch the computer: only a tool can. When the user asks for something on it, call the tool in that same turn. ' +
+  'Never say you opened, changed or did anything unless you called a tool for it. ' +
+  'For a job that needs several steps inside an app or website, call use_computer once with the whole job in the user\'s own words. ' +
+  'Reply with a single JSON object and nothing else when an action is needed. ' +
+  'It must have a "response" field containing your own short answer and an "actions" array. ' +
   'Each action has a "type" field plus the fields that type requires. ' +
   'Never copy instruction text into your answer. ' +
-  'Allowed action types: open_app (app), web_search (query), screenshot, window_action (action: minimize, maximize, close, show, hide), copy, paste, select_all, wait (ms), scroll (amount), reveal_file (path). ' +
-  'Blender scene edits use type blender_scene with an operations array containing only: delete_cube, add_plane, add_cube, add_sphere, clear_scene. ' +
+  'Allowed action types: ' + actionFields() + '. ' +
   'Only include actions the user clearly asked for. Never promise an action you did not include in actions: if you cannot do something, say so plainly. For everything else, answer in plain words with no JSON.';
 
 /**

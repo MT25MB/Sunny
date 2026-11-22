@@ -158,6 +158,10 @@ function interceptAction(action) {
       return interceptOpenApp(a);
     case 'window_action':
       return interceptWindowAction(a);
+    // A whole computer-use job: one call, bounded by the runner's step cap and
+    // its own safety rules (no passwords, ask before paying, Esc to cancel).
+    case 'use_computer':
+      return { verdict: 'allow', reason: 'Bounded computer-use job.' };
     // Bounded Blender scene edit: the router only permits a fixed set of
     // operations, and main.cjs generates the script itself.
     case 'blender_scene':

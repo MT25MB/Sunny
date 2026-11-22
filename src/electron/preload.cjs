@@ -47,6 +47,7 @@ const SUNNY_TOOLS = [
   "emit_cooking_step",
   "decide_action",
   "execute_actions",
+  "confirm_action",
 ];
 
 /**

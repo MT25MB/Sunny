@@ -26,7 +26,10 @@ const {
   parseCommand, extractActionEnvelope, ACTION_PROTOCOL_SUFFIX,
   isConversationalPrompt, buildChatPrompt, sanitizeChatAnswer, sanitizeModelReply, parseFactualQuestion,
 } = require('./command-router.cjs');
-const { detectLocalChatModel } = require('./local-llm.cjs');
+const { detectLocalChatModel, modelCapabilities } = require('./local-llm.cjs');
+const { runComputerUseJob } = require('./computer-use.cjs');
+const { permissionFor, PERMISSIONS } = require('./tool-registry.cjs');
+const { DEFAULT_TIERS, normaliseTiers, decide: decidePermission } = require('./permissions.cjs');
 const { extractFileName, findUserFile } = require('./file-finder.cjs');
 const osTts = require('./os-tts.cjs');
 const { getCredentialPath: resolveCredentialPath } = require('./credential-path.cjs');
@@ -138,6 +141,8 @@ const SENSITIVE_OPERATIONS = new Set([
  *   ollama_endpoint: string,
  *   voice_enabled: boolean,
  *   remember_window_position: boolean,
+ *   computer_control: boolean,
+ *   permission_tiers: Record<string, 'off'|'ask'|'always'>,
  * }} */
 const runtimePreferences = {
   require_sensitive_confirmation: true,
@@ -149,10 +154,16 @@ const runtimePreferences = {
   ollama_endpoint: 'http://localhost:11434',
   voice_enabled: true,
   remember_window_position: true,
+  computer_control: true,
+  permission_tiers: { ...DEFAULT_TIERS },
 };
 
 /** Only these keys are accepted, and only with these value shapes. */
 const PREFERENCE_VALIDATORS = {
+  computer_control: (v) => typeof v === 'boolean',
+  // Normalised here: unknown categories and invalid tiers are dropped rather
+  // than reaching the permission decision.
+  permission_tiers: (v) => !!v && typeof v === 'object' && !Array.isArray(v),
   require_sensitive_confirmation: (v) => typeof v === 'boolean',
   clarification_level: (v) => v === 'all' || v === 'destructive-only',
   local_only: (v) => typeof v === 'boolean',
@@ -195,7 +206,7 @@ function applyPreferenceUpdates(patch) {
     // Unknown keys are ignored rather than merged: this channel is reachable
     // from the renderer, so it must not accept arbitrary state.
     if (!validate || !validate(value)) continue;
-    runtimePreferences[key] = value;
+    runtimePreferences[key] = key === 'permission_tiers' ? normaliseTiers(value) : value;
     // The window preference decides where the window opens on the next
     // launch, and the window is placed before the renderer can send this
     // value again. Writing it out now is what makes it take effect.
@@ -235,13 +246,15 @@ const PROVIDER_CREDENTIAL_KEYS = {
  *
  * @returns {Promise<{response: string, error?: string}>}
  */
-async function runConfiguredInference(guardedPrompt, imageBase64) {
+async function runConfiguredInference(guardedPrompt, imageBase64, options = {}) {
   const selectedProvider = runtimePreferences.brain_provider;
 
   // A screenshot must be answered by the embedded vision encoder: it is the
   // model guaranteed to have seen the screen, and that path fails loudly
   // rather than guessing. Text-only requests may use a chat LLM instead.
-  if (selectedProvider === 'embedded' && imageBase64) {
+  // The hands loop opts out: it needs a chat model that can follow a
+  // step-by-step protocol, not the tiny vision encoder.
+  if (selectedProvider === 'embedded' && imageBase64 && !options.forceChatModel) {
     return inference.runInference(guardedPrompt, imageBase64);
   }
 
@@ -260,6 +273,13 @@ async function runConfiguredInference(guardedPrompt, imageBase64) {
   }
 
   if (provider === 'embedded') {
+    if (options.forceChatModel) {
+      return {
+        response: '',
+        error:
+          'Computer control needs a chat model that can see the screen. Add a cloud provider in Settings, or install a vision-capable local model in Ollama.',
+      };
+    }
     return inference.runInference(guardedPrompt, imageBase64);
   }
 
@@ -593,6 +613,9 @@ const TOOL_TIMEOUTS = {
   // killed - two inferences on CPU take far longer, and the ask is
   // interactive, so give it real headroom.
   decide_action: 120_000,
+  // A computer-use job takes many model turns and screen captures.
+  execute_actions: 200_000,
+  confirm_action: 200_000,
 };
 const APP_LAUNCH_TIMEOUT_MS = 10_000;
 const MAX_ACTIONS_PER_BATCH = 30;
@@ -816,6 +839,8 @@ function setAutoCheckUpdatesEnabled(enabled) {
 let mainWindow;
 let automationModule;
 let automationCancelled = false;
+// Long computer-use jobs are cancellable and report progress to the renderer.
+const activeJobs = new Map();
 let statusEmitterTimer = null;
 let trayIcon = null;
 let isQuitting = false;
@@ -1226,6 +1251,73 @@ async function captureScreen() {
   return { dataUrl: image.toDataURL(), width: image.getSize().width, height: image.getSize().height };
 }
 
+/**
+ * Run a whole computer-use job. The model decides each step; the runner owns
+ * when the job is finished, so the chat can never claim "done" early.
+ */
+/** Refuse to click blind: the chosen brain must be able to see the screen. */
+async function assertVisionCapableBrain() {
+  const selected = runtimePreferences.brain_provider;
+  const needVision =
+    'Computer control needs a model that can see the screen. Choose a vision-capable model in Settings.';
+
+  if (selected === 'embedded') {
+    const local = await detectLocalChatModel(runtimePreferences.ollama_endpoint);
+    if (!local) throw new Error(needVision + ' No local chat model was found.');
+    const capabilities = await modelCapabilities(local, runtimePreferences.ollama_endpoint);
+    if (!capabilities.includes('vision')) {
+      throw new Error(
+        `The local model "${local}" cannot see the screen, so Sunny will not click blindly. ` + needVision
+      );
+    }
+    return;
+  }
+  if (selected === 'ollama') {
+    const local = runtimePreferences.brain_model;
+    const capabilities = await modelCapabilities(local, runtimePreferences.ollama_endpoint);
+    if (capabilities.length > 0 && !capabilities.includes('vision')) {
+      throw new Error(`The selected model "${local}" cannot see the screen, so Sunny will not click blindly. ` + needVision);
+    }
+  }
+  // Hosted providers in Settings are vision-capable models.
+}
+
+async function runComputerUseAction(task) {
+  await assertVisionCapableBrain();
+  const jobId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  activeJobs.set(jobId, { task, cancelled: false, startedAt: Date.now() });
+
+  try {
+    return await runComputerUseJob(task, {
+      infer: async (prompt, imageBase64) => {
+        const reply = await runConfiguredInference(prompt, imageBase64, { forceChatModel: true });
+        if (reply.error) throw new Error(reply.error);
+        return reply.response;
+      },
+      capture: async () => {
+        const shot = await captureScreen();
+        return { base64: stripDataUrlPrefix(shot.dataUrl) || '' };
+      },
+      act: async (actions) => executeActions(actions),
+      isCancelled: () => {
+        const job = activeJobs.get(jobId);
+        return !job || job.cancelled || automationCancelled || emergencyStop;
+      },
+      onProgress: (info) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('sunny:job-progress', { jobId, ...info });
+        }
+      },
+    });
+  } finally {
+    activeJobs.delete(jobId);
+  }
+}
+
+function cancelComputerUseJobs() {
+  for (const job of activeJobs.values()) job.cancelled = true;
+}
+
 // ---------------------------------------------------------------------------
 // Application launching
 //
@@ -1401,6 +1493,39 @@ async function openApp(appKey) {
   return { launched: true };
 }
 
+// Actions waiting for a plain-language "yes" from the user. The renderer never
+// holds the action itself — only an opaque token it sends back with the answer.
+const heldActions = new Map();
+const HOLD_TTL_MS = 5 * 60 * 1000;
+
+function holdAction(action, reason) {
+  const token = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+  heldActions.set(token, { action, reason, at: Date.now() });
+  // Keep the store small even if someone leaves prompts unanswered.
+  if (heldActions.size > 10) {
+    const oldest = heldActions.keys().next().value;
+    heldActions.delete(oldest);
+  }
+  return { token, question: `${describeAction(action)}? Say yes and I will.` };
+}
+
+function describeAction(action) {
+  if (!action || typeof action.type !== 'string') return 'Do that';
+  switch (action.type) {
+    case 'open_app': return `Open ${action.app || 'that app'}`;
+    case 'web_search': return `Search the web for "${action.query || ''}"`;
+    case 'reveal_file': return `Show that file in File Explorer`;
+    case 'use_computer': return `Use the mouse and keyboard to ${action.task || 'do that job'}`;
+    case 'blender_scene': return `Change the Blender scene (${(action.operations || []).join(', ')})`;
+    case 'type': return `Type "${String(action.text || '').slice(0, 60)}"`;
+    case 'key': return `Press the ${action.key} key`;
+    case 'hotkey': return `Press ${(action.keys || []).join(' + ')}`;
+    case 'window_action': return `${action.action} the window`;
+    case 'screenshot': return 'Take a screenshot';
+    default: return `Run ${action.type}`;
+  }
+}
+
 // Actions that drive the mouse or keyboard need the OS automation module.
 // Everything else (open_app, wait, screenshot, window_action) does not, so a
 // missing automation module must not stop those.
@@ -1410,7 +1535,7 @@ const AUTOMATION_TYPES = new Set([
   'copy', 'paste', 'select_all',
 ]);
 
-async function executeActions(actions) {
+async function executeActions(actions, options = {}) {
   // Only load the heavy automation module when the batch actually uses it.
   const automation = actions.some((a) => a && AUTOMATION_TYPES.has(a.type))
     ? await getAutomation()
@@ -1423,6 +1548,18 @@ async function executeActions(actions) {
     // Check emergency stop before each action
     if (emergencyStop || automationCancelled) return { completed: completed.length, cancelled: true, emergencyStop: true };
     if (!action || typeof action.type !== 'string') throw new Error('Sunny received an invalid desktop action.');
+
+    // Permission tiers. Only the confirm_action tool may set skipPermissionCheck;
+    // a renderer calling execute_actions directly cannot bypass it.
+    if (!options.skipPermissionCheck) {
+      const permission = decidePermission(
+        action, runtimePreferences.permission_tiers, runtimePreferences.computer_control
+      );
+      if (permission.verdict === 'deny') throw new Error(permission.reason);
+      if (permission.verdict === 'ask') {
+        return { held: holdAction(action, permission.reason), completed: completed.length };
+      }
+    }
 
     // Rate-limit individual actions so a large batch cannot exceed the
     // per-batch IPC limit. 60 actions/minute is well above human speed.
@@ -1496,6 +1633,15 @@ async function executeActions(actions) {
       // Screenshots are taken through captureScreen; nothing to do here.
     } else if (action.type === 'open_app' && typeof action.app === 'string') {
       await openApp(action.app.toLowerCase());
+    } else if (action.type === 'use_computer' && typeof action.task === 'string') {
+      const job = await runComputerUseAction(action.task);
+      if (job.needsUser && job.question) {
+        throw new Error(`Sunny needs your help: ${job.question}`);
+      }
+      if (!job.completed && !job.cancelled) {
+        throw new Error(job.response || 'Sunny could not finish that job.');
+      }
+      completed.push({ type: 'use_computer', steps: job.steps, response: job.response });
     } else if (action.type === 'blender_scene' && Array.isArray(action.operations)) {
       await runBlenderScene(action.operations);
     } else if (action.type === 'web_search' && typeof action.query === 'string') {
@@ -1850,6 +1996,13 @@ function validateToolParams(toolName, params) {
     return { actions };
   }
 
+  if (toolName === 'confirm_action') {
+    return {
+      token: requireString(box.token, 'token'),
+      answer: requireString(box.answer, 'answer').toLowerCase(),
+    };
+  }
+
   throw new Error(`Unknown tool: ${toolName}`);
 }
 
@@ -1894,6 +2047,25 @@ async function runTool(toolName, params) {
 
   if (toolName === 'execute_actions') {
     return await executeActions(params.actions);
+  }
+
+  if (toolName === 'confirm_action') {
+    const held = heldActions.get(params.token);
+    heldActions.delete(params.token); // one answer per token
+    if (!held || !['yes', 'no'].includes(params.answer)) {
+      return { ok: false, response: 'That confirmation has expired. Please ask again.' };
+    }
+    if (Date.now() - held.at > HOLD_TTL_MS) {
+      return { ok: false, response: 'That request has expired. Please ask again.' };
+    }
+    if (params.answer === 'no') {
+      return { ok: true, response: `Sunny did not ${describeAction(held.action).toLowerCase()}.` };
+    }
+    const result = await executeActions([held.action], { skipPermissionCheck: true });
+    if (result && result.held) {
+      return { ok: false, response: 'That action still needs permission.' };
+    }
+    return { ok: true, response: `${describeAction(held.action)}. Done.`, result };
   }
 
   throw new Error(`Unknown tool: ${toolName}`);

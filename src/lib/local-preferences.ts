@@ -1,6 +1,9 @@
 export type ExecutionSpeed = 'careful' | 'balanced' | 'fast';
 export type BrainProviderType = 'embedded' | 'openai' | 'anthropic' | 'groq' | 'ollama';
 export type ClarificationLevel = 'all' | 'destructive-only';
+export type PermissionTier = 'off' | 'ask' | 'always';
+export type PermissionCategory = 'none' | 'open' | 'screen' | 'mouse' | 'files' | 'system' | 'terminal';
+export type PermissionTiers = Partial<Record<PermissionCategory, PermissionTier>>;
 
 export type SunnyPreferences = {
   execution_speed: ExecutionSpeed;
@@ -14,6 +17,9 @@ export type SunnyPreferences = {
   has_completed_onboarding: boolean;
   /** Remember the window's size and position between launches. */
   remember_window_position: boolean;
+  /** Computer control is on by default; risky categories still ask first. */
+  computer_control: boolean;
+  permission_tiers: PermissionTiers;
 };
 
 export const defaultPreferences: SunnyPreferences = {
@@ -27,6 +33,16 @@ export const defaultPreferences: SunnyPreferences = {
   ollama_endpoint: 'http://localhost:11434',
   has_completed_onboarding: false,
   remember_window_position: true,
+  computer_control: true,
+  permission_tiers: {
+    none: 'always',
+    open: 'always',
+    screen: 'always',
+    mouse: 'ask',
+    files: 'ask',
+    system: 'ask',
+    terminal: 'off',
+  },
 };
 
 const STORAGE_KEY = 'sunny_preferences_v1';

@@ -75,4 +75,35 @@ function resetLocalModelCache() {
   cached = null;
 }
 
-module.exports = { detectLocalChatModel, resetLocalModelCache, DEFAULT_ENDPOINT };
+/**
+ * What a local model can do. Computer use needs `vision`: without it the
+ * model would invent screen coordinates and click blind.
+ * @returns {Promise<string[]>} capability names, or [] when unknown
+ */
+async function modelCapabilities(model, endpoint = DEFAULT_ENDPOINT) {
+  if (!model) return [];
+  try {
+    const url = new URL(String(endpoint || DEFAULT_ENDPOINT));
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return [];
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
+    let response;
+    try {
+      response = await fetch(new URL('/api/show', url).toString(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: model }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!response.ok) return [];
+    const data = await response.json();
+    return Array.isArray(data?.capabilities) ? data.capabilities : [];
+  } catch {
+    return [];
+  }
+}
+
+module.exports = { detectLocalChatModel, modelCapabilities, resetLocalModelCache, DEFAULT_ENDPOINT };

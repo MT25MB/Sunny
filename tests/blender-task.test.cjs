@@ -54,5 +54,6 @@ test('main generates a fixed script and launches Blender', () => {
 test('the action protocol tells the model not to promise undone work', () => {
   const router = fs.readFileSync(path.join(__dirname, '..', 'src', 'electron', 'command-router.cjs'), 'utf8');
   assert.match(router, /Never promise an action you did not include/);
-  assert.match(router, /blender_scene with an operations array/);
+  assert.match(router, /use_computer once with the whole job/);
+  assert.match(router, /Your words cannot touch the computer/);
 });

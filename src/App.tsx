@@ -160,6 +160,9 @@ function App() {
   // Activity Log is everything Sunny has actually done on its own.
   const [activeView, setActiveView] = useState<"chat" | "commands" | "activity">("chat");
   const [commandInput, setCommandInput] = useState("");
+  // An action waiting for a plain-language yes/no. The main process holds the
+  // real action; the renderer only gets a token and a question to show.
+  const [pendingHold, setPendingHold] = useState<{ token: string; question: string } | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const chatMessages = useMemo(() => messages.filter((m) => m.kind === "chat"), [messages]);
@@ -698,7 +701,14 @@ function App() {
         actions?: Array<{ type: string }>;
         success?: boolean;
         error?: string;
+        held?: { token: string; question: string };
       };
+
+      if (decision.held) {
+        setPendingHold(decision.held);
+        sunnyBrain.addMessage("system", decision.held.question, "chat");
+        return;
+      }
 
       if (result.success && decision.success === false) {
         sunnyBrain.addMessage("system", "Could not understand: " + (decision.error || "Unknown error"), "chat");
@@ -745,7 +755,14 @@ function App() {
         actions?: Array<{ type: string }>;
         success?: boolean;
         error?: string;
+        held?: { token: string; question: string };
       };
+
+      if (decision.held) {
+        setPendingHold(decision.held);
+        sunnyBrain.addMessage("system", decision.held.question, "command");
+        return;
+      }
 
       if (result.success && decision.success !== false) {
         const actions = decision.actions;
@@ -779,6 +796,25 @@ function App() {
       setIsProcessingChat(false);
     }
   }, [commandInput, describeError, isProcessingChat]);
+
+  /** Answer a permission question the main process is holding. */
+  const handleHoldAnswer = useCallback(async (answer: "yes" | "no") => {
+    const hold = pendingHold;
+    if (!hold || isProcessingChat) return;
+    setPendingHold(null);
+    setIsProcessingChat(true);
+    sunnyBrain.addMessage("user", answer === "yes" ? "Yes" : "No", "command");
+    try {
+      const result = await sunnyBrain.invokeTool("confirm_action", { token: hold.token, answer });
+      const decision = unwrapToolResult(result) as { ok?: boolean; response?: string };
+      const message = decision.response || (result.success ? "Done." : "That could not be completed.");
+      sunnyBrain.addMessage("assistant", message, "command");
+    } catch (e) {
+      sunnyBrain.addMessage("system", "Error: " + describeError(e), "command");
+    } finally {
+      setIsProcessingChat(false);
+    }
+  }, [pendingHold, describeError, isProcessingChat]);
 
   const handleSpeakDailyDigest = useCallback(async () => {
     if (!dailyDigest) return;
@@ -1528,6 +1564,20 @@ function App() {
                       </button>
                     </div>
                   </div>
+
+                  {pendingHold && (
+                    <div className="hold-prompt" role="alertdialog" aria-label="Permission needed">
+                      <div className="hold-prompt-icon"><Shield size={22} aria-hidden="true" /></div>
+                      <div className="hold-prompt-body">
+                        <strong>Sunny needs your permission</strong>
+                        <p>{pendingHold.question}</p>
+                        <div className="hold-prompt-actions">
+                          <button type="button" className="hold-no" onClick={() => void handleHoldAnswer("no")} disabled={isProcessingChat}>No, cancel</button>
+                          <button type="button" className="hold-yes" onClick={() => void handleHoldAnswer("yes")} disabled={isProcessingChat}>Yes, go ahead</button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="workspace-panel" role="tabpanel">
                     {activeView === "chat" && (
