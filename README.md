@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://mt25mb.github.io/Sunny/"><img src="https://img.shields.io/badge/Sunny-Desktop%20Assistant-fbbf24?style=for-the-badge&logo=sunny&logoColor=black" alt="Sunny"></a>
-  <a href="https://github.com/MT25MB/Sunny/releases/latest"><img src="https://img.shields.io/badge/Download-v1.2.5-fbbf24?style=for-the-badge&logo=github&logoColor=black" alt="Download"></a>
+  <a href="https://github.com/MT25MB/Sunny/releases/latest"><img src="https://img.shields.io/github/v/release/MT25MB/Sunny?label=Download&style=for-the-badge&color=fbbf24&logo=github&logoColor=black" alt="Download the latest release"></a>
   <a href="https://github.com/MT25MB/Sunny/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/MT25MB/Sunny/ci.yml?branch=main&label=CI&style=for-the-badge&logo=githubactions" alt="CI Status"></a>
 </p>
 

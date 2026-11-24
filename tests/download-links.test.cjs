@@ -90,6 +90,34 @@ test('the general download buttons fetch the right file too', () => {
   );
 });
 
+test('no download link is pinned to an old version', () => {
+  // Every href that points at a release must use /releases/latest, never a
+  // numbered tag. The JavaScript that picks a file per system uses the same.
+  const releaseLinks = HTML.match(/href="[^"]*releases\/[^"]*"/g) || [];
+  assert.ok(releaseLinks.length > 0, 'there must be release links to check');
+  for (const link of releaseLinks) {
+    assert.ok(
+      link.includes('releases/latest'),
+      'release link must follow the latest release: ' + link
+    );
+  }
+  assert.ok(/releases\/latest\/download\//.test(HTML), 'the platform script must use latest');
+});
+
+test('the README download badge reads the latest release automatically', () => {
+  const readme = fs.readFileSync(path.join(REPO, 'README.md'), 'utf8');
+  assert.match(
+    readme,
+    /img\.shields\.io\/github\/v\/release\/MT25MB\/Sunny/,
+    'the badge must ask GitHub for the current version'
+  );
+  assert.doesNotMatch(
+    readme,
+    /badge\/Download-v\d+\.\d+\.\d+/,
+    'the badge must not hardcode a version'
+  );
+});
+
 test('the install steps tell the truth about what happens', () => {
   // "File downloads automatically" was not true of the old links. Now it is,
   // but only because the links point at the file itself.
