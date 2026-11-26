@@ -24,105 +24,20 @@
   <link rel="apple-touch-icon" href="public/assets/apple-touch-icon.png" />
   <link rel="preload" href="public/assets/fonts/fraunces-latin-var.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="public/assets/fonts/atkinson-hyperlegible-latin-400.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="public/assets/tokens.css" />
   <link rel="stylesheet" href="public/assets/fonts.css" />
   <title>Sunny Accessible AI Desktop Companion for Older Adults</title>
 
 <style>
+  /* Identity tokens restated for this surface. The full scale lives in
+     public/assets/tokens.css, loaded before this stylesheet. */
   :root {
-    /* Dark theme unified with the Sunny desktop app (src/index.css) */
-    --bg: #11161b;
-    --bg-glow-1: rgba(55, 104, 109, 0.36);
-    --bg-glow-2: rgba(175, 101, 41, 0.16);
-    --material-base: rgba(23, 29, 34, 0.72);
-    --material-raised: rgba(32, 41, 48, 0.85);
-    --material-heavy: rgba(23, 29, 34, 0.92);
-    --surface-2: #202930;
-
-    /* Blur radii - bigger surfaces = stronger blur = "thicker" material */
-    --blur-standard: blur(20px);
-    --blur-heavy: blur(40px);
-
-    /* Edge - hairline separation on dark */
-    --edge-dim: rgba(255, 255, 255, 0.08);
-
-    /* Ink - light on dark */
-    --text: #f7f9fb;
-    --text-muted: #93a4aa;
-    --text-soft: #99a7ad;
-
-    /* Accent - sun warmth, matches app */
     --brand: #f1a95b;
-    --brand-strong: #f6b86a;
-    --brand-soft: rgba(241, 169, 91, 0.14);
-  /* Periwinkle accent - complements the sun brand, distinct from status hues */
-  --accent-soft: #BCC5F2;
-  --accent: #9DA9E8;
-  --accent-strong: #8493DC;
-  --accent-deep: #6E7FCB;
-    --border: rgba(255, 255, 255, 0.11);
-    --border-strong: rgba(255, 255, 255, 0.18);
+    --accent-soft: #BCC5F2;
+    --accent: #9DA9E8;
+    --accent-strong: #8493DC;
+    --accent-deep: #6E7FCB;
     --focus: var(--accent);
-
-    /* Success - matches app */
-    --success: #71d2a4;
-
-    /* Inverted band (CTA) - light surface on dark page */
-    --band: #faf6ef;
-    --band-text: #1d1d1f;
-    --band-muted: #5a657a;
-
-    /* Separation - shadow encodes thickness, not elevation */
-    --shadow: 0 8px 28px rgba(0, 0, 0, 0.34);
-    --shadow-lg: 0 32px 90px rgba(0, 0, 0, 0.42);
-
-    /* Radii - match app (28px cards, 11px icons) */
-    --radius-sm: 11px;
-    --radius-lg: 28px;
-
-    /* Spacing scale */
-    --space-2: 1rem;
-    --space-3: 1.5rem;
-    --space-4: 2rem;
-    --space-5: 3rem;
-    --space-6: 4.5rem;
-    --space-7: 6rem;
-    --max: 1180px;
-    --measure: 58ch;
-
-    /* Springs - the only motion primitive */
-    --spring-default: cubic-bezier(0.32, 0.72, 0, 1);
-    --spring-response: cubic-bezier(0.16, 1, 0.3, 1);
-
-    /* Type scale */
-    --fs-display: clamp(2.75rem, 7vw, 5.5rem);
-    --fs-h2: clamp(1.875rem, 3.6vw, 2.875rem);
-    --fs-h3: 1.1875rem;
-    --fs-lead: clamp(1.1875rem, 1.5vw, 1.375rem);
-    --fs-body: 1.0625rem;
-    --fs-meta: 0.8125rem;
-    --fs-micro: 0.6875rem;
-  }
-
-  /* Reduced transparency - solid materials, no blur */
-  @media (prefers-reduced-transparency: reduce) {
-    :root {
-      --material-base: rgba(23, 29, 34, 0.96);
-      --material-raised: rgba(32, 41, 48, 0.98);
-      --material-heavy: #171d22;
-      --blur-standard: blur(0);
-      --blur-heavy: blur(0);
-    }
-  }
-
-  /* High contrast - near-solid backgrounds, defined borders */
-  @media (prefers-contrast: more) {
-    :root {
-      --text-muted: #c4ced4;
-      --text-soft: #c4ced4;
-      --border: rgba(255, 255, 255, 0.32);
-      --border-strong: rgba(255, 255, 255, 0.48);
-      --edge-dim: rgba(255, 255, 255, 0.18);
-    }
   }
 
   * { box-sizing: border-box; }
@@ -138,7 +53,6 @@
       radial-gradient(circle at 15% 8%, var(--bg-glow-1), transparent 38%),
       radial-gradient(circle at 88% 94%, var(--bg-glow-2), transparent 40%),
       var(--bg);
-    background-attachment: fixed;
     color: var(--text);
     line-height: 1.65;
     font-size: var(--fs-body);
@@ -158,34 +72,37 @@
   }
   .skip-link:focus { left: .5rem; top: .5rem; }
   :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 6px; }
+  ::selection { background: var(--accent-deep); color: var(--text); }
+  html { scrollbar-color: rgba(255, 255, 255, 0.28) var(--bg); scrollbar-width: thin; }
+  input, textarea { caret-color: var(--brand); }
 
   /* Section label - small caps, letter-spaced (reference pattern) */
   .kicker {
     display: block;
-    font-family: "Atkinson Hyperlegible", ui-monospace, "SF Mono", Menlo, monospace;
+    font-family: var(--font-body);
     font-size: var(--fs-micro);
-    font-weight: 500;
-    letter-spacing: 0.16em;
+    font-weight: 600;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--accent-soft);
     margin-bottom: var(--space-3);
   }
-  .kicker-on-light { color: #a35f0a; }
+  .kicker-on-light { color: var(--band-kicker); }
 
   /* Header */
   header.site {
     position: sticky; top: 0; z-index: 50;
-    background: var(--material-heavy);
-    -webkit-backdrop-filter: var(--blur-heavy);
-    backdrop-filter: var(--blur-heavy);
-    border-bottom: 1px solid var(--edge-dim);
+    background: var(--surface-heavy);
+    -webkit-backdrop-filter: var(--blur-standard);
+    backdrop-filter: var(--blur-standard);
+    border-bottom: 1px solid var(--border);
   }
   .site-header-inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 0; }
   .brand { display: flex; align-items: center; gap: .7rem; text-decoration: none; color: var(--text); font-weight: 700; }
   .brand-mark {
     display: grid; place-items: center; flex: 0 0 auto;
     width: 40px; height: 40px; border-radius: var(--radius-sm);
-    box-shadow: 0 7px 18px rgba(232, 139, 56, 0.23);
+    box-shadow: var(--shadow);
   }
   .brand-mark img { display: block; width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
   .brand-text small { display: block; font-size: var(--fs-micro); font-weight: 500; color: var(--text-soft); letter-spacing: 0.12em; text-transform: uppercase; }
@@ -193,14 +110,14 @@
   nav.site-nav a {
     text-decoration: none; font-weight: 600; font-size: .95rem; padding: .5rem .85rem;
     border-radius: var(--radius-sm); color: var(--text-muted);
-    transition: background 120ms var(--spring-response), color 120ms var(--spring-response), opacity 120ms var(--spring-response);
+    transition: background var(--duration-micro) var(--ease-out), color var(--duration-micro) var(--ease-out), opacity var(--duration-micro) var(--ease-out);
   }
   nav.site-nav a:hover { background: rgba(157, 169, 232, 0.14); color: var(--accent-soft); }
   nav.site-nav a:active { opacity: .6; }
   .nav-cta {
     background: var(--brand); color: #17201f; padding: .5rem 1.1rem; border-radius: var(--radius-sm);
     font-weight: 700; font-size: .9rem; text-decoration: none;
-    transition: transform 120ms var(--spring-response), opacity 120ms var(--spring-response);
+    transition: transform var(--duration-micro) var(--ease-out), opacity var(--duration-micro) var(--ease-out);
   }
   .nav-cta:hover { background: var(--brand-strong); }
   .nav-cta:active { transform: scale(.98); }
@@ -216,7 +133,7 @@
   .hero-trust {
     display: block; font-size: var(--fs-meta); font-weight: 500; color: var(--text-muted);
     padding-bottom: var(--space-3); margin-bottom: var(--space-4);
-    border-bottom: 1px solid var(--edge-dim);
+    border-bottom: 1px solid var(--border);
   }
   .hero h1 { margin-bottom: var(--space-4); }
   .hero-lead { font-size: var(--fs-lead); color: var(--text-muted); max-width: 34rem; }
@@ -225,20 +142,20 @@
     display: inline-flex; align-items: center; gap: .5rem; font: inherit; font-weight: 700;
     text-decoration: none; border: 0; border-radius: var(--radius-sm); padding: .95rem 1.6rem; min-height: 52px;
     cursor: pointer;
-    transition: transform 120ms var(--spring-response), background 120ms var(--spring-response), opacity 120ms var(--spring-response);
+    transition: transform var(--duration-micro) var(--ease-out), background var(--duration-micro) var(--ease-out), opacity var(--duration-micro) var(--ease-out);
   }
   .btn:active { transform: scale(.98); }
-  .btn-primary { background: var(--brand); color: #17201f; box-shadow: 0 8px 24px rgba(241, 169, 91, 0.24); }
+  .btn-primary { background: var(--brand); color: #17201f; box-shadow: var(--shadow-soft); }
   .btn-primary:hover { background: var(--brand-strong); }
   .btn-ghost { background: transparent; color: var(--text); border: 1.5px solid var(--border-strong); }
-  .btn-ghost:hover { background: var(--material-raised); }
+  .btn-ghost:hover { background: var(--surface-raised); }
   .hero-note { margin-top: var(--space-3); font-size: .9rem; color: var(--text-soft); }
   .hero-art {
     /* Matches the infographic's 1376x768 viewBox so object-fit:cover crops nothing */
     position: relative; aspect-ratio: 1376 / 768; border-radius: var(--radius-lg);
     overflow: hidden; background: var(--surface-2);
     border: 1px solid var(--border);
-    box-shadow: var(--shadow-lg), 0 0 90px rgba(241, 169, 91, 0.14);
+    box-shadow: var(--shadow-lg), var(--shadow-soft);
   }
   .hero-art picture { display: block; width: 100%; height: 100%; }
   .hero-art img { width: 100%; height: 100%; object-fit: cover; }
@@ -249,14 +166,14 @@
 
   /* One orchestrated hero entrance - pure CSS, no JS */
   .hero-trust, .hero h1, .hero-lead, .hero-actions, .hero-note, .hero-art {
-    animation: hero-enter .5s var(--spring-response) forwards both;
+    animation: hero-enter var(--duration-section) var(--ease-out) forwards both;
   }
   .hero-trust   { animation-delay: 0ms; }
   .hero h1      { animation-delay: 80ms; }
   .hero-lead    { animation-delay: 160ms; }
   .hero-actions { animation-delay: 240ms; }
   .hero-note    { animation-delay: 320ms; }
-  .hero-art     { animation-delay: 120ms; animation-duration: .7s; }
+  .hero-art     { animation-delay: 120ms; animation-duration: 320ms; }
   @keyframes hero-enter {
     from { opacity: 0; transform: translateY(24px); }
     to   { opacity: 1; transform: none; }
@@ -268,18 +185,16 @@
   }
 
   /* Section base */
-  section { padding: var(--space-7) 0; }
+  section { padding: var(--space-6) 0; }
   .section-flush { padding-top: 0; }
   .section-sunk {
-    background: var(--material-base);
-    -webkit-backdrop-filter: var(--blur-standard);
-    backdrop-filter: var(--blur-standard);
-    border-top: 1px solid var(--edge-dim);
-    border-bottom: 1px solid var(--edge-dim);
+    background: var(--surface-glass);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
   }
   .section-head { max-width: 40rem; margin-bottom: var(--space-5); }
   .section-head h2 { margin-bottom: 1rem; }
-  .section-head p { color: var(--text-muted); font-size: 1.15rem; }
+  .section-head p { color: var(--text-muted); font-size: var(--fs-lead); }
   .principles-head { margin-bottom: var(--space-4); }
 
   /* Features - 3-column grid, every cell filled */
@@ -295,17 +210,17 @@
   .tile-morning { grid-column: 3; grid-row: 2; }
   .tile-safety { grid-column: 1; grid-row: 3; }
   .tile {
-    background: var(--material-raised);
-    -webkit-backdrop-filter: var(--blur-standard);
-    backdrop-filter: var(--blur-standard);
-    border: 1px solid var(--edge-dim);
+    background: var(--surface-glass);
+    border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow);
     padding: 1.6rem; display: flex; flex-direction: column; gap: .6rem;
-    transition: transform 120ms var(--spring-response), border-color 120ms var(--spring-response);
+    transition: transform var(--duration-micro) var(--ease-out), border-color var(--duration-micro) var(--ease-out);
   }
   .tile:active { transform: scale(.99); }
   .tile:hover { border-color: var(--border-strong); }
+  .tile-head { display: flex; align-items: center; gap: .75rem; margin-bottom: .35rem; }
+  .tile-head h3 { margin: 0; }
   .tile .tile-icon {
     width: 44px; height: 44px; border-radius: var(--radius-sm); display: grid; place-items: center;
     background: var(--brand-soft); color: var(--brand); flex-shrink: 0;
@@ -321,7 +236,7 @@
     margin-top: auto; align-self: flex-end;
     width: 104px; height: 104px;
     opacity: .92;
-    filter: drop-shadow(0 8px 18px rgba(232, 139, 56, .22));
+    filter: drop-shadow(0 8px 18px rgba(7, 10, 13, 0.42));
     pointer-events: none;
   }
   .tile .tile-mascot img { display: block; width: 100%; height: 100%; object-fit: contain; }
@@ -364,7 +279,7 @@
   .preview-text { font-size: .95rem; color: var(--text-muted); max-width: 30ch; }
   .preview-window {
     align-self: center; width: 300px; aspect-ratio: 640 / 778;
-    overflow: hidden; border-left: 1px solid var(--edge-dim);
+    overflow: hidden; border-left: 1px solid var(--border);
     /* The app's own window background, so any letterbox left by a capture
        of a different size blends into the screenshot instead of showing
        as a seam. */
@@ -378,40 +293,39 @@
 
   /* Stats strip */
   .stats {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;
-    margin-top: var(--space-5); padding-top: var(--space-5);
-    border-top: 1px solid var(--edge-dim);
+    display: flex; flex-wrap: wrap; gap: .5rem var(--space-4);
+    margin-top: var(--space-5); padding-top: var(--space-3);
+    border-top: 1px solid var(--border);
+    font-size: var(--fs-meta); color: var(--text-muted);
   }
-  .stat strong {
-    display: block; font-family: "Fraunces", "Fraunces Fallback", Georgia, serif; font-size: 1.75rem;
-    font-weight: 600; color: var(--brand); line-height: 1.1; margin-bottom: .35rem;
+  .stats strong {
+    font-family: var(--font-display); font-size: 1.25rem; font-weight: 600;
+    color: var(--text); font-variant-numeric: tabular-nums; margin-right: .2rem;
   }
-  .stat span { font-size: .875rem; color: var(--text-muted); }
-  .stat-good strong { color: var(--success); }
 
   /* Accessibility band - sunk material, hairline rules */
   .principles {
-    background: var(--material-base);
-    -webkit-backdrop-filter: var(--blur-standard);
-    backdrop-filter: var(--blur-standard);
-    border: 1px solid var(--edge-dim);
+    background: var(--surface-glass);
+    border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: var(--space-5);
   }
   .principles-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: var(--space-4) var(--space-5);
-    border-top: 1px solid var(--edge-dim);
-    padding-top: var(--space-4);
+    display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 0 var(--space-5);
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-3);
   }
-  .principle { border-top: 2px solid var(--brand); padding-top: 1rem; }
-  .principle .num { display: none; }
+  .principle {
+    border-top: 1px solid var(--border);
+    padding: 1.1rem 0;
+  }
   .principle h3 { margin-bottom: .3rem; }
   .principle p { color: var(--text-muted); font-size: .95rem; }
 
   /* How it works - numbered steps */
   .timeline { position: relative; max-width: 760px; margin: 0 auto; }
-  .timeline::before { content: ""; position: absolute; left: 26px; top: 0; bottom: 0; width: 2px; background: var(--edge-dim); }
+  .timeline::before { content: ""; position: absolute; left: 26px; top: 0; bottom: 0; width: 2px; background: var(--border); }
   .t-step { display: flex; gap: 1.5rem; padding: 1.5rem 0; position: relative; }
   .t-num {
     flex-shrink: 0; width: 54px; height: 54px; border-radius: 50%;
@@ -424,19 +338,19 @@
   /* FAQ - hairline rows, native disclosure */
   .faq-wrap { max-width: 760px; margin: 0 auto; }
   details.faq {
-    border-bottom: 1px solid var(--edge-dim);
+    border-bottom: 1px solid var(--border);
     padding: 1.1rem 0;
   }
-  details.faq:first-child { border-top: 1px solid var(--edge-dim); }
+  details.faq:first-child { border-top: 1px solid var(--border); }
   details.faq summary {
     font-weight: 700; font-size: 1.05rem; cursor: pointer; list-style: none;
     display: flex; justify-content: space-between; align-items: center; gap: 1rem;
-    transition: opacity 120ms var(--spring-response);
+    transition: opacity var(--duration-micro) var(--ease-out);
   }
   details.faq summary:active { opacity: .6; }
   details.faq summary::-webkit-details-marker { display: none; }
   details.faq summary::marker { content: ""; }
-  details.faq summary svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--brand); transition: transform 200ms var(--spring-default); }
+  details.faq summary svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--brand); transition: transform var(--duration-section) var(--ease-out); }
   details.faq[open] summary svg { transform: rotate(45deg); }
   details.faq p { margin-top: .8rem; color: var(--text-muted); }
 
@@ -444,7 +358,7 @@
   .setup-link {
     display: inline-block; margin-top: var(--space-3);
     color: var(--brand); font-weight: 600; text-decoration: none;
-    transition: opacity 120ms var(--spring-response);
+    transition: opacity var(--duration-micro) var(--ease-out);
   }
   .setup-link:hover { opacity: .75; }
   .setup-link:active { opacity: .55; }
@@ -468,10 +382,8 @@
 
   /* Get started card */
   .cta-card {
-    background: var(--material-raised);
-    -webkit-backdrop-filter: var(--blur-standard);
-    backdrop-filter: var(--blur-standard);
-    border: 1px solid var(--edge-dim);
+    background: var(--surface-glass);
+    border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: var(--space-6);
     margin-top: var(--space-6);
@@ -481,7 +393,7 @@
   .cta-card p { color: var(--text-muted); max-width: 40rem; margin: 0 auto var(--space-4); }
 
   /* Footer */
-  footer.site { border-top: 1px solid var(--edge-dim); padding: var(--space-6) 0 var(--space-4); margin-top: var(--space-6); }
+  footer.site { border-top: 1px solid var(--border); padding: var(--space-6) 0 var(--space-4); margin-top: var(--space-6); }
   .footer-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: var(--space-4); }
   .footer-brand { display: flex; align-items: center; gap: .8rem; }
   .footer-mark { display: block; flex: 0 0 auto; width: 44px; height: 44px; border-radius: var(--radius-sm); }
@@ -495,53 +407,18 @@
   }
   .footer-col a {
     display: block; color: var(--text-muted); text-decoration: none; padding: .35rem 0; font-size: .95rem;
-    transition: color 120ms var(--spring-response);
+    transition: color var(--duration-micro) var(--ease-out);
   }
   .footer-col a:hover { color: var(--accent-soft); }
   .footer-col a:active { opacity: .6; }
   .footer-bottom {
     margin-top: var(--space-5); padding-top: var(--space-3);
-    border-top: 1px solid var(--edge-dim);
+    border-top: 1px solid var(--border);
     display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
     color: var(--text-soft); font-size: .85rem;
   }
 
   /* Responsive */
-  @media (max-width: 900px) {
-    .hero-grid { grid-template-columns: 1fr; }
-    .hero-art { aspect-ratio: 1376 / 768; max-width: 520px; margin: 0 auto; }
-    .bento { grid-template-columns: repeat(2, 1fr); }
-    /* Both axes must reset. The per-tile grid-column and grid-row rules have
-       the same specificity as a bare .tile selector, so the more specific
-       .bento > .tile form is used to guarantee the reset wins. */
-    .bento > .tile { grid-column: span 1; grid-row: span 1; }
-    .bento > .tile-preview { grid-column: 1 / -1; }
-    .principles-grid { grid-template-columns: repeat(2, 1fr); }
-    .stats { grid-template-columns: repeat(2, 1fr); row-gap: var(--space-4); }
-    .footer-grid { grid-template-columns: 1fr 1fr; }
-  }
-  @media (max-width: 600px) {
-    .bento { grid-template-columns: 1fr; }
-    .bento > .tile { grid-column: span 1; grid-row: span 1; }
-    .bento > .tile-preview { grid-column: 1 / -1; }
-    /* Tiles stack full-width on phones, so the mascot sits beside the copy
-       instead of claiming a row of its own. */
-    .tile .tile-mascot { width: 84px; height: 84px; }
-    .tile-voice .tile-mascot { width: 120px; height: 120px; }
-    .tile-preview { grid-template-columns: 1fr; }
-    .preview-window { width: 100%; max-width: 320px; margin: 0 auto; border-left: 0; border-top: 1px solid var(--edge-dim); }
-    .preview-caption { padding: 1.5rem 1.5rem 1rem; }
-    .principles-grid { grid-template-columns: 1fr; }
-    .footer-grid { grid-template-columns: 1fr; }
-    .site-header-inner { flex-direction: column; align-items: stretch; }
-    nav.site-nav { justify-content: center; }
-    .brand { justify-content: center; }
-  }
-  @media (max-width: 420px) {
-    :root { --space-7: 3.5rem; --space-6: 2.5rem; }
-    .hero-actions .btn, .cta-actions .btn { width: 100%; justify-content: center; }
-    .stats { grid-template-columns: 1fr; }
-  }
 
   /* Animations - hero entrance only; everything else responds to the user */
   @media (prefers-reduced-motion: reduce) {
@@ -552,11 +429,9 @@
   /* Caregivers Section */
   .caregivers-section {
     padding: var(--space-7) 0;
-    background: var(--material-base);
-    -webkit-backdrop-filter: var(--blur-standard);
-    backdrop-filter: var(--blur-standard);
-    border-top: 1px solid var(--edge-dim);
-    border-bottom: 1px solid var(--edge-dim);
+    background: var(--surface-glass);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
   }
   .caregivers-section .container { max-width: var(--max); }
   .section-header { text-align: center; margin-bottom: var(--space-6); }
@@ -564,34 +439,49 @@
   .section-lead { font-size: var(--fs-lead); color: var(--text-muted); max-width: 600px; margin: 0 auto; }
   .section-header .kicker { text-align: center; }
 
-  .os-cards {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;
-    margin: 0 0 var(--space-6); padding: 0; list-style: none;
+  .download-rail {
+    display: grid; grid-template-columns: minmax(0, 260px) 1fr;
+    gap: var(--space-5); align-items: start;
+    border-top: 1px solid var(--border); padding-top: var(--space-5);
   }
+  .download-intro { position: sticky; top: 6rem; }
+  .download-intro h3 { font-size: var(--fs-h2); line-height: 1.1; margin-bottom: 1rem; }
+  .download-intro p { color: var(--text-muted); font-size: var(--fs-meta); margin-bottom: .5rem; }
+  .download-intro .download-note { color: var(--text-soft); }
+  .os-cards { display: grid; grid-template-columns: 1fr; gap: 0; margin: 0; padding: 0; list-style: none; }
   .os-cards > li { list-style: none; }
   .os-card {
-    background: var(--material-raised);
-    -webkit-backdrop-filter: var(--blur-standard);
-    backdrop-filter: var(--blur-standard);
-    border: 1px solid var(--edge-dim);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow);
-    padding: 1.75rem;
-    text-align: center;
-    transition: border-color 120ms var(--spring-response), transform 120ms var(--spring-response);
+    display: grid; grid-template-columns: minmax(200px, 1fr) minmax(160px, 1fr) auto;
+    align-items: center; gap: var(--space-3);
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--border);
+    background: transparent; border-radius: 0; box-shadow: none;
+    text-align: left;
   }
-  .os-card:hover { border-color: var(--brand); transform: translateY(-2px); }
-  .os-icon { width: 48px; height: 48px; margin: 0 auto 1rem; color: var(--brand); display: flex; align-items: center; justify-content: center; }
-  .os-icon svg { width: 100%; height: 100%; }
-  .os-card h3 { font-size: 1.25rem; font-weight: 600; color: var(--text); margin-bottom: 1rem; }
+  .os-card:first-child { border-top: 1px solid var(--border); }
+  .os-ident { display: flex; align-items: center; gap: 1rem; min-width: 0; }
+  .os-icon {
+    width: 42px; height: 42px; flex: 0 0 auto;
+    display: grid; place-items: center;
+    background: var(--brand-soft); color: var(--brand); border-radius: var(--radius-sm);
+  }
+  .os-icon svg { width: 22px; height: 22px; }
+  .os-card h3 { font-size: var(--fs-h3); font-weight: 600; color: var(--text); }
+  .os-sub { color: var(--text-muted); font-size: var(--fs-meta); margin-top: .2rem; }
+  .install-disclosure summary {
+    cursor: pointer; color: var(--text-soft); font-size: var(--fs-meta);
+    padding: .4rem 0; list-style: none;
+  }
+  .install-disclosure summary::-webkit-details-marker { display: none; }
+  .install-steps { margin-top: .75rem; }
   .download-btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
-    width: 100%; padding: .9rem 1.25rem;
-    font-size: 1rem; font-weight: 700; font-family: inherit;
-    color: #17201f; background: var(--brand);
-    border: none; border-radius: var(--radius-sm); cursor: pointer;
-    text-decoration: none; transition: background 120ms var(--spring-response), transform 120ms var(--spring-response);
-    margin-bottom: 1rem;
+    display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+    padding: .8rem 1.2rem; min-height: 48px;
+    font-size: var(--fs-meta); font-weight: 700; font-family: inherit;
+    color: var(--brand-ink); background: var(--brand);
+    border: 0; border-radius: var(--radius-sm); cursor: pointer; text-decoration: none;
+    white-space: nowrap;
+    transition: background var(--duration-micro) var(--ease-out), transform var(--duration-micro) var(--ease-out);
   }
   .download-btn:hover { background: var(--brand-strong); }
   .download-btn:active { transform: scale(0.98); }
@@ -611,22 +501,23 @@
   }
   .install-steps { counter-reset: step-counter; }
   .install-steps code {
-    background: var(--material-raised); padding: 0.125rem 0.375rem;
+    background: var(--surface-raised); padding: 0.125rem 0.375rem;
     border-radius: var(--radius-sm); font-size: 0.85em; color: var(--brand);
     font-family: "Atkinson Hyperlegible", "Atkinson Fallback", monospace;
   }
 
   .screenshots-row {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem;
+    display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: var(--space-3);
     margin: var(--space-5) 0 var(--space-4); padding: 0; list-style: none;
   }
   .screenshots-row > li { list-style: none; min-width: 0; }
+  .screenshots-row > li:first-child { grid-column: span 1; }
   .screenshot-card { margin: 0; }
   .screenshot-card img {
     width: 100%; height: auto; aspect-ratio: 16/10; object-fit: cover;
-    border-radius: var(--radius-lg); border: 1px solid var(--edge-dim);
-    background: var(--material-raised);
-    transition: border-color 120ms var(--spring-response), transform 120ms var(--spring-response);
+    border-radius: var(--radius-lg); border: 1px solid var(--border);
+    background: var(--surface-raised);
+    transition: border-color var(--duration-micro) var(--ease-out), transform var(--duration-micro) var(--ease-out);
   }
   .screenshot-card:hover img { border-color: var(--brand); transform: scale(1.01); }
   .screenshot-card figcaption {
@@ -643,6 +534,47 @@
   /* Reduced motion */
   @media (prefers-reduced-motion: reduce) {
     .os-card, .download-btn, .screenshot-card img, .setup-link { transition: none; }
+  }
+
+  @media (max-width: 900px) {
+    .hero-grid { grid-template-columns: 1fr; }
+    .hero-art { aspect-ratio: 1376 / 768; max-width: 520px; margin: 0 auto; }
+    .bento { grid-template-columns: repeat(2, 1fr); }
+    /* Both axes must reset. The per-tile grid-column and grid-row rules have
+       the same specificity as a bare .tile selector, so the more specific
+       .bento > .tile form is used to guarantee the reset wins. */
+    .bento > .tile { grid-column: span 1; grid-row: span 1; }
+    .bento > .tile-preview { grid-column: 1 / -1; }
+    .principles-grid { grid-template-columns: 1fr; }
+    .stats { row-gap: var(--space-3); }
+    .screenshots-row { grid-template-columns: 1fr 1fr; }
+    .screenshots-row > li:first-child { grid-column: 1 / -1; }
+    .download-rail { grid-template-columns: 1fr; gap: var(--space-4); }
+    .download-intro { position: static; }
+    .footer-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 600px) {
+    .bento { grid-template-columns: 1fr; }
+    .bento > .tile { grid-column: span 1; grid-row: span 1; }
+    .bento > .tile-preview { grid-column: 1 / -1; }
+    /* Tiles stack full-width on phones, so the mascot sits beside the copy
+       instead of claiming a row of its own. */
+    .tile .tile-mascot { width: 84px; height: 84px; }
+    .tile-voice .tile-mascot { width: 120px; height: 120px; }
+    .tile-preview { grid-template-columns: 1fr; }
+    .preview-window { width: 100%; max-width: 320px; margin: 0 auto; border-left: 0; border-top: 1px solid var(--border); }
+    .preview-caption { padding: 1.5rem 1.5rem 1rem; }
+    .os-card { grid-template-columns: 1fr; gap: .75rem; align-items: start; }
+    .download-btn { width: 100%; }
+    .footer-grid { grid-template-columns: 1fr; }
+    .site-header-inner { flex-direction: column; align-items: stretch; }
+    nav.site-nav { justify-content: center; }
+    .brand { justify-content: center; }
+  }
+  @media (max-width: 420px) {
+    :root { --space-7: 3.5rem; --space-6: 2.5rem; }
+    .hero-actions .btn, .cta-actions .btn { width: 100%; justify-content: center; }
+    .stats { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -680,7 +612,7 @@
           <h1>Technology help that feels like a sunny day</h1>
           <p class="hero-lead">Sunny runs on your computer and helps with everyday tasks: computer questions, medication reminders, recipes, weather. Speak or type. Sunny listens and answers out loud.</p>
           <div class="hero-actions">
-            <a class="btn btn-primary" data-download href="https://github.com/MT25MB/Sunny/releases/latest">Download Sunny Free</a>
+            <a class="btn btn-primary" data-download href="https://github.com/MT25MB/Sunny/releases/latest">Download Sunny</a>
             <a class="btn btn-ghost" href="https://github.com/MT25MB/Sunny">View on GitHub</a>
           </div>
           <p class="hero-note">Available for Windows, macOS, and Linux. Works on screens as small as a phone.</p>
@@ -695,20 +627,21 @@
     <section id="features">
       <div class="container">
         <div class="section-head">
-          <span class="kicker">What Sunny does</span>
           <h2>Six tools. Each one does one thing well.</h2>
           <p>No accounts, no setup, no subscription. Once it is installed, Sunny works with no internet connection at all.</p>
         </div>
         <div class="bento">
           <article class="tile tile-voice">
-            <div class="tile-icon" aria-hidden="true">
+            <div class="tile-head">
+              <div class="tile-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="9" y="2" width="6" height="12" rx="3" />
                 <path d="M5 11a7 7 0 0 0 14 0" />
                 <line x1="12" y1="18" x2="12" y2="22" />
               </svg>
+              </div>
+              <h3>Voice input</h3>
             </div>
-            <h3>Voice input</h3>
             <p>Hold the button and talk. Sunny types what you said right into the box.</p>
             <picture class="tile-mascot">
               <source srcset="public/assets/sunny-mascot-microphone.webp" type="image/webp" />
@@ -781,29 +714,29 @@
             </div>
           </article>
           <article class="tile tile-recipes">
-            <div class="tile-icon" aria-hidden="true">
+            <div class="tile-head">
+              <div class="tile-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 11h18a9 9 0 0 1-18 0z" />
                 <path d="M2 21h20" />
                 <path d="M9 7c0-1.5 1-2 1-3M13 7c0-1.5 1-2 1-3" />
               </svg>
+              </div>
+              <h3>Recipes &amp; cooking mode</h3>
             </div>
-            <h3>Recipes &amp; cooking mode</h3>
             <p>Ask for a dish. Sunny finds the recipe and reads each step aloud while you cook.</p>
-            <picture class="tile-mascot">
-              <source srcset="public/assets/sunny-mascot-chef.webp" type="image/webp" />
-              <img src="public/assets/sunny-mascot-chef.png" alt="" aria-hidden="true" width="181" height="240" loading="lazy" decoding="async" />
-            </picture>
           </article>
           <article class="tile tile-meds">
-            <div class="tile-icon" aria-hidden="true">
+            <div class="tile-head">
+              <div class="tile-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M8.5 8.5 15.5 15.5" />
                 <path d="M10.5 6 6 10.5a4.95 4.95 0 0 0 7 7L17.5 13z" />
                 <path d="M14 10 18 6a4.95 4.95 0 0 0-7-7l-4 4" />
               </svg>
+              </div>
+              <h3>Medication reminders</h3>
             </div>
-            <h3>Medication reminders</h3>
             <p>Set a pill name and time. Sunny speaks up. Big button to mark it taken.</p>
             <picture class="tile-mascot">
               <source srcset="public/assets/sunny-mascot-pills.webp" type="image/webp" />
@@ -811,44 +744,42 @@
             </picture>
           </article>
           <article class="tile tile-computer">
-            <div class="tile-icon" aria-hidden="true">
+            <div class="tile-head">
+              <div class="tile-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="2" y="3" width="20" height="14" rx="2" />
                 <line x1="8" y1="21" x2="16" y2="21" />
                 <line x1="12" y1="17" x2="12" y2="21" />
                 <path d="M5 12h3l1.5-3 2.5 6 1.5-3H19" />
               </svg>
+              </div>
+              <h3>Computer help &amp; health</h3>
             </div>
-            <h3>Computer help &amp; health</h3>
             <p>Ask "why is my internet slow?" or "how is my battery?" Sunny checks and tells you in plain English.</p>
-            <picture class="tile-mascot">
-              <source srcset="public/assets/sunny-mascot-stethoscope.webp" type="image/webp" />
-              <img src="public/assets/sunny-mascot-stethoscope.png" alt="" aria-hidden="true" width="240" height="240" loading="lazy" decoding="async" />
-            </picture>
           </article>
           <article class="tile tile-morning">
-            <div class="tile-icon" aria-hidden="true">
+            <div class="tile-head">
+              <div class="tile-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
                 <circle cx="12" cy="12" r="3" />
                 <path d="M5.6 5.6 8.4 8.4M15.6 15.6l2.8 2.8M18.4 5.6 15.6 8.4M8.4 15.6l-2.8 2.8" />
               </svg>
+              </div>
+              <h3>Morning digest</h3>
             </div>
-            <h3>Morning digest</h3>
             <p>Weather and top headlines, read aloud.</p>
-            <picture class="tile-mascot">
-              <source srcset="public/assets/sunny-mascot-newspaper.webp" type="image/webp" />
-              <img src="public/assets/sunny-mascot-newspaper.png" alt="" aria-hidden="true" width="240" height="231" loading="lazy" decoding="async" />
-            </picture>
           </article>
           <article class="tile tile-safety">
-            <div class="tile-icon" aria-hidden="true">
+            <div class="tile-head">
+              <div class="tile-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 2.5 4.5 5v6.2c0 4.6 3.1 8.8 7.5 10.3 4.4-1.5 7.5-5.7 7.5-10.3V5L12 2.5Z" />
                 <path d="m9 12 2.2 2.2L15.5 10" />
               </svg>
+              </div>
+              <h3>Safety &amp; privacy</h3>
             </div>
-            <h3>Safety &amp; privacy</h3>
             <p>Sunny asks before anything irreversible, and it screens what is on your screen for hidden instructions before the model ever sees it.</p>
             <picture class="tile-mascot">
               <source srcset="public/assets/sunny-mascot-magnifying.webp" type="image/webp" />
@@ -863,8 +794,7 @@
           </article>
           <figure class="tile tile-preview">
             <figcaption class="preview-caption">
-              <span class="kicker">Live preview</span>
-              <strong>One glance. Is everything alright?</strong>
+                  <strong>One glance. Is everything alright?</strong>
               <span class="preview-text">Battery, Wi-Fi, internet, processor and memory, all on one screen.</span>
             </figcaption>
             <div class="preview-window">
@@ -876,23 +806,10 @@
           </figure>
         </div>
 
-        <div class="stats">
-          <div class="stat">
-            <strong>100%</strong>
-            <span>Free and MIT licensed</span>
-          </div>
-          <div class="stat stat-good">
-            <strong>0</strong>
-            <span>Accounts, ads, or tracking</span>
-          </div>
-          <div class="stat stat-good">
-            <strong>0</strong>
-            <span>Cookies or trackers</span>
-          </div>
-          <div class="stat">
-            <strong>3</strong>
-            <span>Windows, macOS, and Linux</span>
-          </div>
+        <div class="stats" aria-label="Sunny at a glance">
+          <span><strong>100%</strong> free and MIT licensed</span>
+          <span><strong>0</strong> accounts, ads, or tracking</span>
+          <span><strong>3</strong> operating systems</span>
         </div>
       </div>
     </section>
@@ -901,60 +818,84 @@
     <section id="caregivers" class="caregivers-section" aria-labelledby="caregivers-title">
       <div class="container">
         <header class="section-header">
-          <span class="kicker">For caregivers</span>
           <h2 id="caregivers-title">Put Sunny on a loved one's computer</h2>
           <p class="section-lead">Three steps. No technical skills needed. Sunny runs entirely offline after install.</p>
         </header>
 
-        <ul class="os-cards" aria-label="Download options by operating system">
-          <!-- Windows -->
-          <li class="os-card windows">
-            <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 20h8"/><path d="M12 4v4"/></svg></div>
-            <h3>Windows 10 / 11</h3>
-            <a class="download-btn" href="https://github.com/MT25MB/Sunny/releases/latest/download/Sunny-Setup.exe">
-              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Download for Windows
-            </a>
-            <ol class="install-steps">
-              <li>Click the button above. The Windows installer downloads automatically</li>
-              <li>Open <code>Downloads/Sunny-Setup.exe</code></li>
-              <li>If Windows says "Windows protected your PC", click <strong>More info</strong>, then <strong>Run anyway</strong></li>
-              <li>Follow the installer (Next, Next, Finish)</li>
-            </ol>
-          </li>
+        <div class="download-rail">
+          <div class="download-intro">
+            <h3>Pick your computer</h3>
+            <p>Each button downloads the right installer. Nothing to choose from a list of files.</p>
+            <p class="download-note">Windows, macOS and Linux. Free, and offline after install.</p>
+          </div>
+          <ul class="os-cards" aria-label="Download options by operating system">
+            <li class="os-card windows">
+              <div class="os-ident">
+                <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></svg></div>
+                <div>
+                  <h3>Windows 10 / 11</h3>
+                  <p class="os-sub">Setup.exe · 64-bit installer</p>
+                </div>
+              </div>
+              <details class="install-disclosure">
+                <summary>Install steps</summary>
+                <ol class="install-steps">
+                  <li>Click the button above. The Windows installer downloads automatically</li>
+                  <li>Open <code>Downloads/Sunny-Setup.exe</code></li>
+                  <li>If Windows says "Windows protected your PC", click <strong>More info</strong>, then <strong>Run anyway</strong></li>
+                  <li>Follow the installer (Next, Next, Finish)</li>
+                </ol>
+              </details>
+              <a class="download-btn" href="https://github.com/MT25MB/Sunny/releases/latest/download/Sunny-Setup.exe"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download for Windows
+              </a>
+            </li>
 
-          <!-- macOS -->
-          <li class="os-card macos">
-            <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 6v6l4 2"/></svg></div>
-            <h3>macOS 12+</h3>
-            <a class="download-btn" href="https://github.com/MT25MB/Sunny/releases/latest/download/Sunny.dmg">
-              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Download for macOS
-            </a>
-            <ol class="install-steps">
-              <li>Click the button above. The installer downloads automatically</li>
-              <li>Open <code>Downloads/Sunny.dmg</code></li>
-              <li>Drag <strong>Sunny</strong> into the <strong>Applications</strong> folder</li>
-              <li>First launch: System Settings - Privacy & Security - Allow Sunny</li>
-            </ol>
-          </li>
+            <li class="os-card macos">
+              <div class="os-ident">
+                <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div>
+                <div>
+                  <h3>macOS 12+</h3>
+                  <p class="os-sub">Sunny.dmg · disk image</p>
+                </div>
+              </div>
+              <details class="install-disclosure">
+                <summary>Install steps</summary>
+                <ol class="install-steps">
+                  <li>Click the button above. The installer downloads automatically</li>
+                  <li>Open <code>Downloads/Sunny.dmg</code></li>
+                  <li>Drag <strong>Sunny</strong> into the <strong>Applications</strong> folder</li>
+                  <li>First launch: System Settings - Privacy & Security - Allow Sunny</li>
+                </ol>
+              </details>
+              <a class="download-btn" href="https://github.com/MT25MB/Sunny/releases/latest/download/Sunny.dmg"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download for macOS
+              </a>
+            </li>
 
-          <!-- Linux -->
-          <li class="os-card linux">
-            <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 6v6l4 2"/></svg></div>
-            <h3>Linux (Debian / Ubuntu)</h3>
-            <a class="download-btn" href="https://github.com/MT25MB/Sunny/releases/latest/download/Sunny-Linux-amd64.deb">
-              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Download for Linux
-            </a>
-            <ol class="install-steps">
-              <li>Click the button above. The package downloads automatically</li>
-              <li>Open terminal in Downloads folder</li>
-              <li>Run: <code>sudo dpkg -i Sunny-Linux-amd64.deb</code></li>
-              <li>Launch "Sunny" from app menu</li>
-            </ol>
-          </li>
-        </ul>
+            <li class="os-card linux">
+              <div class="os-ident">
+                <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></svg></div>
+                <div>
+                  <h3>Linux (Debian / Ubuntu)</h3>
+                  <p class="os-sub">Sunny-Linux-amd64.deb · package</p>
+                </div>
+              </div>
+              <details class="install-disclosure">
+                <summary>Install steps</summary>
+                <ol class="install-steps">
+                  <li>Click the button above. The package downloads automatically</li>
+                  <li>Open terminal in Downloads folder</li>
+                  <li>Run: <code>sudo dpkg -i Sunny-Linux-amd64.deb</code></li>
+                  <li>Launch "Sunny" from app menu</li>
+                </ol>
+              </details>
+              <a class="download-btn" href="https://github.com/MT25MB/Sunny/releases/latest/download/Sunny-Linux-amd64.deb"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download for Linux
+              </a>
+            </li>
+          </ul>
+        </div>
 
         <ul class="screenshots-row" aria-label="Sunny screenshots">
           <li><figure class="screenshot-card">
@@ -972,11 +913,10 @@
         </ul>
 
         <div class="cta-card">
-          <span class="kicker">Next step</span>
           <h2>Ready to get started?</h2>
           <p>Download Sunny from GitHub Releases and install it in two clicks.</p>
           <div class="cta-actions">
-            <a class="btn btn-primary btn-full" data-download href="https://github.com/MT25MB/Sunny/releases/latest">Download Sunny for free</a>
+            <a class="btn btn-primary btn-full" data-download href="https://github.com/MT25MB/Sunny/releases/latest">Download Sunny</a>
           </div>
           <a class="setup-link" href="SETUP.md">View detailed setup guide (permissions, shortcuts, troubleshooting)</a>
         </div>
@@ -988,8 +928,7 @@
       <div class="container">
         <div class="principles">
           <div class="section-head principles-head">
-            <span class="kicker">Accessibility</span>
-            <h2>Built for every pair of eyes, ears, and hands</h2>
+              <h2>Built for every pair of eyes, ears, and hands</h2>
             <p>Accessibility isn't an afterthought. It's the foundation.</p>
           </div>
           <div class="principles-grid">
@@ -1026,7 +965,6 @@
     <section id="how">
       <div class="container">
         <div class="section-head">
-          <span class="kicker">How it works</span>
           <h2>Three steps, and you're never stuck again</h2>
           <p>Download. Speak or type. Get help.</p>
         </div>
@@ -1060,24 +998,23 @@
     <section id="faq" class="section-sunk">
       <div class="container">
         <div class="section-head">
-          <span class="kicker">Questions</span>
           <h2>Straight answers, in plain language</h2>
         </div>
         <div class="faq-wrap">
           <details class="faq">
-            <summary>Does Sunny cost anything?<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg></summary>
+            <summary>Does Sunny cost anything?<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg></summary>
             <p>No. Sunny is free and open source. No subscriptions. No ads. No hidden fees.</p>
           </details>
           <details class="faq">
-            <summary>Do I need an internet connection?<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg></summary>
+            <summary>Do I need an internet connection?<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg></summary>
             <p>Internet helps Sunny fetch recipes, weather, and news. Basic help works without it.</p>
           </details>
           <details class="faq">
-            <summary>Can Sunny be tricked into doing something dangerous?<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg></summary>
+            <summary>Can Sunny be tricked into doing something dangerous?<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg></summary>
             <p>No. Sunny refuses terminal commands, passwords, network scanning, or hacking. Every sensitive action asks permission first and defaults to No.</p>
           </details>
           <details class="faq">
-            <summary>Which computers does Sunny run on?<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg></summary>
+            <summary>Which computers does Sunny run on?<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg></summary>
             <p>Windows, macOS, and Linux. Not sure? Start with the Windows download. It's the easiest.</p>
           </details>
         </div>
@@ -1088,12 +1025,11 @@
     <section id="download">
       <div class="container">
         <div class="cta-band">
-          <span class="kicker kicker-on-light">Get started</span>
           <h2>Bring a little sunshine to your computer</h2>
           <p>Download Sunny free from GitHub Releases. Get a patient helper who never rushes you, never shouts, and is always happy to explain again.</p>
           <div class="cta-actions">
-            <a class="btn btn-primary" data-download href="https://github.com/MT25MB/Sunny/releases/latest">Download for free</a>
-            <a class="btn btn-ghost" href="https://github.com/MT25MB/Sunny">Read the docs</a>
+            <a class="btn btn-primary" data-download href="https://github.com/MT25MB/Sunny/releases/latest">Download Sunny</a>
+            <a class="btn btn-ghost" href="SETUP.md">Setup guide</a>
           </div>
         </div>
       </div>
@@ -1131,7 +1067,7 @@
         </div>
       </div>
       <div class="footer-bottom">
-        <span>Free and open source for older adults. No accounts. No ads. No tracking. No cookies.</span>
+        <span>Free and open source. Built for older adults.</span>
         <span>© Sunny contributors</span>
       </div>
     </div>

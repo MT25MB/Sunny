@@ -1,0 +1,112 @@
+/* ==========================================================================
+   Sunny — shared design tokens
+
+   One vocabulary for the landing page and the legal pages. Amber is the
+   action colour. The periwinkle ramp is the structural accent (kickers,
+   focus, navigation). Neutral ink builds everything else. Status colours
+   are reserved for genuine status in the app, never used as decoration
+   on the static site.
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces — one warm-neutral family */
+  --bg: #11161b;
+  --surface: #171d22;
+  --surface-raised: #202930;
+  --surface-glass: rgba(32, 41, 48, 0.88);
+  --surface-heavy: rgba(23, 29, 34, 0.94);
+
+  /* Ambient light behind the page. Used by the body background shorthand. */
+  --bg-glow-1: rgba(55, 104, 109, 0.36);
+  --bg-glow-2: rgba(175, 101, 41, 0.16);
+
+  /* Ink — all tinted from the same charcoal family */
+  --text: #f7f9fb;
+  --text-muted: #b3c0c6;
+  --text-soft: #a9b7bc;
+
+  /* Separation */
+  --border: rgba(255, 255, 255, 0.14);
+  --border-strong: rgba(255, 255, 255, 0.24);
+  --rule: var(--border);
+  --rule-soft: rgba(255, 255, 255, 0.08);
+
+  /* Action — sun warmth, matches the desktop app */
+  --brand: #f1a95b;
+  --brand-strong: #f6b86a;
+  --brand-soft: rgba(241, 169, 91, 0.14);
+  --brand-ink: #17201f;
+
+  /* Structural accent — distinct from amber and from status hues */
+  --accent-soft: #BCC5F2;
+  --accent: #9DA9E8;
+  --accent-strong: #8493DC;
+  --accent-deep: #6E7FCB;
+  --focus: var(--accent);
+
+  /* Inverted band — the one light surface on the dark site */
+  --band: #faf6ef;
+  --band-text: #1d1d1f;
+  --band-muted: #5a657a;
+  --band-kicker: #8a4b00;
+  --band-rule: rgba(29, 31, 35, 0.28);
+
+  /* Radii — concentric when nested */
+  --blur-standard: blur(20px);
+  --blur-heavy: blur(40px);
+
+  --radius-sm: 11px;
+  --radius-md: 18px;
+  --radius-lg: 28px;
+
+  /* Spacing — one scale */
+  --space-2: 1rem;
+  --space-3: 1.5rem;
+  --space-4: 2rem;
+  --space-5: 3rem;
+  --space-6: 4.5rem;
+  --space-7: 6rem;
+
+  /* Type */
+  --font-display: "Fraunces", "Fraunces Fallback", Georgia, serif;
+  --font-body: "Atkinson Hyperlegible", "Atkinson Fallback", system-ui, sans-serif;
+  --fs-display: clamp(2.75rem, 7vw, 5.5rem);
+  --fs-h2: clamp(1.875rem, 3.6vw, 2.875rem);
+  --fs-h3: 1.1875rem;
+  --fs-lead: clamp(1.1875rem, 1.5vw, 1.375rem);
+  --fs-body: 1.0625rem;
+  --fs-meta: 0.875rem;
+  --fs-micro: 0.875rem;
+  --measure: 58ch;
+  --measure-wide: 68ch;
+  --max: 1180px;
+
+  /* Depth — one light direction, tinted with the page hue */
+  --shadow: 0 10px 30px rgba(7, 10, 13, 0.42);
+  --shadow-lg: 0 28px 70px rgba(7, 10, 13, 0.5);
+  --shadow-soft: 0 12px 32px rgba(7, 10, 13, 0.36);
+
+  /* Motion — one vocabulary */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-micro: 150ms;
+  --duration-section: 220ms;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --surface-glass: rgba(32, 41, 48, 0.98);
+    --surface-heavy: #171d22;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --text-muted: #d4dde1;
+    --text-soft: #d4dde1;
+    --border: rgba(255, 255, 255, 0.34);
+    --border-strong: rgba(255, 255, 255, 0.52);
+    --rule: rgba(255, 255, 255, 0.24);
+  }
+}
