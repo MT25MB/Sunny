@@ -41,15 +41,8 @@ test('the infographic labels each have their own line and do not overlap', () =>
   assert.doesNotMatch(SVG, /4\.1 GB · Low<\/text>\s*<rect x="186"/);
 });
 
-test('the voice-tile mascot is enlarged to match the other feature mascots', () => {
-  const base = HTML.match(/\.tile \.tile-mascot \{[^}]*width:\s*(\d+)px/);
-  const voice = HTML.match(/\.tile-voice \.tile-mascot \{[^}]*width:\s*(\d+)px/);
-  assert.ok(base, 'base mascot size rule must exist');
-  assert.ok(voice, 'voice mascot size override must exist');
-  assert.ok(
-    Number(voice[1]) > Number(base[1]),
-    `voice mascot (${voice[1]}px) must be larger than the base (${base[1]}px)`
-  );
+test('the microphone mascot is not shown on the landing page', () => {
+  assert.doesNotMatch(HTML, /sunny-mascot-microphone/, 'the microphone mascot should not be on the site');
 });
 
 test('link previews point at the rendered PNG version', () => {

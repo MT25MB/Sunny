@@ -53420,18 +53420,6 @@ html, body, #root {
   font-size: 0.9rem;
   line-height: 1.4;
 }
-.section-intro-with-mascot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-}
-.section-intro-mascot {
-  width: 62px;
-  height: 62px;
-  flex: 0 0 auto;
-  object-fit: contain;
-}
 .chat-section {
   flex: 1 1 auto;
   min-height: 240px;

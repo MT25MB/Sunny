@@ -111,7 +111,6 @@ function unwrapToolResult(toolResult: unknown): Record<string, unknown> {
 import mascotChef from "/assets/sunny-mascot-chef.webp";
 import mascotPills from "/assets/sunny-mascot-pills.webp";
 import mascotNewspaper from "/assets/sunny-mascot-newspaper.webp";
-import mascotMicrophone from "/assets/sunny-mascot-microphone.webp";
 import mascotStethoscope from "/assets/sunny-mascot-stethoscope.webp";
 import mascotMagnifying from "/assets/sunny-mascot-magnifying.webp";
 
@@ -1691,12 +1690,11 @@ function App() {
 
                     {activeView === "commands" && (
                       <div className="commands-section">
-                        <div className="section-intro section-intro-with-mascot">
+                        <div className="section-intro">
                           <div>
                             <h3>Tell Sunny what to do</h3>
                             <p>Type a task and Sunny works out the steps on your computer.</p>
                           </div>
-                          <img src={mascotMicrophone} alt="" className="section-intro-mascot" />
                         </div>
                         <form onSubmit={handleCommandSubmit} className="command-input-form">
                           <Terminal size={20} aria-hidden="true" />

@@ -224,9 +224,7 @@
     pointer-events: none;
   }
   .tile .tile-mascot img { display: block; width: 100%; height: 100%; object-fit: contain; }
-  .tile-voice .tile-mascot { width: 132px; height: 132px; }
   .tile-meds p, .tile-safety p, .tile-safety .tile-list { padding-right: 104px; }
-  .tile-voice p { padding-right: 150px; }
   .tile .tile-art { margin-top: var(--space-3); width: min(100%, 520px); overflow: hidden; }
   .tile .tile-art svg { display: block; width: 100%; height: auto; }
   /* Compact checklist used on the wider safety card */
@@ -526,9 +524,7 @@
     /* Tiles stack full-width on phones, so the mascot sits beside the copy
        instead of claiming a row of its own. */
     .tile .tile-mascot { width: 72px; height: 72px; }
-    .tile-voice .tile-mascot { width: 104px; height: 104px; }
     .tile-meds p, .tile-safety p, .tile-safety .tile-list { padding-right: 80px; }
-    .tile-voice p { padding-right: 118px; }
     .tile-preview { grid-template-columns: 1fr; }
     .preview-window { width: 100%; max-width: 320px; margin: 0 auto; border-left: 0; border-top: 1px solid var(--border); }
     .preview-caption { padding: 1.5rem 1.5rem 1rem; }
@@ -618,10 +614,6 @@
               <h3>Voice input</h3>
             </div>
             <p>Hold the button and talk. Sunny types what you said right into the box.</p>
-            <picture class="tile-mascot">
-              <source srcset="public/assets/sunny-mascot-microphone.webp" type="image/webp" />
-              <img src="public/assets/sunny-mascot-microphone.png" alt="" aria-hidden="true" width="240" height="240" loading="lazy" decoding="async" />
-            </picture>
             <div class="tile-art" aria-hidden="true">
               <svg viewBox="0 0 600 140" preserveAspectRatio="xMidYMid meet" role="presentation">
                 <defs>
