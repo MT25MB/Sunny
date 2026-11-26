@@ -150,6 +150,8 @@
   .btn-ghost { background: transparent; color: var(--text); border: 1.5px solid var(--border-strong); }
   .btn-ghost:hover { background: var(--surface-raised); }
   .hero-note { margin-top: var(--space-3); font-size: .9rem; color: var(--text-soft); }
+  .noscript-note { margin-top: var(--space-3); font-size: var(--fs-meta); color: var(--text-muted); }
+  .noscript-note a { color: var(--brand); text-decoration: underline; text-underline-offset: 3px; }
   .hero-art {
     /* Matches the infographic's 1376x768 viewBox so object-fit:cover crops nothing */
     position: relative; aspect-ratio: 1376 / 768; border-radius: var(--radius-lg);
@@ -599,7 +601,7 @@
         <a href="#how">How it works</a>
         <a href="#faq">FAQ</a>
       </nav>
-      <a class="nav-cta" data-download href="https://github.com/MT25MB/Sunny/releases/latest">Download</a>
+      <a class="nav-cta" data-download href="https://github.com/MT25MB/Sunny/releases/latest/download/Sunny-Setup.exe">Download</a>
     </div>
   </header>
 
@@ -612,10 +614,17 @@
           <h1>Technology help that feels like a sunny day</h1>
           <p class="hero-lead">Sunny runs on your computer and helps with everyday tasks: computer questions, medication reminders, recipes, weather. Speak or type. Sunny listens and answers out loud.</p>
           <div class="hero-actions">
-            <a class="btn btn-primary" data-download href="https://github.com/MT25MB/Sunny/releases/latest">Download Sunny</a>
+            <a class="btn btn-primary" data-download href="https://github.com/MT25MB/Sunny/releases/latest/download/Sunny-Setup.exe">Download Sunny</a>
             <a class="btn btn-ghost" href="https://github.com/MT25MB/Sunny">View on GitHub</a>
           </div>
           <p class="hero-note">Available for Windows, macOS, and Linux. Works on screens as small as a phone.</p>
+          <noscript>
+            <p class="noscript-note">JavaScript is off. Choose your system:
+              <a href="https://github.com/MT25MB/Sunny/releases/latest/download/Sunny-Setup.exe">Windows</a>,
+              <a href="https://github.com/MT25MB/Sunny/releases/latest/download/Sunny.dmg">macOS</a>,
+              <a href="https://github.com/MT25MB/Sunny/releases/latest/download/Sunny-Linux-amd64.deb">Linux</a>.
+            </p>
+          </noscript>
         </div>
         <div class="hero-art">
           <img src="public/assets/sunny-feature-infographic.svg" alt="How Sunny works: you speak or type, Sunny runs locally on your computer, and returns answers and actions, shown with a system health readout for battery, Wi-Fi, CPU and memory" width="1376" height="768" loading="eager" decoding="async" />
@@ -916,7 +925,7 @@
           <h2>Ready to get started?</h2>
           <p>Download Sunny from GitHub Releases and install it in two clicks.</p>
           <div class="cta-actions">
-            <a class="btn btn-primary btn-full" data-download href="https://github.com/MT25MB/Sunny/releases/latest">Download Sunny</a>
+            <a class="btn btn-primary btn-full" data-download href="https://github.com/MT25MB/Sunny/releases/latest/download/Sunny-Setup.exe">Download Sunny</a>
           </div>
           <a class="setup-link" href="SETUP.md">View detailed setup guide (permissions, shortcuts, troubleshooting)</a>
         </div>
@@ -1028,7 +1037,7 @@
           <h2>Bring a little sunshine to your computer</h2>
           <p>Download Sunny free from GitHub Releases. Get a patient helper who never rushes you, never shouts, and is always happy to explain again.</p>
           <div class="cta-actions">
-            <a class="btn btn-primary" data-download href="https://github.com/MT25MB/Sunny/releases/latest">Download Sunny</a>
+            <a class="btn btn-primary" data-download href="https://github.com/MT25MB/Sunny/releases/latest/download/Sunny-Setup.exe">Download Sunny</a>
             <a class="btn btn-ghost" href="SETUP.md">Setup guide</a>
           </div>
         </div>
@@ -1084,8 +1093,9 @@
     // and each system card above links straight at its own file. This is
     // for the buttons that do not know which system the reader is on.
     //
-    // Without JavaScript these links still go to the release page, so
-    // nothing is broken for anyone.
+    // The buttons carry a direct Windows download as their fallback so they
+    // always start a download. A noscript block above offers all three files
+    // to readers who cannot use this script.
     (function () {
       var base = 'https://github.com/MT25MB/Sunny/releases/latest/download/';
       var bySystem = {
