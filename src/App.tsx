@@ -874,7 +874,7 @@ function App() {
       setDigestError("Sorry, I couldn't read the digest aloud just now. Please try again in a moment.");
       sunnyBrain.addMessage("system", "Sorry, I couldn't read the digest aloud just now. Please try again in a moment.");
     }
-  }, [dailyDigest, describeError, getDigestWeatherParams]);
+  }, [dailyDigest, getDigestWeatherParams]);
 
   const handleToggleHighContrast = useCallback(() => {
     setHighContrast((prev) => !prev);

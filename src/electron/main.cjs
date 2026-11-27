@@ -35,6 +35,7 @@ const { extractFileName, findUserFile } = require('./file-finder.cjs');
 const osTts = require('./os-tts.cjs');
 const { getCredentialPath: resolveCredentialPath } = require('./credential-path.cjs');
 const { interceptAction, sanitizeUntrustedContent, checkParameterAmbiguity, DESTRUCTIVE_TEXT_PATTERN } = require('../main/security/interceptor.cjs');
+const { isSafeRevealPath } = require('./path-guard.cjs');
 const secureStorage = require('./secure-storage.cjs');
 const pinAuth = require('./pin-auth.cjs');
 
@@ -1603,6 +1604,15 @@ async function executeActions(actions, options = {}) {
     if (emergencyStop || automationCancelled) return { completed: completed.length, cancelled: true, emergencyStop: true };
     if (!action || typeof action.type !== 'string') throw new Error('Sunny received an invalid desktop action.');
 
+    // Enforce hard blocks inside the executor itself. The IPC handler checks
+    // actions too, but computer-use jobs and follow-up actions reach this
+    // function by other paths; a block must hold on every one of them.
+    const interception = interceptAction(action);
+    if (interception.verdict === 'block') {
+      logSecurityEvent('action_blocked', { action: action.type, reason: interception.reason });
+      throw new Error(`Blocked: ${interception.reason}`);
+    }
+
     // Permission tiers. Only the confirm_action tool may set skipPermissionCheck;
     // a renderer calling execute_actions directly cannot bypass it.
     if (!options.skipPermissionCheck) {
@@ -1716,23 +1726,15 @@ async function executeActions(actions, options = {}) {
       }
       await shell.openExternal(`https://www.google.com/search?q=${encodeURIComponent(query)}`);
     } else if (action.type === 'reveal_file' && typeof action.path === 'string') {
-      // Only reveal files inside the user's own folders — never an arbitrary
-      // path supplied by model output or a chat message.
-      const resolved = path.resolve(action.path);
-      const userRoots = [
-        app.getPath('documents'), app.getPath('desktop'),
-        app.getPath('downloads'), app.getPath('home'),
-      ].map((root) => path.resolve(root));
-      const inside = userRoots.some((root) => resolved === root || resolved.startsWith(root + path.sep));
-      if (!inside) throw new Error('Sunny stopped because that file is outside your folders.');
-      let stat;
-      try {
-        stat = fs.statSync(resolved);
-      } catch {
-        throw new Error('That file could not be found.');
+      // Only reveal real files inside the user's document folders. The shared
+      // guard rejects the home directory (which holds ~/.ssh and friends),
+      // hidden files and symlinks that escape an allowed root.
+      if (!isSafeRevealPath(action.path, [
+        app.getPath('documents'), app.getPath('desktop'), app.getPath('downloads'),
+      ])) {
+        throw new Error('Sunny stopped because that file is outside your folders.');
       }
-      if (!stat.isFile()) throw new Error('That file could not be found.');
-      shell.showItemInFolder(resolved);
+      shell.showItemInFolder(path.resolve(action.path.trim()));
     } else if (action.type === 'copy') {
       await automation.keyboard.pressKey(automation.Key.LeftControl, automation.Key.C);
     } else if (action.type === 'paste') {
@@ -2113,9 +2115,14 @@ async function runTool(toolName, params) {
   }
 
   if (toolName === 'confirm_action') {
+    // Validate the answer before consuming the token: a stray or malformed
+    // reply must not destroy a confirmation the user has not answered yet.
+    if (!['yes', 'no'].includes(params.answer)) {
+      return { ok: false, response: 'Please answer yes or no.' };
+    }
     const held = heldActions.get(params.token);
     heldActions.delete(params.token); // one answer per token
-    if (!held || !['yes', 'no'].includes(params.answer)) {
+    if (!held) {
       return { ok: false, response: 'That confirmation has expired. Please ask again.' };
     }
     if (Date.now() - held.at > HOLD_TTL_MS) {

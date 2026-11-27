@@ -106,7 +106,8 @@ const INSTRUCTION_LIKE_PATTERNS = [
   /what (are|is) (your |the )?(system |internal )?(prompt|instructions|rules)/gi,
   /instead,?\s+(do|run|execute|type|click|open)/gi,
   /now\s+(type|run|execute|open|click|press)\s+/gi,
-  /<%(.*?)%>/gi, /\{\{(.*?)\}\}/gi,
+  // [\s\S] rather than . so a marker split over several lines still matches.
+  /<%([\s\S]*?)%>/gi, /\{\{([\s\S]*?)\}\}/gi,
 ];
 
 function sanitizeUntrustedContent(text) {
@@ -156,6 +157,10 @@ function interceptAction(action) {
       return interceptType(a);
     case 'open_app':
       return interceptOpenApp(a);
+    case 'web_search':
+      return interceptWebSearch(a);
+    case 'reveal_file':
+      return interceptRevealFile(a);
     case 'window_action':
       return interceptWindowAction(a);
     case 'routine':
@@ -312,11 +317,44 @@ function interceptType(a) {
 
 function interceptOpenApp(a) {
   if (typeof a.app !== 'string') return { verdict: 'block', reason: 'open_app action has no app specified.' };
-  const app = a.app.toLowerCase();
-  const blockedApps = ['terminal', 'cmd', 'powershell', 'bash', 'sh', 'zsh'];
-  if (blockedApps.includes(app)) return { verdict: 'block', reason: `Blocked app: "${a.app}". Opening a terminal or shell is blocked for security.` };
+  // Normalise before comparing: " PowerShell " and "powershell.exe" are the
+  // same shell as "powershell", and must not slip past the blocklist.
+  const app = a.app.trim().toLowerCase().replace(/\s+/g, ' ');
+  const blockedApps = new Set([
+    'terminal', 'terminal.app', 'cmd', 'cmd.exe', 'powershell', 'powershell.exe',
+    'pwsh', 'bash', 'sh', 'zsh', 'wt', 'windows terminal', 'command prompt',
+    'gnome-terminal', 'konsole', 'xterm', 'iterm', 'git bash', 'mintty',
+  ]);
+  if (blockedApps.has(app)) return { verdict: 'block', reason: `Blocked app: "${a.app}". Opening a terminal or shell is blocked for security.` };
   if (app === 'email' || app === 'mail') return { verdict: 'confirm', reason: 'Opening email app.', confirmLabel: 'Open email application', confirmReason: 'Sunny is about to open your email application. Please confirm this is what you want.' };
   return { verdict: 'allow', reason: 'App is safe to open.' };
+}
+
+/** A web search opens the browser on a fixed Google URL; only the term varies. */
+function interceptWebSearch(a) {
+  if (typeof a.query !== 'string') return { verdict: 'block', reason: 'web_search action has no query.' };
+  const query = a.query.trim();
+  if (query.length < 2 || query.length > 200) {
+    return { verdict: 'block', reason: 'Search query must be between 2 and 200 characters.' };
+  }
+  if (/[\u0000-\u001f\u007f]/.test(query)) {
+    return { verdict: 'block', reason: 'Search query contains control characters.' };
+  }
+  return { verdict: 'allow', reason: 'Safe action.' };
+}
+
+/**
+ * Path confinement is enforced by the executor's path guard; here we only
+ * reject values that can never be a safe path. Unknown action types are
+ * blocked by the switch's default branch.
+ */
+function interceptRevealFile(a) {
+  if (typeof a.path !== 'string') return { verdict: 'block', reason: 'reveal_file action has no path.' };
+  const filePath = a.path.trim();
+  if (!filePath || filePath.length > 500 || filePath.includes('\0')) {
+    return { verdict: 'block', reason: 'Invalid file path.' };
+  }
+  return { verdict: 'allow', reason: 'Safe action.' };
 }
 
 function checkParameterAmbiguity(action) {
